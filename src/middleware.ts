@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net";
 
-const IGNORED_SUBDOMAINS = new Set(["www", "api", ""]);
+const RESERVED_SUBDOMAINS = new Set([
+  "console",
+  "www",
+  "api",
+  "admin",
+  "app",
+  "mail",
+  "support",
+  "help",
+  "blog",
+  "login",
+  "",
+]);
 
 export function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
@@ -24,7 +36,7 @@ export function middleware(request: NextRequest) {
 
   // Skip if there is no real subdomain
   if (
-    IGNORED_SUBDOMAINS.has(subdomain) ||
+    RESERVED_SUBDOMAINS.has(subdomain) ||
     subdomain === hostnameWithoutPort // no subdomain was stripped
   ) {
     return NextResponse.next();

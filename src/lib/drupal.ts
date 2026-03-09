@@ -204,3 +204,27 @@ export async function getCreatorStore(storeId: string): Promise<any | null> {
   const json = await res.json();
   return json.data ?? null;
 }
+
+export async function getCreatorStoreBySlug(
+  slug: string
+): Promise<any | null> {
+  const params = new URLSearchParams({
+    "filter[field_store_slug]": slug,
+    include: "field_linked_x_profile",
+  });
+
+  const url = `${DRUPAL_API_URL}/jsonapi/commerce_store/online?${params.toString()}`;
+
+  const res = await fetch(url, { next: { revalidate: 60 } });
+
+  if (!res.ok) {
+    console.error(`Drupal store-by-slug API error: ${res.status}`);
+    return null;
+  }
+
+  const json = await res.json();
+  const stores = json.data ?? [];
+  if (stores.length === 0) return null;
+
+  return { store: stores[0], included: json.included ?? [] };
+}

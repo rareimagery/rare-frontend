@@ -10,8 +10,12 @@ import {
 } from "@/lib/drupal";
 
 export async function generateStaticParams() {
-  const profiles = await getAllCreatorProfiles();
-  return profiles.map((p) => ({ creator: p.x_username }));
+  try {
+    const profiles = await getAllCreatorProfiles();
+    return profiles.map((p) => ({ creator: p.x_username }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({
@@ -165,7 +169,7 @@ export default async function CreatorStorePage({
     notFound();
   }
 
-  const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155:8080";
+  const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">

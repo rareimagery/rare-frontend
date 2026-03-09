@@ -1,4 +1,4 @@
-const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155:8080";
+const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 // ---------------------------------------------------------------------------
 // Types

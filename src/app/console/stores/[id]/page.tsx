@@ -1,0 +1,119 @@
+import Link from "next/link";
+
+const DRUPAL_API = process.env.DRUPAL_API_URL;
+const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
+
+async function getStore(id: string) {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/commerce_store/online/${id}` +
+      `?include=field_linked_x_profile`,
+    {
+      headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export default async function StoreDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const data = await getStore(id);
+  const store = data?.data;
+  if (!store) return <div className="text-zinc-500">Store not found</div>;
+
+  const slug = store.attributes.field_store_slug;
+  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
+  const included = data?.included || [];
+  const xProfileRef = store.relationships?.field_linked_x_profile?.data;
+  const xProfile = xProfileRef
+    ? included.find((inc: any) => inc.id === xProfileRef.id)
+    : null;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{store.attributes.name}</h1>
+        <a
+          href={`https://${slug}.${base}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+        >
+          Open Live Store
+        </a>
+      </div>
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-300">
+            Store Details
+          </h2>
+          <dl className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-zinc-500">Slug</dt>
+              <dd className="text-white">{slug}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-zinc-500">URL</dt>
+              <dd>
+                <a
+                  href={`https://${slug}.${base}`}
+                  className="text-indigo-400 hover:text-indigo-300"
+                >
+                  {slug}.{base}
+                </a>
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-zinc-500">Email</dt>
+              <dd className="text-white">{store.attributes.mail}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-zinc-500">Currency</dt>
+              <dd className="text-white">
+                {store.attributes.default_currency}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-300">
+            X Profile
+          </h2>
+          {xProfile ? (
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-zinc-500">Username</dt>
+                <dd className="text-white">
+                  {xProfile.attributes.field_x_username}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-zinc-500">Followers</dt>
+                <dd className="text-white">
+                  {xProfile.attributes.field_follower_count?.toLocaleString() ??
+                    "\u2014"}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-zinc-500">Not linked</p>
+          )}
+        </section>
+      </div>
+
+      <Link
+        href="/console/stores"
+        className="inline-block text-sm text-zinc-500 transition hover:text-zinc-300"
+      >
+        &larr; Back to all stores
+      </Link>
+    </div>
+  );
+}

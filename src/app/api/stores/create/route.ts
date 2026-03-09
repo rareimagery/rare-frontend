@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { isValidSlug } from "@/lib/slugs";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
@@ -67,8 +68,8 @@ async function createXProfile(xUsername: string, storeId: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader || authHeader !== `Bearer ${DRUPAL_TOKEN}`) {
+  const session = await getServerSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

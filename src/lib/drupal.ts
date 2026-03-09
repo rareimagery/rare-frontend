@@ -48,6 +48,11 @@ export interface CreatorProfile {
   metrics: Metrics | null;
   linked_store_id: string | null;
   linked_store_path: string | null;
+  store_theme: string;
+  myspace_background: string | null;
+  myspace_music_url: string | null;
+  myspace_glitter_color: string | null;
+  myspace_accent_color: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +144,11 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
     metrics,
     linked_store_id: linkedStoreId,
     linked_store_path: linkedStorePath,
+    store_theme: attrs.field_store_theme ?? "default",
+    myspace_background: attrs.field_myspace_background ?? null,
+    myspace_music_url: attrs.field_myspace_music_url ?? null,
+    myspace_glitter_color: attrs.field_myspace_glitter_color ?? null,
+    myspace_accent_color: attrs.field_myspace_accent_color ?? null,
   };
 }
 

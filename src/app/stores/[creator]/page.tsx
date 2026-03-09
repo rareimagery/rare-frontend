@@ -8,6 +8,7 @@ import {
   TopFollower,
   Metrics,
 } from "@/lib/drupal";
+import MySpaceTheme from "@/components/themes/MySpaceTheme";
 
 export async function generateStaticParams() {
   try {
@@ -167,6 +168,18 @@ export default async function CreatorStorePage({
 
   if (!profile) {
     notFound();
+  }
+
+  if (profile.store_theme === "myspace") {
+    return (
+      <MySpaceTheme
+        profile={profile}
+        backgroundUrl={profile.myspace_background ?? undefined}
+        musicUrl={profile.myspace_music_url ?? undefined}
+        glitterColor={profile.myspace_glitter_color ?? undefined}
+        accentColor={profile.myspace_accent_color ?? undefined}
+      />
+    );
   }
 
   const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";

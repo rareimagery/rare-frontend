@@ -69,6 +69,12 @@ export default async function LandingPage() {
             analytics, and seamless commerce. Each creator gets their own
             branded storefront on their subdomain.
           </p>
+          <Link
+            href="/console/stores/new"
+            className="mt-8 inline-block rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3.5 text-lg font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-purple-500 hover:shadow-indigo-500/40"
+          >
+            Create Your Store
+          </Link>
         </div>
       </section>
 

@@ -50,7 +50,12 @@ function CreatorCard({ creator }: { creator: CreatorProfile }) {
 }
 
 export default async function LandingPage() {
-  const creators = await getAllCreatorProfiles();
+  let creators: Awaited<ReturnType<typeof getAllCreatorProfiles>> = [];
+  try {
+    creators = await getAllCreatorProfiles();
+  } catch {
+    // Drupal unreachable at build time — render empty grid
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">

@@ -262,114 +262,267 @@ export default async function CreatorStorePage({
     );
   }
 
-  const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
-
+  // Default theme — modern shopping cart storefront
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-white text-zinc-900">
       <StoreNav creator={creator} />
-      <div className="relative h-56 w-full sm:h-72 lg:h-80 mt-12">
+
+      {/* Hero */}
+      <header className="relative mt-12 overflow-hidden bg-zinc-950">
         {profile.banner_url ? (
           <Image
             src={profile.banner_url}
             alt="Banner"
             fill
             priority
-            className="object-cover"
+            className="object-cover opacity-40"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-r from-indigo-900 via-purple-900 to-pink-900" />
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
-      </div>
-
-      <div className="relative mx-auto max-w-5xl px-6">
-        <div className="-mt-16 flex flex-col items-start gap-5 sm:flex-row sm:items-end">
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-5 px-6 py-16 text-center sm:py-20">
           {profile.profile_picture_url ? (
             <Image
               src={profile.profile_picture_url}
               alt={profile.x_username}
-              width={128}
-              height={128}
+              width={96}
+              height={96}
               priority
-              className="h-32 w-32 rounded-full border-4 border-zinc-950 object-cover ring-4 ring-indigo-500/40"
+              className="h-24 w-24 rounded-full border-4 border-white/20 object-cover shadow-2xl"
             />
           ) : (
-            <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-zinc-950 bg-gradient-to-br from-indigo-600 to-purple-600 text-4xl font-bold ring-4 ring-indigo-500/40">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/20 bg-white/10 text-3xl font-bold text-white shadow-2xl backdrop-blur">
               {initial(profile.x_username)}
             </div>
           )}
-
-          <div className="pb-1">
-            <h1 className="text-3xl font-extrabold">@{profile.x_username}</h1>
-            <p className="mt-1 text-sm text-zinc-400">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+              @{profile.x_username}
+            </h1>
+            <p className="mt-1 text-sm text-white/70">
               {formatCount(profile.follower_count)} followers
             </p>
           </div>
-        </div>
-
-        {profile.bio && (
-          <div
-            className="mt-6 max-w-2xl leading-relaxed text-zinc-300"
-            dangerouslySetInnerHTML={{ __html: profile.bio }}
-          />
-        )}
-
-        {profile.linked_store_id && (
-          <div className="mt-6">
+          {profile.bio && (
+            <div
+              className="max-w-xl text-sm leading-relaxed text-white/80"
+              dangerouslySetInnerHTML={{ __html: profile.bio }}
+            />
+          )}
+          {products.length > 0 && (
             <a
-              href={`${DRUPAL_URL}${profile.linked_store_path || "/store"}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+              href="#shop"
+              className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100"
             >
-              Visit Store
-              <span aria-hidden="true">&rarr;</span>
+              Shop Now &darr;
             </a>
+          )}
+        </div>
+      </header>
+
+      {/* Products Grid */}
+      {products.length > 0 && (
+        <section id="shop" className="mx-auto max-w-6xl px-6 py-16">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-2xl font-bold tracking-tight">Products</h2>
+            <span className="text-sm text-zinc-500">
+              {products.length} item{products.length !== 1 ? "s" : ""}
+            </span>
           </div>
-        )}
-      </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md"
+              >
+                {product.image_url ? (
+                  <div className="relative aspect-square overflow-hidden bg-zinc-100">
+                    <Image
+                      src={product.image_url}
+                      alt={product.title}
+                      fill
+                      className="object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
+                    <svg
+                      className="h-12 w-12 text-zinc-300"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      />
+                    </svg>
+                  </div>
+                )}
+                <div className="p-4">
+                  <h3 className="line-clamp-1 text-sm font-semibold text-zinc-900">
+                    {product.title}
+                  </h3>
+                  {product.description && (
+                    <p
+                      className="mt-1 line-clamp-2 text-xs text-zinc-500"
+                      dangerouslySetInnerHTML={{ __html: product.description }}
+                    />
+                  )}
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-lg font-bold text-zinc-900">
+                      ${parseFloat(product.price).toFixed(2)}
+                    </span>
+                    <button className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700">
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <div className="mx-auto max-w-5xl space-y-14 px-6 py-14">
-        {products.length > 0 && (
-          <section>
-            <h2 className="mb-6 text-xl font-bold">Shop</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        )}
+      {/* Social Proof Section */}
+      {(profile.top_posts.length > 0 ||
+        profile.top_followers.length > 0 ||
+        profile.metrics) && (
+        <div className="border-t border-zinc-200 bg-zinc-50">
+          <div className="mx-auto max-w-6xl space-y-14 px-6 py-16">
+            {profile.top_posts.length > 0 && (
+              <section>
+                <h2 className="mb-6 text-xl font-bold text-zinc-900">
+                  Latest from X
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {profile.top_posts.slice(0, 8).map((post, i) => (
+                    <div
+                      key={post.id || i}
+                      className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:shadow-md"
+                    >
+                      {post.image_url && (
+                        <div className="relative mb-3 aspect-video overflow-hidden rounded-lg">
+                          <Image
+                            src={post.image_url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                      <p className="line-clamp-3 text-sm leading-relaxed text-zinc-700">
+                        {post.text}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400">
+                        <span>{formatCount(post.likes)} likes</span>
+                        <span>{formatCount(post.retweets)} RTs</span>
+                        <span>{formatCount(post.views)} views</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
-        {profile.top_posts.length > 0 && (
-          <section>
-            <h2 className="mb-6 text-xl font-bold">Top Posts</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {profile.top_posts.slice(0, 8).map((post, i) => (
-                <PostCard key={post.id || i} post={post} />
-              ))}
-            </div>
-          </section>
-        )}
+            {profile.top_followers.length > 0 && (
+              <section>
+                <h2 className="mb-6 text-xl font-bold text-zinc-900">
+                  Top Followers
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {profile.top_followers.slice(0, 8).map((f, i) => (
+                    <div
+                      key={f.username || i}
+                      className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm"
+                    >
+                      {f.profile_image_url ? (
+                        <Image
+                          src={f.profile_image_url}
+                          alt={f.username}
+                          width={40}
+                          height={40}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-sm font-bold text-zinc-600">
+                          {initial(f.username)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-zinc-900">
+                          {f.display_name}
+                          {f.verified && (
+                            <span className="ml-1 text-blue-500">&#10003;</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          @{f.username} &middot;{" "}
+                          {formatCount(f.follower_count)} followers
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
-        {profile.top_followers.length > 0 && (
-          <section>
-            <h2 className="mb-6 text-xl font-bold">Top Followers</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {profile.top_followers.slice(0, 8).map((f, i) => (
-                <FollowerCard key={f.username || i} follower={f} />
-              ))}
-            </div>
-          </section>
-        )}
+            {profile.metrics && (
+              <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-5 text-xl font-bold text-zinc-900">
+                  Creator Analytics
+                </h2>
+                <div className="mb-6 flex items-center gap-6">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-4 border-indigo-500">
+                    <span className="text-2xl font-extrabold text-zinc-900">
+                      {profile.metrics.engagement_score}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm text-zinc-600">
+                    <p>
+                      Avg Likes: {formatCount(profile.metrics.avg_likes)}
+                    </p>
+                    <p>
+                      Avg Retweets:{" "}
+                      {formatCount(profile.metrics.avg_retweets)}
+                    </p>
+                    <p>
+                      Avg Views: {formatCount(profile.metrics.avg_views)}
+                    </p>
+                    <p>Posting: {profile.metrics.posting_frequency}</p>
+                  </div>
+                </div>
+                {profile.metrics.top_themes.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.metrics.top_themes.map((theme) => (
+                      <span
+                        key={theme}
+                        className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600"
+                      >
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        </div>
+      )}
 
-        {profile.metrics && <MetricsPanel metrics={profile.metrics} />}
-      </div>
-
-      <footer className="border-t border-zinc-800 py-8 text-center text-sm text-zinc-600">
-        <Link href="/" className="text-zinc-500 hover:text-zinc-300">
-          &larr; Back to RareImagery X Marketplace
-        </Link>
+      {/* Footer */}
+      <footer className="border-t border-zinc-200 bg-white py-10 text-center">
+        <p className="text-xs text-zinc-400">
+          Powered by{" "}
+          <Link
+            href="/"
+            className="font-medium text-zinc-600 hover:text-zinc-900"
+          >
+            RareImagery
+          </Link>
+        </p>
       </footer>
     </div>
   );

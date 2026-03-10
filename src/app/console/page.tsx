@@ -1,6 +1,26 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import StoreBuilderWizard from "@/components/StoreBuilderWizard";
+const DRUPAL_API = process.env.DRUPAL_API_URL;
+const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
+
+async function getStoreBySlug(slug: string) {
+  try {
+    const res = await fetch(
+      `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}&include=field_linked_x_profile`,
+      {
+        headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+        next: { revalidate: 0 },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.data || data.data.length === 0) return null;
+    return { store: data.data[0], included: data.included || [] };
+  } catch {
+    return null;
+  }
+}
 
 export default async function ConsolePage() {
   const session = await getServerSession();
@@ -8,16 +28,25 @@ export default async function ConsolePage() {
 
   const role = (session as any).role;
   const xUsername = (session as any).xUsername;
+  const storeSlug = (session as any).storeSlug;
 
   // Admin goes to store list
   if (role === "admin") {
     redirect("/console/stores");
   }
 
-  // Creator flow — store builder wizard
+  // Store owner with existing store — redirect to their store management
+  if (role === "store_owner" && storeSlug) {
+    const storeData = await getStoreBySlug(storeSlug);
+    if (storeData?.store) {
+      redirect(`/console/stores/${storeData.store.id}`);
+    }
+  }
+
+  // Creator / new store owner — show wizard
   return (
     <div className="py-8">
-      <StoreBuilderWizard xUsername={xUsername || undefined} />
+      <StoreBuilderWizard xUsername={xUsername || storeSlug || undefined} />
     </div>
   );
 }

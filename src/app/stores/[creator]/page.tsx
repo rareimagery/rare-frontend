@@ -14,6 +14,7 @@ import MySpaceTheme from "@/components/themes/MySpaceTheme";
 import MinimalTheme from "@/components/themes/MinimalTheme";
 import NeonTheme from "@/components/themes/NeonTheme";
 import EditorialTheme from "@/components/themes/EditorialTheme";
+import StoreNav from "@/components/StoreNav";
 
 export async function generateStaticParams() {
   try {
@@ -211,35 +212,62 @@ export default async function CreatorStorePage({
 
   if (profile.store_theme === "myspace") {
     return (
-      <MySpaceTheme
-        profile={profile}
-        products={products}
-        backgroundUrl={profile.myspace_background ?? undefined}
-        musicUrl={profile.myspace_music_url ?? undefined}
-        glitterColor={profile.myspace_glitter_color ?? undefined}
-        accentColor={profile.myspace_accent_color ?? undefined}
-        themeConfig={profile.store_theme_config ?? undefined}
-      />
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          <MySpaceTheme
+            profile={profile}
+            products={products}
+            backgroundUrl={profile.myspace_background ?? undefined}
+            musicUrl={profile.myspace_music_url ?? undefined}
+            glitterColor={profile.myspace_glitter_color ?? undefined}
+            accentColor={profile.myspace_accent_color ?? undefined}
+            themeConfig={profile.store_theme_config ?? undefined}
+          />
+        </div>
+      </>
     );
   }
 
   if (profile.store_theme === "minimal") {
-    return <MinimalTheme profile={profile} products={products} />;
+    return (
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          <MinimalTheme profile={profile} products={products} />
+        </div>
+      </>
+    );
   }
 
   if (profile.store_theme === "neon") {
-    return <NeonTheme profile={profile} products={products} />;
+    return (
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          <NeonTheme profile={profile} products={products} />
+        </div>
+      </>
+    );
   }
 
   if (profile.store_theme === "editorial") {
-    return <EditorialTheme profile={profile} products={products} />;
+    return (
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          <EditorialTheme profile={profile} products={products} />
+        </div>
+      </>
+    );
   }
 
   const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      <div className="relative h-56 w-full sm:h-72 lg:h-80">
+      <StoreNav creator={creator} />
+      <div className="relative h-56 w-full sm:h-72 lg:h-80 mt-12">
         {profile.banner_url ? (
           <Image
             src={profile.banner_url}

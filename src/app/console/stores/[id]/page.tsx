@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeSelector from "@/components/ThemeSelector";
+import ProductManager from "@/components/ProductManager";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
@@ -129,6 +130,13 @@ export default async function StoreDetailPage({
             </Link>
           </div>
         )}
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <ProductManager
+          storeId={store.id}
+          storeDrupalId={String(store.attributes.drupal_internal__store_id)}
+        />
       </section>
 
       <div className="flex items-center gap-4">

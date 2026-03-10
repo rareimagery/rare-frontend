@@ -91,11 +91,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const storeData = await createDrupalStore(slug, storeName, ownerEmail);
-    await createXProfile(xUsername, storeData.data.id);
+    const profileData = await createXProfile(xUsername, storeData.data.id);
 
     return NextResponse.json({
       success: true,
       storeId: storeData.data.id,
+      storeDrupalId: String(storeData.data.attributes?.drupal_internal__store_id ?? ""),
+      profileNodeId: profileData.data.id,
       slug,
       url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
     });

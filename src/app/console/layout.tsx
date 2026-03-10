@@ -11,6 +11,9 @@ export default async function ConsoleLayout({
   const session = await getServerSession();
   if (!session) redirect("/login");
 
+  const role = (session as any).role;
+  const isAdmin = role === "admin";
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800 bg-zinc-900/80">
@@ -21,18 +24,22 @@ export default async function ConsoleLayout({
           >
             RareImagery Console
           </Link>
-          <Link
-            href="/console/stores"
-            className="text-sm text-zinc-400 transition hover:text-white"
-          >
-            All Stores
-          </Link>
-          <Link
-            href="/console/stores/new"
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
-          >
-            + New Store
-          </Link>
+          {isAdmin && (
+            <>
+              <Link
+                href="/console/stores"
+                className="text-sm text-zinc-400 transition hover:text-white"
+              >
+                All Stores
+              </Link>
+              <Link
+                href="/console/stores/new"
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
+              >
+                + New Store
+              </Link>
+            </>
+          )}
           <ConsoleUserMenu />
         </div>
       </nav>

@@ -330,58 +330,65 @@ export default async function CreatorStorePage({
             </span>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md"
-              >
-                {product.image_url ? (
-                  <div className="relative aspect-square overflow-hidden bg-zinc-100">
-                    <Image
-                      src={product.image_url}
-                      alt={product.title}
-                      fill
-                      className="object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
-                    <svg
-                      className="h-12 w-12 text-zinc-300"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            {products.map((product) => {
+              const productSlug = product.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${productSlug}`}
+                  className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md"
+                >
+                  {product.image_url ? (
+                    <div className="relative aspect-square overflow-hidden bg-zinc-100">
+                      <Image
+                        src={product.image_url}
+                        alt={product.title}
+                        fill
+                        className="object-cover transition duration-300 group-hover:scale-105"
                       />
-                    </svg>
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="line-clamp-1 text-sm font-semibold text-zinc-900">
-                    {product.title}
-                  </h3>
-                  {product.description && (
-                    <p
-                      className="mt-1 line-clamp-2 text-xs text-zinc-500"
-                      dangerouslySetInnerHTML={{ __html: product.description }}
-                    />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
+                      <svg
+                        className="h-12 w-12 text-zinc-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                        />
+                      </svg>
+                    </div>
                   )}
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-lg font-bold text-zinc-900">
-                      ${parseFloat(product.price).toFixed(2)}
-                    </span>
-                    <button className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700">
-                      Add to Cart
-                    </button>
+                  <div className="p-4">
+                    <h3 className="line-clamp-1 text-sm font-semibold text-zinc-900">
+                      {product.title}
+                    </h3>
+                    {product.description && (
+                      <p
+                        className="mt-1 line-clamp-2 text-xs text-zinc-500"
+                        dangerouslySetInnerHTML={{ __html: product.description }}
+                      />
+                    )}
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-lg font-bold text-zinc-900">
+                        ${parseFloat(product.price).toFixed(2)}
+                      </span>
+                      <span className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition group-hover:bg-zinc-700">
+                        View Product
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

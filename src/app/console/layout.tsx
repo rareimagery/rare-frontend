@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import ConsoleUserMenu from "@/components/ConsoleUserMenu";
 
 export default async function ConsoleLayout({
   children,
@@ -32,6 +33,7 @@ export default async function ConsoleLayout({
           >
             + New Store
           </Link>
+          <ConsoleUserMenu />
         </div>
       </nav>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>

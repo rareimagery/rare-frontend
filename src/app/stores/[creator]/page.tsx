@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import {
   getCreatorProfile,
   getAllCreatorProfiles,
+  getProductsByStoreSlug,
   TopPost,
   TopFollower,
   Metrics,
+  Product,
 } from "@/lib/drupal";
 import MySpaceTheme from "@/components/themes/MySpaceTheme";
 import MinimalTheme from "@/components/themes/MinimalTheme";
@@ -44,6 +46,37 @@ function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toString();
+}
+
+function ProductCard({ product }: { product: Product }) {
+  return (
+    <div className="group rounded-xl border border-zinc-800 bg-zinc-900/70 p-4 transition hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10">
+      {product.image_url ? (
+        <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-zinc-800">
+          <Image src={product.image_url} alt={product.title} fill className="object-cover transition group-hover:scale-105" />
+        </div>
+      ) : (
+        <div className="mb-3 flex aspect-square items-center justify-center rounded-lg bg-gradient-to-br from-indigo-900/40 to-purple-900/40 text-4xl">
+          🛍️
+        </div>
+      )}
+      <h3 className="line-clamp-2 text-sm font-semibold text-white">{product.title}</h3>
+      {product.description && (
+        <p
+          className="mt-1 line-clamp-2 text-xs text-zinc-400"
+          dangerouslySetInnerHTML={{ __html: product.description }}
+        />
+      )}
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-lg font-bold text-indigo-400">
+          ${parseFloat(product.price).toFixed(2)}
+        </span>
+        <button className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500">
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function PostCard({ post }: { post: TopPost }) {
@@ -167,7 +200,10 @@ export default async function CreatorStorePage({
   params: Promise<{ creator: string }>;
 }) {
   const { creator } = await params;
-  const profile = await getCreatorProfile(creator);
+  const [profile, products] = await Promise.all([
+    getCreatorProfile(creator),
+    getProductsByStoreSlug(creator),
+  ]);
 
   if (!profile) {
     notFound();
@@ -177,6 +213,7 @@ export default async function CreatorStorePage({
     return (
       <MySpaceTheme
         profile={profile}
+        products={products}
         backgroundUrl={profile.myspace_background ?? undefined}
         musicUrl={profile.myspace_music_url ?? undefined}
         glitterColor={profile.myspace_glitter_color ?? undefined}
@@ -187,15 +224,15 @@ export default async function CreatorStorePage({
   }
 
   if (profile.store_theme === "minimal") {
-    return <MinimalTheme profile={profile} />;
+    return <MinimalTheme profile={profile} products={products} />;
   }
 
   if (profile.store_theme === "neon") {
-    return <NeonTheme profile={profile} />;
+    return <NeonTheme profile={profile} products={products} />;
   }
 
   if (profile.store_theme === "editorial") {
-    return <EditorialTheme profile={profile} />;
+    return <EditorialTheme profile={profile} products={products} />;
   }
 
   const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
@@ -265,6 +302,17 @@ export default async function CreatorStorePage({
       </div>
 
       <div className="mx-auto max-w-5xl space-y-14 px-6 py-14">
+        {products.length > 0 && (
+          <section>
+            <h2 className="mb-6 text-xl font-bold">Shop</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {profile.top_posts.length > 0 && (
           <section>
             <h2 className="mb-6 text-xl font-bold">Top Posts</h2>

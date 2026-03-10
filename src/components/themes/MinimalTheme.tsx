@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -8,6 +8,7 @@ import { CreatorProfile, TopPost, TopFollower, Metrics } from "@/lib/drupal";
 
 interface MinimalThemeProps {
   profile: CreatorProfile;
+  products?: Product[];
 }
 
 // ---------------------------------------------------------------------------
@@ -29,7 +30,7 @@ const FONT_STACK =
 // Main Component
 // ---------------------------------------------------------------------------
 
-export default function MinimalTheme({ profile }: MinimalThemeProps) {
+export default function MinimalTheme({ profile, products = [] }: MinimalThemeProps) {
   const metrics = profile.metrics;
 
   return (
@@ -185,6 +186,44 @@ export default function MinimalTheme({ profile }: MinimalThemeProps) {
             }}
           />
         </section>
+
+        {/* Shop */}
+        {products.length > 0 && (
+          <section style={{ maxWidth: 896, margin: "0 auto", padding: "48px 24px 0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111", marginBottom: 24 }}>Shop</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
+              {products.map((product: Product) => (
+                <div
+                  key={product.id}
+                  style={{
+                    border: "1px solid #e5e5e5",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "#fff",
+                    transition: "box-shadow 0.2s",
+                  }}
+                  className="hover:shadow-md"
+                >
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: 200, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
+                  )}
+                  <div style={{ padding: 16 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111", marginBottom: 4 }}>{product.title}</h3>
+                    {product.description && (
+                      <p style={{ fontSize: 13, color: "#666", marginBottom: 12, lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: "#111" }}>${parseFloat(product.price).toFixed(2)}</span>
+                      <button style={{ background: "#111", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Recent Posts */}
         {profile.top_posts.length > 0 && (

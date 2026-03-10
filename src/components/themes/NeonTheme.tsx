@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,6 +33,7 @@ const glassCardHoverable = "neon-glass-card";
 // ---------------------------------------------------------------------------
 
 interface NeonThemeProps {
+  products?: Product[];
   profile: CreatorProfile;
 }
 
@@ -40,7 +41,7 @@ interface NeonThemeProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NeonTheme({ profile }: NeonThemeProps) {
+export default function NeonTheme({ profile, products = [] }: NeonThemeProps) {
   const { metrics } = profile;
 
   return (
@@ -166,6 +167,42 @@ export default function NeonTheme({ profile }: NeonThemeProps) {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* SHOP */}
+          {products.length > 0 && (
+            <section style={{ marginBottom: 40 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#ffffff" }}>Shop</h2>
+              <div style={{ width: 80, height: 3, background: "linear-gradient(90deg, #a855f7, #06b6d4)", borderRadius: 2, marginBottom: 20 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+                {products.map((product: Product) => (
+                  <div key={product.id} style={{
+                    background: "rgba(255,255,255,0.05)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid rgba(168,85,247,0.25)",
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    transition: "border-color 0.3s, box-shadow 0.3s",
+                  }} className="hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: 180, background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
+                    )}
+                    <div style={{ padding: 16 }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>{product.title}</h3>
+                      {product.description && (
+                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                      )}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 18, fontWeight: 700, background: "linear-gradient(90deg, #a855f7, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>${parseFloat(product.price).toFixed(2)}</span>
+                        <button style={{ background: "linear-gradient(90deg, #a855f7, #06b6d4)", border: "none", borderRadius: 10, color: "#fff", padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
           {/* 4. TOP POSTS */}

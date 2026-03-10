@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
@@ -80,6 +80,7 @@ async function linkProfileToStore(profileId: string, storeId: string) {
 }
 
 async function createSubscription(customerId: string) {
+  const stripe = getStripeClient();
   const price = await stripe.prices.create({
     currency: "usd",
     unit_amount: 100,
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
   }
 
   let event;
+  const stripe = getStripeClient();
   try {
     event = stripe.webhooks.constructEvent(
       body,

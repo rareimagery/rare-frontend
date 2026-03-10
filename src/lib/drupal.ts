@@ -34,6 +34,16 @@ export interface Metrics {
   audience_sentiment: string;
 }
 
+export interface Product {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  currency: string;
+  sku: string;
+  image_url: string | null;
+}
+
 export interface CreatorProfile {
   id: string;
   drupal_internal__nid: number;
@@ -243,4 +253,87 @@ export async function getCreatorStoreBySlug(
   if (stores.length === 0) return null;
 
   return { store: stores[0], included: json.included ?? [] };
+}
+
+export async function getStoreProducts(storeId: string): Promise<Product[]> {
+  // Drupal Commerce JSON:API: filter products by store
+  const params = new URLSearchParams({
+    "filter[stores.meta.drupal_internal__target_id]": storeId,
+    include: "variations,field_images",
+    "page[limit]": "50",
+  });
+
+  const url = `${DRUPAL_API_URL}/jsonapi/commerce_product/default?${params.toString()}`;
+
+  const res = await fetch(url, { next: { revalidate: 60 } });
+
+  if (!res.ok) {
+    console.error(`Drupal products API error: ${res.status}`);
+    return [];
+  }
+
+  const json = await res.json();
+  const products = json.data ?? [];
+  const included = json.included ?? [];
+
+  return products.map((p: any) => {
+    const attrs = p.attributes;
+
+    // Get first variation for price
+    const variationRef = p.relationships?.variations?.data?.[0];
+    let price = "0.00";
+    let currency = "USD";
+    let sku = "";
+    if (variationRef) {
+      const variation = included.find((inc: any) => inc.id === variationRef.id);
+      if (variation) {
+        price = variation.attributes?.price?.number ?? "0.00";
+        currency = variation.attributes?.price?.currency_code ?? "USD";
+        sku = variation.attributes?.sku ?? "";
+      }
+    }
+
+    // Get first image
+    let imageUrl: string | null = null;
+    const imageRef = p.relationships?.field_images?.data?.[0];
+    if (imageRef) {
+      const imageFile = included.find(
+        (inc: any) => inc.id === imageRef.id && inc.type === "file--file"
+      );
+      if (imageFile) {
+        imageUrl = drupalAbsoluteUrl(imageFile.attributes?.uri?.url);
+      }
+    }
+
+    return {
+      id: p.id,
+      title: attrs.title,
+      description: attrs.body?.processed ?? attrs.body?.value ?? "",
+      price,
+      currency,
+      sku,
+      image_url: imageUrl,
+    };
+  });
+}
+
+export async function getProductsByStoreSlug(slug: string): Promise<Product[]> {
+  // Try Drupal first
+  try {
+    const stores = await getCreatorStoreBySlug(slug);
+    if (stores) {
+      const storeInternalId =
+        stores.store?.attributes?.drupal_internal__store_id;
+      if (storeInternalId) {
+        const products = await getStoreProducts(String(storeInternalId));
+        if (products.length > 0) return products;
+      }
+    }
+  } catch {
+    // Drupal unavailable — fall through to mock data
+  }
+
+  // Fallback to mock products
+  const { getMockProducts } = await import("./mock-products");
+  return getMockProducts(slug);
 }

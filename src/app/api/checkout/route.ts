@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const stripe = getStripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],

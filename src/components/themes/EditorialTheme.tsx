@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -20,12 +20,13 @@ const SANS =
 // ─── PROPS ──────────────────────────────────────────────────────────────────
 
 interface EditorialThemeProps {
+  products?: Product[];
   profile: CreatorProfile;
 }
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 
-export default function EditorialTheme({ profile }: EditorialThemeProps) {
+export default function EditorialTheme({ profile, products = [] }: EditorialThemeProps) {
   const drupalBase = process.env.DRUPAL_API_URL || "http://72.62.80.155";
   const featuredPost = profile.top_posts[0] ?? null;
   const morePosts = profile.top_posts.slice(1);
@@ -89,6 +90,33 @@ export default function EditorialTheme({ profile }: EditorialThemeProps) {
             }}
             dangerouslySetInnerHTML={{ __html: profile.bio }}
           />
+        </section>
+      )}
+
+      {/* ── SHOP ── */}
+      {products.length > 0 && (
+        <section className="max-w-3xl mx-auto px-4 py-10">
+          <h2 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 700, marginBottom: 8, color: "#1a1a1a" }}>Shop</h2>
+          <div style={{ width: 60, height: 2, background: "#1a1a1a", marginBottom: 24 }} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 24 }}>
+            {products.map((product: Product) => (
+              <div key={product.id} style={{ borderBottom: "2px solid #1a1a1a", paddingBottom: 16 }}>
+                {product.image_url ? (
+                  <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover", marginBottom: 12 }} />
+                ) : (
+                  <div style={{ width: "100%", height: 200, background: "#efe9dd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>🛍️</div>
+                )}
+                <h3 style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{product.title}</h3>
+                {product.description && (
+                  <p style={{ fontSize: 13, color: "#555", marginBottom: 10, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 700 }}>${parseFloat(product.price).toFixed(2)}</span>
+                  <button style={{ background: "#1a1a1a", color: "#f8f6f1", border: "none", padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5 }}>Add to Cart</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

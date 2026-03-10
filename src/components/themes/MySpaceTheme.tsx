@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CreatorProfile, TopPost, TopFollower } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Product } from "@/lib/drupal";
 
 // ─── THEME CONFIG ────────────────────────────────────────────────────────────
 
@@ -61,6 +61,7 @@ const DEFAULT_THEME: ThemeConfig = {
 
 interface MySpaceThemeProps {
   profile: CreatorProfile;
+  products?: Product[];
   backgroundUrl?: string;
   musicUrl?: string;
   glitterColor?: string;
@@ -334,6 +335,7 @@ function MusicPlayer({
 
 export default function MySpaceTheme({
   profile,
+  products = [],
   backgroundUrl,
   musicUrl,
   glitterColor = "#ff00ff",
@@ -779,6 +781,112 @@ export default function MySpaceTheme({
 
             {/* RIGHT COLUMN */}
             <div>
+              {/* Shop */}
+              {products.length > 0 && (
+                <Panel
+                  title="🛍️ MY SHOP"
+                  theme={theme}
+                  extra={<BlinkBadge color="#00ff00">BUY NOW</BlinkBadge>}
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 8,
+                    }}
+                  >
+                    {products.map((product: Product) => (
+                      <div
+                        key={product.id}
+                        className="ms-product-card"
+                        style={{
+                          border: `2px solid ${theme.tableBorderColor}`,
+                          background: "rgba(0,0,0,0.6)",
+                          textAlign: "center",
+                          padding: 8,
+                          cursor: "pointer",
+                          transition: "transform 0.15s",
+                        }}
+                      >
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.title}
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1",
+                              objectFit: "cover",
+                              display: "block",
+                              border: `1px solid ${theme.tableBorderColor}`,
+                              marginBottom: 6,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: `linear-gradient(135deg, ${theme.tableBgColor}, #000)`,
+                              border: `1px solid ${theme.tableBorderColor}`,
+                              marginBottom: 6,
+                              fontSize: "2em",
+                            }}
+                          >
+                            🛍️
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            fontSize: "0.72em",
+                            color: theme.textColor,
+                            fontWeight: "bold",
+                            marginBottom: 3,
+                            lineHeight: 1.3,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {product.title}
+                        </div>
+                        <div
+                          style={{
+                            color: theme.accentColor,
+                            fontWeight: "bold",
+                            fontSize: "0.85em",
+                            animation: "glitter 1.5s alternate infinite",
+                            display: "inline-block",
+                          }}
+                        >
+                          ${parseFloat(product.price).toFixed(2)}
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <button
+                            style={{
+                              background: `linear-gradient(90deg, ${theme.accentColor}, ${theme.secondColor})`,
+                              border: "none",
+                              color: "#fff",
+                              fontFamily: FONT_MAP[theme.font],
+                              fontWeight: "bold",
+                              padding: "3px 12px",
+                              cursor: "pointer",
+                              fontSize: "0.7em",
+                              boxShadow: `0 0 6px ${theme.accentColor}`,
+                            }}
+                          >
+                            ADD 2 CART ✨
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
               {/* Top 8 Posts */}
               {profile.top_posts.length > 0 && (
                 <Panel

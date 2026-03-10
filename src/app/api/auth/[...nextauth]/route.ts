@@ -32,6 +32,7 @@ const handler = NextAuth({
         token.xUsername = (profile as any).data?.username ?? (profile as any).screen_name ?? "";
         token.xId = (profile as any).data?.id ?? account.providerAccountId;
         token.xImage = (profile as any).data?.profile_image_url ?? token.picture;
+        token.xAccessToken = account.access_token;
         token.role = "creator";
       }
       if (account?.provider === "credentials") {
@@ -42,6 +43,7 @@ const handler = NextAuth({
     async session({ session, token }) {
       (session as any).xUsername = token.xUsername ?? null;
       (session as any).xId = token.xId ?? null;
+      (session as any).xAccessToken = token.xAccessToken ?? null;
       (session as any).role = token.role ?? "creator";
       return session;
     },

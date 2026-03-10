@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ThemeSelector from "@/components/ThemeSelector";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
@@ -108,12 +109,36 @@ export default async function StoreDetailPage({
         </section>
       </div>
 
-      <Link
-        href="/console/stores"
-        className="inline-block text-sm text-zinc-500 transition hover:text-zinc-300"
-      >
-        &larr; Back to all stores
-      </Link>
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-zinc-300">
+          Store Theme
+        </h2>
+        <ThemeSelector
+          profileNodeId={xProfile?.id ?? ""}
+          currentTheme={
+            xProfile?.attributes?.field_store_theme ?? "default"
+          }
+        />
+        {xProfile?.attributes?.field_store_theme === "myspace" && (
+          <div className="mt-4">
+            <Link
+              href={`/console/stores/${id}/theme`}
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-500"
+            >
+              🎨 Customize MySpace Theme
+            </Link>
+          </div>
+        )}
+      </section>
+
+      <div className="flex items-center gap-4">
+        <Link
+          href="/console/stores"
+          className="inline-block text-sm text-zinc-500 transition hover:text-zinc-300"
+        >
+          &larr; Back to all stores
+        </Link>
+      </div>
     </div>
   );
 }

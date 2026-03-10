@@ -1,6 +1,63 @@
 "use client";
-import { useRef, useState } from "react";
-import { CreatorProfile, TopPost } from "@/lib/drupal";
+import { useEffect, useRef, useState } from "react";
+import { CreatorProfile, TopPost, TopFollower } from "@/lib/drupal";
+
+// ─── THEME CONFIG ────────────────────────────────────────────────────────────
+
+const FONT_MAP: Record<string, string> = {
+  comic: '"Comic Sans MS", "Comic Sans", cursive',
+  impact: 'Impact, "Arial Narrow", sans-serif',
+  cursive: '"Brush Script MT", "Segoe Script", cursive',
+  times: '"Times New Roman", Times, serif',
+};
+
+const TILE_PATTERNS: Record<string, string> = {
+  stars: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ctext y='20' font-size='16'%3E⭐%3C/text%3E%3C/svg%3E")`,
+  hearts: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ctext y='20' font-size='16'%3E💗%3C/text%3E%3C/svg%3E")`,
+  skulls: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ctext y='20' font-size='16'%3E💀%3C/text%3E%3C/svg%3E")`,
+};
+
+export interface ThemeConfig {
+  bgColor: string;
+  bgTile: string;
+  bgTileCustomUrl?: string;
+  accentColor: string;
+  secondColor: string;
+  textColor: string;
+  tableBorderColor: string;
+  tableBgColor: string;
+  font: string;
+  glitterText?: boolean;
+  cursorTrail: boolean;
+  marqueeText: string;
+  songUrl?: string;
+  songTitle: string;
+  songArtist: string;
+  profileMood: string;
+  onlineNow: boolean;
+  visitorCount: number;
+}
+
+const DEFAULT_THEME: ThemeConfig = {
+  bgColor: "#000033",
+  bgTile: "stars",
+  accentColor: "#ff00ff",
+  secondColor: "#00ffff",
+  textColor: "#ffffff",
+  tableBorderColor: "#ff00ff",
+  tableBgColor: "#000066",
+  font: "comic",
+  cursorTrail: true,
+  marqueeText:
+    "✨ Welcome to my store! ✨ Thanks for visiting! ✨ Leave a comment! ✨",
+  songTitle: "My Song",
+  songArtist: "Unknown Artist",
+  profileMood: "🎵 Feeling creative",
+  onlineNow: true,
+  visitorCount: 2847,
+};
+
+// ─── PROPS ───────────────────────────────────────────────────────────────────
 
 interface MySpaceThemeProps {
   profile: CreatorProfile;
@@ -8,7 +65,272 @@ interface MySpaceThemeProps {
   musicUrl?: string;
   glitterColor?: string;
   accentColor?: string;
+  themeConfig?: Partial<ThemeConfig>;
 }
+
+// ─── CURSOR TRAIL HOOK ──────────────────────────────────────────────────────
+
+function useCursorTrail(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const sparkles: HTMLDivElement[] = [];
+    const emojis = ["✨", "⭐", "💫", "🌟", "✦"];
+    const onMove = (e: MouseEvent) => {
+      const el = document.createElement("div");
+      el.style.cssText = `
+        position:fixed;left:${e.clientX - 8}px;top:${e.clientY - 8}px;
+        width:16px;height:16px;pointer-events:none;z-index:99999;
+        font-size:14px;line-height:16px;text-align:center;
+        animation:sparkle-fade 0.7s forwards;
+      `;
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      document.body.appendChild(el);
+      sparkles.push(el);
+      setTimeout(() => {
+        el.remove();
+        sparkles.splice(sparkles.indexOf(el), 1);
+      }, 700);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [enabled]);
+}
+
+// ─── GLITTER TEXT ────────────────────────────────────────────────────────────
+
+function GlitterText({
+  children,
+  size = "1em",
+}: {
+  children: React.ReactNode;
+  size?: string;
+}) {
+  const colors = [
+    "#ff00ff",
+    "#00ffff",
+    "#ffff00",
+    "#ff6600",
+    "#00ff00",
+    "#ff0066",
+    "#6600ff",
+  ];
+  return (
+    <span style={{ display: "inline-block", fontSize: size }}>
+      {String(children)
+        .split("")
+        .map((char, i) => (
+          <span
+            key={i}
+            style={{
+              color: colors[i % colors.length],
+              animation: `glitter ${0.3 + (i % 7) * 0.1}s infinite alternate`,
+              display: "inline-block",
+              textShadow: `0 0 8px ${colors[(i + 2) % colors.length]}, 0 0 16px ${colors[(i + 4) % colors.length]}`,
+            }}
+          >
+            {char === " " ? "\u00A0" : char}
+          </span>
+        ))}
+    </span>
+  );
+}
+
+// ─── BLINK BADGE ─────────────────────────────────────────────────────────────
+
+function BlinkBadge({
+  children,
+  color = "#ff0000",
+}: {
+  children: React.ReactNode;
+  color?: string;
+}) {
+  return (
+    <span
+      style={{
+        background: color,
+        color: "#fff",
+        padding: "2px 6px",
+        fontSize: "0.7em",
+        fontWeight: "bold",
+        border: "1px solid #fff",
+        animation: "blink 0.8s step-start infinite",
+        display: "inline-block",
+        verticalAlign: "middle",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ─── PANEL ───────────────────────────────────────────────────────────────────
+
+function Panel({
+  title,
+  theme,
+  children,
+  extra,
+}: {
+  title: string;
+  theme: ThemeConfig;
+  children: React.ReactNode;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        border: `3px solid ${theme.tableBorderColor}`,
+        marginBottom: 12,
+        boxShadow: `0 0 12px ${theme.tableBorderColor}, inset 0 0 8px rgba(0,0,0,0.5)`,
+      }}
+    >
+      <div
+        style={{
+          background: `linear-gradient(90deg, ${theme.tableBorderColor}, ${theme.secondColor}, ${theme.tableBorderColor})`,
+          padding: "4px 8px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <b
+          style={{
+            fontFamily: FONT_MAP[theme.font],
+            color: "#fff",
+            textShadow: "1px 1px 0 #000",
+            fontSize: "0.9em",
+          }}
+        >
+          {title}
+        </b>
+        {extra}
+      </div>
+      <div style={{ background: theme.tableBgColor, padding: 10 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── MUSIC PLAYER ────────────────────────────────────────────────────────────
+
+function MusicPlayer({
+  theme,
+  pfpUrl,
+  songUrl,
+  songTitle,
+  songArtist,
+}: {
+  theme: ThemeConfig;
+  pfpUrl: string | null;
+  songUrl?: string;
+  songTitle: string;
+  songArtist: string;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [vol, setVol] = useState(80);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  return (
+    <Panel title="🎵 Now Playing" theme={theme}>
+      {songUrl && (
+        <audio ref={audioRef} src={songUrl} loop preload="none" />
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {pfpUrl && (
+          <img
+            src={pfpUrl}
+            alt=""
+            style={{
+              width: 40,
+              height: 40,
+              border: `2px solid ${theme.accentColor}`,
+            }}
+          />
+        )}
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              color: theme.accentColor,
+              fontWeight: "bold",
+              fontSize: "0.85em",
+            }}
+          >
+            {songTitle}
+          </div>
+          <div style={{ color: theme.secondColor, fontSize: "0.75em" }}>
+            {songArtist}
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginTop: 8,
+          alignItems: "center",
+        }}
+      >
+        <button
+          onClick={toggle}
+          style={{
+            background: theme.accentColor,
+            border: "none",
+            color: "#fff",
+            padding: "4px 12px",
+            fontFamily: FONT_MAP[theme.font],
+            cursor: "pointer",
+            fontSize: "0.8em",
+            fontWeight: "bold",
+            boxShadow: `0 0 8px ${theme.accentColor}`,
+          }}
+        >
+          {playing ? "⏸ PAUSE" : "▶ PLAY"}
+        </button>
+        <span style={{ color: theme.textColor, fontSize: "0.75em" }}>
+          VOL:
+        </span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={vol}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVol(v);
+            if (audioRef.current) audioRef.current.volume = v / 100;
+          }}
+          style={{ width: 70, accentColor: theme.accentColor }}
+        />
+      </div>
+      {!songUrl && (
+        <div
+          style={{
+            color: "#888",
+            fontSize: "0.75em",
+            marginTop: 6,
+            fontStyle: "italic",
+          }}
+        >
+          No song set — store owner can add one in the console
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function MySpaceTheme({
   profile,
@@ -16,243 +338,711 @@ export default function MySpaceTheme({
   musicUrl,
   glitterColor = "#ff00ff",
   accentColor = "#00ffff",
+  themeConfig,
 }: MySpaceThemeProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const toggleMusic = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
+  // Merge: defaults ← prop colors ← full JSON config from Drupal
+  const theme: ThemeConfig = {
+    ...DEFAULT_THEME,
+    accentColor: glitterColor,
+    secondColor: accentColor,
+    tableBorderColor: glitterColor,
+    ...themeConfig,
   };
 
+  // themeConfig.songUrl overrides the musicUrl prop
+  const effectiveMusicUrl = theme.songUrl || musicUrl;
+
+  const [visitorCount] = useState(
+    theme.visitorCount + Math.floor(Math.random() * 50)
+  );
+
+  useCursorTrail(theme.cursorTrail);
+
+  const bgStyle: React.CSSProperties = backgroundUrl
+    ? { backgroundImage: `url(${backgroundUrl})`, backgroundRepeat: "repeat" }
+    : theme.bgTile === "custom" && theme.bgTileCustomUrl
+      ? { backgroundImage: `url(${theme.bgTileCustomUrl})`, backgroundRepeat: "repeat" }
+      : {
+          backgroundImage: TILE_PATTERNS[theme.bgTile] || TILE_PATTERNS.stars,
+          backgroundRepeat: "repeat",
+          backgroundColor: theme.bgColor,
+        };
+
   return (
-    <div
-      className="min-h-screen overflow-hidden font-mono text-white"
-      style={{
-        backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-        backgroundRepeat: "repeat",
-        backgroundSize: "auto",
-        backgroundColor: backgroundUrl ? undefined : "#000033",
-      }}
-    >
-      {/* Glitter keyframes */}
+    <>
+      {/* ── GLOBAL STYLES ── */}
       <style>{`
         @keyframes glitter {
-          0%, 100% { text-shadow: 0 0 10px ${glitterColor}, 0 0 20px ${glitterColor}, 0 0 40px ${glitterColor}; }
-          50% { text-shadow: 0 0 5px ${accentColor}, 0 0 15px ${accentColor}, 0 0 30px ${accentColor}; }
+          0%   { transform: scale(1) rotate(0deg); filter: brightness(1); }
+          100% { transform: scale(1.2) rotate(5deg); filter: brightness(1.8); }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        @keyframes sparkle-fade {
+          0%   { opacity: 1; transform: scale(1) translateY(0); }
+          100% { opacity: 0; transform: scale(0.3) translateY(-20px); }
+        }
+        @keyframes rainbow {
+          0%   { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
+          14%  { color: #ff8800; text-shadow: 0 0 10px #ff8800; }
+          28%  { color: #ffff00; text-shadow: 0 0 10px #ffff00; }
+          42%  { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+          57%  { color: #0088ff; text-shadow: 0 0 10px #0088ff; }
+          71%  { color: #8800ff; text-shadow: 0 0 10px #8800ff; }
+          85%  { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+          100% { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
         }
         @keyframes marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
+          from { transform: translateX(100%); }
+          to   { transform: translateX(-100%); }
         }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-6px); }
+        }
+        @keyframes pulse-border {
+          0%, 100% { border-color: ${glitterColor}; box-shadow: 0 0 10px ${glitterColor}; }
+          50%       { border-color: ${accentColor}; box-shadow: 0 0 20px ${accentColor}; }
+        }
+        .ms-product-card:hover {
+          transform: scale(1.04) rotate(-1deg) !important;
+          z-index: 10 !important;
+        }
+        .ms-add-btn:hover {
+          filter: brightness(1.3);
+          transform: scale(1.05);
+        }
+        ::-webkit-scrollbar { width: 8px; background: #000; }
+        ::-webkit-scrollbar-thumb { background: ${glitterColor}; border: 1px solid ${accentColor}; }
       `}</style>
 
-      {/* Top Bar - Classic MySpace Blue */}
-      <div className="overflow-hidden bg-[#000080] py-2 border-b-4 border-white">
-        <div
-          className="whitespace-nowrap text-xl font-bold"
-          style={{
-            color: glitterColor,
-            animation: "marquee 12s linear infinite",
-          }}
-        >
-          &#9733; {profile.title}&apos;s RAREIMAGERY STORE &#9733; POWERED BY
-          GROK AI &#9733;
-        </div>
-      </div>
-
-      {/* Hero - PFP + Name */}
+      {/* ── PAGE WRAPPER ── */}
       <div
-        className="relative py-12 text-center"
-        style={{ borderBottom: `8px solid ${glitterColor}` }}
+        style={{
+          ...bgStyle,
+          minHeight: "100vh",
+          fontFamily: FONT_MAP[theme.font],
+          color: theme.textColor,
+          fontSize: 13,
+        }}
       >
-        {profile.profile_picture_url ? (
-          <img
-            src={profile.profile_picture_url}
-            alt={profile.x_username}
-            className="mx-auto h-48 w-48 object-cover"
-            style={{
-              border: `8px solid ${accentColor}`,
-              filter: `drop-shadow(0 0 20px ${glitterColor})`,
-            }}
-          />
-        ) : (
-          <div
-            className="mx-auto flex h-48 w-48 items-center justify-center text-6xl font-bold"
-            style={{
-              border: `8px solid ${accentColor}`,
-              backgroundColor: "#000",
-              color: glitterColor,
-            }}
-          >
-            {profile.x_username.charAt(0).toUpperCase()}
-          </div>
-        )}
-
-        <h1
-          className="mt-6 text-5xl font-extrabold tracking-widest sm:text-6xl"
-          style={{ animation: "glitter 1s infinite" }}
-        >
-          {profile.title}&apos;s STORE
-        </h1>
-
-        <p className="mx-auto mt-3 text-lg" style={{ color: accentColor }}>
-          @{profile.x_username} &middot;{" "}
-          {profile.follower_count.toLocaleString()} followers
-        </p>
-
-        {musicUrl && (
-          <button
-            onClick={toggleMusic}
-            className="mt-4 px-8 py-3 font-bold transition hover:scale-110"
-            style={{
-              backgroundColor: "#000",
-              border: `4px solid ${accentColor}`,
-              color: accentColor,
-            }}
-          >
-            {isPlaying
-              ? "\u23F8 STOP THE BANGERS"
-              : "\u25B6 PLAY MYSPACE SONG"}
-          </button>
-        )}
-      </div>
-
-      {/* Bio */}
-      {profile.bio && (
+        {/* Scanline overlay */}
         <div
-          className="mx-auto max-w-3xl px-6 py-8"
           style={{
-            backgroundColor: "rgba(0,0,0,0.8)",
-            border: `4px solid ${glitterColor}`,
-            margin: "20px auto",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: "none",
+            zIndex: 1,
+            backgroundImage:
+              "linear-gradient(transparent 50%, rgba(0,0,0,0.15) 50%)",
+            backgroundSize: "100% 4px",
+          }}
+        />
+
+        {/* ── MARQUEE ── */}
+        <div
+          style={{
+            background: `linear-gradient(90deg, #000, ${theme.accentColor}, #000)`,
+            padding: "4px 0",
+            overflow: "hidden",
+            position: "sticky",
+            top: 0,
+            zIndex: 100,
+            borderBottom: `2px solid ${theme.secondColor}`,
           }}
         >
-          <h2
-            className="mb-3 text-2xl font-bold"
-            style={{ color: glitterColor }}
-          >
-            ABOUT ME
-          </h2>
           <div
-            className="leading-relaxed text-zinc-300"
-            dangerouslySetInnerHTML={{ __html: profile.bio }}
-          />
-        </div>
-      )}
-
-      {/* Top 8 Posts */}
-      {profile.top_posts.length > 0 && (
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <h2
-            className="mb-8 text-center text-4xl font-bold"
-            style={{ color: glitterColor, textShadow: "3px 3px #000" }}
+            style={{
+              animation: "marquee 18s linear infinite",
+              whiteSpace: "nowrap",
+              display: "inline-block",
+            }}
           >
-            MY TOP 8 POSTS
-          </h2>
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-            {profile.top_posts.slice(0, 8).map((post: TopPost, i: number) => (
-              <div
-                key={post.id || i}
-                className="bg-black p-4 text-center transition-transform hover:rotate-1"
+            {[...Array(3)].map((_, i) => (
+              <span
+                key={i}
                 style={{
-                  border: `6px solid ${accentColor}`,
-                  boxShadow: `0 0 20px ${glitterColor}`,
+                  marginRight: 80,
+                  fontSize: "0.85em",
+                  fontWeight: "bold",
+                  textShadow: `0 0 8px ${theme.secondColor}`,
                 }}
               >
-                <p className="line-clamp-4 text-sm text-zinc-300">
-                  {post.text}
-                </p>
-                <div
-                  className="mt-3 text-xs"
-                  style={{ color: glitterColor }}
-                >
-                  {post.likes.toLocaleString()} likes &middot;{" "}
-                  {post.retweets.toLocaleString()} RTs
-                </div>
-              </div>
+                {theme.marqueeText}
+              </span>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Top 8 Followers */}
-      {profile.top_followers.length > 0 && (
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <h2
-            className="mb-8 text-center text-4xl font-bold"
-            style={{ color: accentColor, textShadow: "3px 3px #000" }}
+        {/* ── MAIN LAYOUT ── */}
+        <div
+          style={{
+            maxWidth: 960,
+            margin: "0 auto",
+            padding: "12px 8px",
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          {/* ── STORE HEADER ── */}
+          <div
+            style={{
+              background: `linear-gradient(135deg, ${theme.bgColor}, #000 40%, ${theme.tableBgColor})`,
+              border: `3px solid ${theme.accentColor}`,
+              boxShadow: `0 0 30px ${theme.accentColor}, inset 0 0 20px rgba(0,0,0,0.7)`,
+              padding: 16,
+              marginBottom: 12,
+              animation: "pulse-border 2s infinite",
+            }}
           >
-            MY TOP 8 FRIENDS
-          </h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {profile.top_followers.slice(0, 8).map((f, i) => (
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "flex-start",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* PFP */}
               <div
-                key={f.username || i}
-                className="bg-black p-3 text-center"
-                style={{ border: `4px solid ${glitterColor}` }}
+                style={{
+                  textAlign: "center",
+                  animation: "float 3s ease-in-out infinite",
+                }}
               >
-                {f.profile_image_url ? (
+                {profile.profile_picture_url ? (
                   <img
-                    src={f.profile_image_url}
-                    alt={f.username}
-                    className="mx-auto h-16 w-16 object-cover"
-                    style={{ border: `3px solid ${accentColor}` }}
+                    src={profile.profile_picture_url}
+                    alt={profile.x_username}
+                    style={{
+                      width: 100,
+                      height: 100,
+                      border: `4px solid ${theme.accentColor}`,
+                      boxShadow: `0 0 20px ${theme.accentColor}`,
+                      display: "block",
+                    }}
                   />
                 ) : (
                   <div
-                    className="mx-auto flex h-16 w-16 items-center justify-center font-bold"
                     style={{
-                      border: `3px solid ${accentColor}`,
-                      backgroundColor: "#111",
-                      color: glitterColor,
+                      width: 100,
+                      height: 100,
+                      border: `4px solid ${theme.accentColor}`,
+                      boxShadow: `0 0 20px ${theme.accentColor}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "#000",
+                      color: theme.accentColor,
+                      fontSize: "2.5em",
+                      fontWeight: "bold",
                     }}
                   >
-                    {f.username.charAt(0).toUpperCase()}
+                    {profile.x_username.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <p className="mt-2 truncate text-sm font-bold" style={{ color: accentColor }}>
-                  @{f.username}
-                </p>
-                <p className="text-xs text-zinc-500">
-                  {f.follower_count.toLocaleString()} followers
-                </p>
+                {theme.onlineNow && (
+                  <div style={{ marginTop: 4 }}>
+                    <BlinkBadge color="#00aa00">● ONLINE</BlinkBadge>
+                  </div>
+                )}
               </div>
-            ))}
+
+              {/* Name + Bio */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <GlitterText size="1.8em">
+                  {profile.title || profile.x_username}
+                </GlitterText>
+                <div
+                  style={{
+                    color: theme.secondColor,
+                    fontSize: "0.8em",
+                    marginBottom: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  @{profile.x_username} ·{" "}
+                  <span
+                    style={{
+                      animation: "rainbow 2s linear infinite",
+                      display: "inline-block",
+                    }}
+                  >
+                    {profile.follower_count.toLocaleString()} followers
+                  </span>
+                </div>
+                {profile.bio && (
+                  <div
+                    style={{
+                      fontSize: "0.85em",
+                      lineHeight: 1.5,
+                      color: theme.textColor,
+                      background: "rgba(0,0,0,0.4)",
+                      padding: "6px 8px",
+                      border: `1px solid ${theme.tableBorderColor}`,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: profile.bio }}
+                  />
+                )}
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: "0.78em",
+                    color: theme.accentColor,
+                  }}
+                >
+                  Mood: {theme.profileMood}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div
+                style={{ fontSize: "0.75em", textAlign: "center", minWidth: 90 }}
+              >
+                <div
+                  style={{
+                    border: `1px solid ${theme.tableBorderColor}`,
+                    padding: "4px 8px",
+                    marginBottom: 4,
+                    background: "rgba(0,0,0,0.5)",
+                  }}
+                >
+                  <div style={{ color: theme.secondColor }}>VISITORS</div>
+                  <div
+                    style={{
+                      color: theme.accentColor,
+                      fontSize: "1.3em",
+                      fontWeight: "bold",
+                      animation: "glitter 1s alternate infinite",
+                    }}
+                  >
+                    {visitorCount.toLocaleString()}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    border: `1px solid ${theme.tableBorderColor}`,
+                    padding: "4px 8px",
+                    background: "rgba(0,0,0,0.5)",
+                  }}
+                >
+                  <div style={{ color: theme.secondColor }}>POSTS</div>
+                  <div
+                    style={{
+                      color: theme.accentColor,
+                      fontSize: "1.3em",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {profile.top_posts.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── TWO COLUMN LAYOUT ── */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "200px 1fr",
+              gap: 12,
+            }}
+          >
+            {/* LEFT COLUMN */}
+            <div>
+              <MusicPlayer
+                theme={theme}
+                pfpUrl={profile.profile_picture_url}
+                songUrl={effectiveMusicUrl}
+                songTitle={theme.songTitle}
+                songArtist={theme.songArtist}
+              />
+
+              {/* About */}
+              <Panel title="💀 About Me" theme={theme}>
+                <div style={{ fontSize: "0.8em", lineHeight: 1.6 }}>
+                  <div>
+                    <span style={{ color: theme.secondColor }}>Status:</span>{" "}
+                    {theme.onlineNow ? "🟢 Online" : "🔴 Away"}
+                  </div>
+                  <div>
+                    <span style={{ color: theme.secondColor }}>Followers:</span>{" "}
+                    {profile.follower_count.toLocaleString()}
+                  </div>
+                  <div>
+                    <span style={{ color: theme.secondColor }}>X:</span>{" "}
+                    <span style={{ color: theme.accentColor }}>
+                      @{profile.x_username}
+                    </span>
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Top 8 Followers */}
+              {profile.top_followers.length > 0 && (
+                <Panel title="✨ Top 8 Friends" theme={theme}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 6,
+                    }}
+                  >
+                    {profile.top_followers
+                      .slice(0, 8)
+                      .map((f: TopFollower, i: number) => (
+                        <div
+                          key={f.username || i}
+                          style={{ textAlign: "center", fontSize: "0.7em" }}
+                        >
+                          {f.profile_image_url ? (
+                            <img
+                              src={f.profile_image_url}
+                              alt={f.username}
+                              style={{
+                                width: 44,
+                                height: 44,
+                                border: `2px solid ${theme.accentColor}`,
+                                display: "block",
+                                margin: "0 auto 2px",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                border: `2px solid ${theme.accentColor}`,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                margin: "0 auto 2px",
+                                backgroundColor: "#111",
+                                color: theme.accentColor,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {f.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              color: theme.secondColor,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              maxWidth: 72,
+                            }}
+                          >
+                            @{f.username}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Blinkies */}
+              <Panel title="🌟 My Blinkies" theme={theme}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {[
+                    "SCENE QUEEN",
+                    "EMO 4 LIFE",
+                    "RARE",
+                    "XO XO",
+                    "2000s BABY",
+                  ].map((txt) => (
+                    <span
+                      key={txt}
+                      style={{
+                        background: `linear-gradient(90deg, ${theme.accentColor}, ${theme.secondColor})`,
+                        color: "#fff",
+                        padding: "2px 6px",
+                        fontSize: "0.65em",
+                        fontWeight: "bold",
+                        animation: `blink ${0.5 + Math.random() * 0.8}s step-start infinite`,
+                        border: "1px solid #fff",
+                      }}
+                    >
+                      {txt}
+                    </span>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div>
+              {/* Top 8 Posts */}
+              {profile.top_posts.length > 0 && (
+                <Panel
+                  title="📝 MY TOP 8 POSTS"
+                  theme={theme}
+                  extra={<BlinkBadge color="#ff6600">HOT</BlinkBadge>}
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(4, 1fr)",
+                      gap: 8,
+                    }}
+                  >
+                    {profile.top_posts
+                      .slice(0, 8)
+                      .map((post: TopPost, i: number) => (
+                        <div
+                          key={post.id || i}
+                          className="ms-product-card"
+                          style={{
+                            border: `2px solid ${theme.tableBorderColor}`,
+                            background: "rgba(0,0,0,0.6)",
+                            textAlign: "center",
+                            padding: 6,
+                            cursor: "pointer",
+                            transition: "transform 0.15s",
+                            position: "relative",
+                          }}
+                        >
+                          {post.image_url && (
+                            <img
+                              src={post.image_url}
+                              alt=""
+                              style={{
+                                width: "100%",
+                                aspectRatio: "1",
+                                objectFit: "cover",
+                                display: "block",
+                                border: `1px solid ${theme.tableBorderColor}`,
+                                marginBottom: 4,
+                              }}
+                            />
+                          )}
+                          <div
+                            style={{
+                              fontSize: "0.7em",
+                              color: theme.textColor,
+                              marginBottom: 3,
+                              lineHeight: 1.3,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {post.text}
+                          </div>
+                          <div
+                            style={{
+                              color: theme.accentColor,
+                              fontWeight: "bold",
+                              fontSize: "0.7em",
+                            }}
+                          >
+                            {post.likes.toLocaleString()} likes ·{" "}
+                            {post.retweets.toLocaleString()} RTs
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Grok Analytics */}
+              {profile.metrics && (
+                <Panel title="🤖 Grok AI Analytics" theme={theme}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                      fontSize: "0.8em",
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: theme.secondColor }}>
+                        Engagement:
+                      </span>{" "}
+                      <span
+                        style={{
+                          color: theme.accentColor,
+                          fontWeight: "bold",
+                          animation: "glitter 1.5s alternate infinite",
+                          display: "inline-block",
+                        }}
+                      >
+                        {profile.metrics.engagement_score}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: theme.secondColor }}>
+                        Avg Likes:
+                      </span>{" "}
+                      {profile.metrics.avg_likes.toLocaleString()}
+                    </div>
+                    <div>
+                      <span style={{ color: theme.secondColor }}>Avg RTs:</span>{" "}
+                      {profile.metrics.avg_retweets.toLocaleString()}
+                    </div>
+                    <div>
+                      <span style={{ color: theme.secondColor }}>
+                        Sentiment:
+                      </span>{" "}
+                      {profile.metrics.audience_sentiment}
+                    </div>
+                  </div>
+                  {profile.metrics.top_themes.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div
+                        style={{
+                          color: theme.secondColor,
+                          fontSize: "0.75em",
+                          marginBottom: 4,
+                        }}
+                      >
+                        TOP THEMES:
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {profile.metrics.top_themes.map((t) => (
+                          <span
+                            key={t}
+                            style={{
+                              background: `linear-gradient(90deg, ${theme.accentColor}, ${theme.secondColor})`,
+                              color: "#fff",
+                              padding: "2px 6px",
+                              fontSize: "0.7em",
+                              fontWeight: "bold",
+                              border: "1px solid #fff",
+                            }}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Panel>
+              )}
+
+              {/* Comments section */}
+              <Panel
+                title="💬 Comments"
+                theme={theme}
+                extra={
+                  <span
+                    style={{ fontSize: "0.75em", color: theme.secondColor }}
+                  >
+                    Leave one!
+                  </span>
+                }
+              >
+                <div
+                  style={{
+                    color: "#888",
+                    fontSize: "0.8em",
+                    fontStyle: "italic",
+                    marginBottom: 8,
+                  }}
+                >
+                  Be the first to leave a comment!
+                </div>
+                <div>
+                  <b
+                    style={{ color: theme.secondColor, fontSize: "0.8em" }}
+                  >
+                    Leave a Comment:
+                  </b>
+                  <textarea
+                    placeholder="Type ur comment here!! xD"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      background: "#000",
+                      color: theme.textColor,
+                      border: `1px solid ${theme.tableBorderColor}`,
+                      fontFamily: FONT_MAP[theme.font],
+                      fontSize: "0.8em",
+                      padding: 6,
+                      marginTop: 4,
+                      resize: "none",
+                    }}
+                  />
+                  <button
+                    style={{
+                      background: theme.accentColor,
+                      border: "none",
+                      color: "#fff",
+                      marginTop: 4,
+                      fontFamily: FONT_MAP[theme.font],
+                      fontWeight: "bold",
+                      padding: "4px 16px",
+                      cursor: "pointer",
+                      fontSize: "0.8em",
+                      boxShadow: `0 0 8px ${theme.accentColor}`,
+                    }}
+                  >
+                    POST COMMENT ✨
+                  </button>
+                </div>
+              </Panel>
+            </div>
+          </div>
+
+          {/* ── GROK MARQUEE ── */}
+          <div
+            style={{
+              overflow: "hidden",
+              background: "#000",
+              padding: "8px 0",
+              marginTop: 12,
+              borderTop: `2px solid ${theme.tableBorderColor}`,
+              borderBottom: `2px solid ${theme.tableBorderColor}`,
+            }}
+          >
+            <div
+              style={{
+                animation: "marquee 15s linear infinite",
+                whiteSpace: "nowrap",
+                display: "inline-block",
+                color: theme.secondColor,
+                fontSize: "1.1em",
+                fontWeight: "bold",
+              }}
+            >
+              GROK SAYS: This creator is FIRE -- Follow @{profile.x_username}{" "}
+              and check out their store at {profile.x_username}.rareimagery.net
+            </div>
+          </div>
+
+          {/* ── FOOTER ── */}
+          <div
+            style={{
+              textAlign: "center",
+              padding: "16px 0",
+              borderTop: `2px solid ${theme.tableBorderColor}`,
+              marginTop: 16,
+              fontSize: "0.75em",
+            }}
+          >
+            <GlitterText>
+              {profile.title || profile.x_username} &copy;{" "}
+              {new Date().getFullYear()}
+            </GlitterText>
+            <div style={{ color: "#555", marginTop: 4 }}>
+              Powered by{" "}
+              <span style={{ color: theme.accentColor }}>
+                RareImagery X Marketplace
+              </span>{" "}
+              · Best viewed in 800x600
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Grok Marquee */}
-      <div className="overflow-hidden bg-black py-4">
-        <div
-          className="whitespace-nowrap text-2xl font-bold"
-          style={{
-            color: accentColor,
-            animation: "marquee 15s linear infinite",
-          }}
-        >
-          GROK SAYS: This creator is FIRE -- Follow @{profile.x_username} and
-          check out their store at {profile.x_username}.rareimagery.net
-        </div>
       </div>
-
-      {/* Footer */}
-      <div
-        className="py-6 text-center text-sm"
-        style={{ backgroundColor: "rgba(0,0,0,0.9)", color: glitterColor }}
-      >
-        Powered by RareImagery X Marketplace &middot; MySpace Theme &middot;
-        Grok AI
-      </div>
-
-      {/* Hidden audio player */}
-      {musicUrl && <audio ref={audioRef} src={musicUrl} loop />}
-    </div>
+    </>
   );
 }

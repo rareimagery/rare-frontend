@@ -9,6 +9,9 @@ import {
   Metrics,
 } from "@/lib/drupal";
 import MySpaceTheme from "@/components/themes/MySpaceTheme";
+import MinimalTheme from "@/components/themes/MinimalTheme";
+import NeonTheme from "@/components/themes/NeonTheme";
+import EditorialTheme from "@/components/themes/EditorialTheme";
 
 export async function generateStaticParams() {
   try {
@@ -178,8 +181,21 @@ export default async function CreatorStorePage({
         musicUrl={profile.myspace_music_url ?? undefined}
         glitterColor={profile.myspace_glitter_color ?? undefined}
         accentColor={profile.myspace_accent_color ?? undefined}
+        themeConfig={profile.store_theme_config ?? undefined}
       />
     );
+  }
+
+  if (profile.store_theme === "minimal") {
+    return <MinimalTheme profile={profile} />;
+  }
+
+  if (profile.store_theme === "neon") {
+    return <NeonTheme profile={profile} />;
+  }
+
+  if (profile.store_theme === "editorial") {
+    return <EditorialTheme profile={profile} />;
   }
 
   const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";

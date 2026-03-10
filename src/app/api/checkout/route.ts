@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { stripe } from "@/lib/stripe";
+
+export async function POST(req: NextRequest) {
+  const token = await getToken({ req });
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { storeSlug, xUsername } = await req.json();
+
+  if (!storeSlug || !xUsername) {
+    return NextResponse.json(
+      { error: "storeSlug and xUsername are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Store Setup Fee",
+              description:
+                "One-time setup fee for your RareImagery Creator Store",
+            },
+            unit_amount: 500,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        storeSlug,
+        xUsername,
+      },
+      success_url: `${process.env.NEXTAUTH_URL}/console/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXTAUTH_URL}/console`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err: any) {
+    console.error("Stripe checkout error:", err.message);
+    return NextResponse.json(
+      { error: "Failed to create checkout session" },
+      { status: 500 }
+    );
+  }
+}

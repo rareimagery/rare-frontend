@@ -237,7 +237,7 @@ export default function ProductTabs({ product }: { product: ProductDetail }) {
   });
 
   // Specifications tab
-  if (product.product_type === "clothing") {
+  if (product.product_type === "clothing" || product.product_type === "printful") {
     tabs.push({ id: "specs", label: "Specifications", content: <ClothingSpecs product={product} /> });
   } else if (product.product_type === "digital_download") {
     tabs.push({ id: "specs", label: "Specifications", content: <DigitalSpecs product={product} /> });

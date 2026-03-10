@@ -120,6 +120,9 @@ export interface ProductDetail {
   // Shipping
   shipping_weight: string | null;
   shipping_class: string | null;
+  // Printful POD
+  printful_product_id: string | null;
+  print_technique: string | null;
   // Related
   related_product_ids: string[];
 }
@@ -590,18 +593,22 @@ function mapProductDetail(
     // Shipping
     shipping_weight: attrs.field_shipping_weight?.toString() ?? null,
     shipping_class: attrs.field_shipping_class ?? null,
+    // Printful
+    printful_product_id: attrs.field_printful_product_id ?? null,
+    print_technique: attrs.field_print_technique ?? null,
     // Related
     related_product_ids: relatedIds,
   };
 }
 
-const PRODUCT_TYPES = ["default", "clothing", "digital_download", "crafts"] as const;
+const PRODUCT_TYPES = ["default", "clothing", "digital_download", "crafts", "printful"] as const;
 
 const PRODUCT_INCLUDES: Record<string, string> = {
   default: "variations,field_images,stores,field_categories,field_tags",
   clothing: "variations,variations.field_variation_image,variations.field_color_swatch,field_images,stores,field_categories,field_tags",
   digital_download: "variations,field_images,field_preview_images,stores,field_categories,field_tags",
   crafts: "variations,variations.field_variation_image,field_images,stores,field_categories,field_tags",
+  printful: "variations,variations.field_variation_image,variations.field_color_swatch,field_images,stores,field_categories,field_tags",
 };
 
 export async function getAllProductSlugs(): Promise<{ slug: string; type: string }[]> {

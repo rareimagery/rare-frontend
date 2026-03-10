@@ -3,10 +3,10 @@ import { useState } from "react";
 
 const THEMES = [
   {
-    id: "default",
-    name: "Default",
-    description: "Dark modern layout with banner and cards",
-    preview: "bg-zinc-900",
+    id: "xai3",
+    name: "Xai3 (Default)",
+    description: "X-feed style center column with cart, tabs, and premium typography",
+    preview: "bg-black",
   },
   {
     id: "minimal",
@@ -43,7 +43,7 @@ export default function ThemeSelector({
   profileNodeId,
   currentTheme,
 }: ThemeSelectorProps) {
-  const [selected, setSelected] = useState(currentTheme || "default");
+  const [selected, setSelected] = useState(currentTheme || "xai3");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getAllCreatorProfiles, CreatorProfile } from "@/lib/drupal";
+import AuthButton from "@/components/AuthButton";
 
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -59,10 +60,22 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Nav */}
+      <nav className="fixed top-0 z-50 w-full border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+          <Link href="/" className="text-lg font-bold text-white">
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              RareImagery
+            </span>
+          </Link>
+          <AuthButton />
+        </div>
+      </nav>
+
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-zinc-800">
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/40 via-zinc-950 to-zinc-950" />
-        <div className="relative mx-auto max-w-5xl px-6 py-28 text-center">
+        <div className="relative mx-auto max-w-5xl px-6 pb-28 pt-40 text-center">
           <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl">
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               RareImagery

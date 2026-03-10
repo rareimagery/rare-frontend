@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import StoreBuilderWizard from "@/components/StoreBuilderWizard";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
@@ -27,7 +26,6 @@ export default async function ConsolePage() {
   if (!session) redirect("/login");
 
   const role = (session as any).role;
-  const xUsername = (session as any).xUsername;
   const storeSlug = (session as any).storeSlug;
 
   // Admin goes to store list
@@ -43,10 +41,6 @@ export default async function ConsolePage() {
     }
   }
 
-  // Creator / new store owner — show wizard
-  return (
-    <div className="py-8">
-      <StoreBuilderWizard xUsername={xUsername || storeSlug || undefined} />
-    </div>
-  );
+  // Creator / new store owner — redirect to build page
+  redirect("/build");
 }

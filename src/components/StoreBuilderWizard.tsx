@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import ThemeSelector from "./ThemeSelector";
 import ProductManager from "./ProductManager";
+import type { XImportData } from "@/lib/x-import";
+import type { GrokEnhancements } from "@/lib/grok";
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net";
 
@@ -10,33 +13,70 @@ const STEPS = ["Store Info", "Creator Profile", "Choose Theme", "Add Products", 
 
 interface StoreBuilderWizardProps {
   xUsername?: string;
+  xImportData?: XImportData;
+  grokEnhancements?: GrokEnhancements;
 }
 
 export default function StoreBuilderWizard({
   xUsername,
+  xImportData,
+  grokEnhancements,
 }: StoreBuilderWizardProps) {
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
 
+  // Auto-fill from X data + Grok enhancements
+  const xName = xImportData?.displayName || xUsername || "";
+  const xUser = xImportData?.username || xUsername || "";
+
   // Store fields
   const [storeName, setStoreName] = useState(
-    xUsername ? `${xUsername}'s Store` : ""
+    xName ? `${xName}'s Store` : ""
   );
-  const [slug, setSlug] = useState(xUsername || "");
+  const [slug, setSlug] = useState(xUser.toLowerCase() || "");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [currency, setCurrency] = useState("USD");
 
-  // Creator X Profile fields
-  const [xUsernameField, setXUsernameField] = useState(xUsername || "");
-  const [bioDescription, setBioDescription] = useState("");
-  const [followerCount, setFollowerCount] = useState("");
-  const [profilePictureUrl, setProfilePictureUrl] = useState("");
-  const [backgroundBannerUrl, setBackgroundBannerUrl] = useState("");
-  const [topPosts, setTopPosts] = useState("");
-  const [topFollowers, setTopFollowers] = useState("");
-  const [metrics, setMetrics] = useState("");
+  // Creator X Profile fields — auto-filled from X data
+  const [xUsernameField, setXUsernameField] = useState(xUser);
+  const [bioDescription, setBioDescription] = useState(
+    grokEnhancements?.storeBio || xImportData?.bio || ""
+  );
+  const [bioIsAI, setBioIsAI] = useState(!!grokEnhancements?.storeBio);
+  const [followerCount, setFollowerCount] = useState(
+    xImportData ? String(xImportData.followerCount) : ""
+  );
+  const [profilePictureUrl, setProfilePictureUrl] = useState(
+    xImportData?.profileImageUrl || ""
+  );
+  const [backgroundBannerUrl, setBackgroundBannerUrl] = useState(
+    xImportData?.bannerUrl || ""
+  );
+  const [topPosts, setTopPosts] = useState(
+    xImportData?.topPosts ? JSON.stringify(xImportData.topPosts) : ""
+  );
+  const [topFollowers, setTopFollowers] = useState(
+    xImportData?.topFollowers ? JSON.stringify(xImportData.topFollowers) : ""
+  );
+  const [metrics, setMetrics] = useState(
+    xImportData?.metrics
+      ? JSON.stringify({
+          ...xImportData.metrics,
+          ...(grokEnhancements
+            ? {
+                top_themes: grokEnhancements.topThemes,
+                audience_sentiment: grokEnhancements.audienceSentiment,
+                recommended_products: grokEnhancements.suggestedProducts,
+              }
+            : {}),
+        })
+      : ""
+  );
+
+  // Grok recommended theme
+  const recommendedTheme = grokEnhancements?.recommendedTheme || "default";
 
   // MySpace-specific fields
   const [myspaceAccentColor, setMyspaceAccentColor] = useState("#ff00ff");
@@ -257,10 +297,21 @@ export default function StoreBuilderWizard({
             </div>
 
             <div>
-              <label className={labelClass}>Bio / Description</label>
+              <label className={labelClass}>
+                Bio / Description
+                {bioIsAI && (
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                    AI suggested
+                  </span>
+                )}
+              </label>
               <textarea
                 value={bioDescription}
-                onChange={(e) => setBioDescription(e.target.value)}
+                onChange={(e) => {
+                  setBioDescription(e.target.value);
+                  setBioIsAI(false);
+                }}
                 placeholder="Tell people about yourself and your store..."
                 rows={3}
                 className={inputClass}
@@ -276,9 +327,18 @@ export default function StoreBuilderWizard({
                   placeholder="https://pbs.twimg.com/..."
                   className={inputClass}
                 />
-                <p className="mt-1 text-xs text-zinc-600">
-                  Your X profile image URL
-                </p>
+                {profilePictureUrl && (
+                  <div className="mt-2">
+                    <Image
+                      src={profilePictureUrl}
+                      alt="Profile picture"
+                      width={80}
+                      height={80}
+                      className="rounded-full border border-zinc-700"
+                      unoptimized
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -289,9 +349,18 @@ export default function StoreBuilderWizard({
                   placeholder="https://pbs.twimg.com/..."
                   className={inputClass}
                 />
-                <p className="mt-1 text-xs text-zinc-600">
-                  Your X banner image URL
-                </p>
+                {backgroundBannerUrl && (
+                  <div className="mt-2">
+                    <Image
+                      src={backgroundBannerUrl}
+                      alt="Banner"
+                      width={320}
+                      height={107}
+                      className="rounded-lg border border-zinc-700 object-cover"
+                      unoptimized
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -341,6 +410,30 @@ export default function StoreBuilderWizard({
                 className={inputClass}
               />
             </div>
+
+            {/* Grok AI Suggested Products */}
+            {grokEnhancements?.suggestedProducts && grokEnhancements.suggestedProducts.length > 0 && (
+              <div className="rounded-xl border border-indigo-800/50 bg-indigo-950/20 p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-300">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                  Grok AI Product Suggestions
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {grokEnhancements.suggestedProducts.map((product, i) => (
+                    <div key={i} className="rounded-lg border border-indigo-800/30 bg-indigo-950/30 p-3">
+                      <p className="text-sm font-medium text-white">{product.name}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">{product.description}</p>
+                      <span className="mt-1 inline-block rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                        {product.category}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-zinc-600">
+                  You can add these as real products after your store is created.
+                </p>
+              </div>
+            )}
 
             {/* MySpace-specific fields */}
             <div className="mt-6 rounded-xl border border-purple-800/50 bg-purple-950/20 p-5">
@@ -436,7 +529,7 @@ export default function StoreBuilderWizard({
           {profileNodeId ? (
             <ThemeSelector
               profileNodeId={profileNodeId}
-              currentTheme="default"
+              currentTheme={recommendedTheme}
             />
           ) : (
             <p className="text-sm text-zinc-500">

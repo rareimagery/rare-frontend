@@ -148,7 +148,10 @@ const handler = NextAuth({
         token.xTokenExpires = account.expires_at
           ? account.expires_at * 1000
           : Date.now() + 2 * 60 * 60 * 1000; // default 2h
-        token.role = "creator";
+        // Grant admin role if this X account matches the admin username
+        const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
+        const xUser = (token.xUsername as string || "").toLowerCase();
+        token.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
 
         // Fire-and-forget: sync X data to Drupal on login
         syncXDataToDrupal(

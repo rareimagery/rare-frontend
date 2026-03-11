@@ -54,6 +54,6 @@ export const config = {
     /*
      * Match all paths except Next.js internals and static assets.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/|.well-known/).*)",
   ],
 };

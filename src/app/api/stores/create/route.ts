@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { isValidSlug } from "@/lib/slugs";
+import { notifyAdminNewStore } from "@/lib/notifications";
+
+import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function isSlugTaken(slug: string): Promise<boolean> {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}`,
-    { headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` } }
+    { headers: { ...drupalAuthHeaders() } }
   );
   const data = await res.json();
   return (data?.data?.length ?? 0) > 0;
@@ -23,7 +25,7 @@ async function createDrupalStore(
   const res = await fetch(`${DRUPAL_API}/jsonapi/commerce_store/online`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${DRUPAL_TOKEN}`,
+      ...drupalAuthHeaders(),
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({
@@ -34,6 +36,7 @@ async function createDrupalStore(
           field_store_slug: slug,
           mail: ownerEmail,
           default_currency: currency || "USD",
+          field_store_status: "pending",
         },
       },
     }),
@@ -109,7 +112,7 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
   const res = await fetch(`${DRUPAL_API}/jsonapi/node/creator_x_profile`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${DRUPAL_TOKEN}`,
+      ...drupalAuthHeaders(),
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({
@@ -190,6 +193,14 @@ export async function POST(req: NextRequest) {
       myspaceBackgroundUrl,
       myspaceMusicUrl,
     });
+
+    // Notify admin of new store submission (fire-and-forget)
+    notifyAdminNewStore(
+      storeName,
+      slug,
+      xUsername || slug,
+      ownerEmail || session.user?.email || ""
+    ).catch((err) => console.error("Admin notification failed:", err));
 
     return NextResponse.json({
       success: true,

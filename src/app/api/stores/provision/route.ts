@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkXSubscription } from "@/lib/x-subscription";
+import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function profileExists(username: string): Promise<string | null> {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${username}`,
-    { headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` } }
+    { headers: { ...drupalAuthHeaders() } }
   );
   if (!res.ok) return null;
   const json = await res.json();
@@ -25,7 +25,7 @@ async function createProfile(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -34,7 +34,7 @@ async function createProfile(
           attributes: {
             title: `${username} X Profile`,
             field_x_username: username,
-            field_store_theme: "myspace",
+            field_store_theme: "xai3",
           },
         },
       }),

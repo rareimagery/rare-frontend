@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { fetchXData } from "@/lib/x-import";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,7 +16,7 @@ async function findProfileByUsername(
 ): Promise<{ uuid: string; nid: number } | null> {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(username)}`,
-    { headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` } }
+    { headers: { ...drupalAuthHeaders() } }
   );
 
   if (!res.ok) {
@@ -43,7 +44,7 @@ async function patchProfile(
     {
       method: "PATCH",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -59,6 +60,58 @@ async function patchProfile(
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Drupal PATCH failed (${res.status}): ${text}`);
+  }
+}
+
+/**
+ * Download an image from a URL and upload it to a Drupal image field
+ * via JSON:API binary file upload.
+ *
+ * @returns The file resource UUID if successful, null otherwise.
+ */
+async function uploadImageToDrupal(
+  imageUrl: string,
+  nodeUuid: string,
+  fieldName: string,
+  filename: string
+): Promise<string | null> {
+  try {
+    // 1. Download the image from the remote URL
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) {
+      console.error(`Failed to download image from ${imageUrl}: ${imgRes.status}`);
+      return null;
+    }
+
+    const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : "jpg";
+    const imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+
+    // 2. Upload to Drupal via JSON:API file upload endpoint
+    const uploadRes = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile/${nodeUuid}/${fieldName}`,
+      {
+        method: "POST",
+        headers: {
+          ...drupalAuthHeaders(),
+          "Content-Type": "application/octet-stream",
+          "Content-Disposition": `file; filename="${filename}.${ext}"`,
+        },
+        body: imageBuffer,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      console.error(`Drupal file upload failed (${uploadRes.status}):`, text);
+      return null;
+    }
+
+    const uploadJson = await uploadRes.json();
+    return uploadJson.data?.id ?? null;
+  } catch (err: any) {
+    console.error(`Image upload error for ${fieldName}:`, err.message);
+    return null;
   }
 }
 
@@ -128,7 +181,7 @@ export async function POST(req: NextRequest) {
     field_metrics: metricsJson,
   };
 
-  // 5. PATCH the Drupal node
+  // 5. PATCH the Drupal node (text fields)
   try {
     await patchProfile(profile.uuid, attributes);
   } catch (err: any) {
@@ -139,7 +192,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6. Return summary
+  // 6. Upload profile picture and banner to Drupal
+  let pfpUploaded = false;
+  let bannerUploaded = false;
+
+  if (xData.profileImageUrl) {
+    const pfpId = await uploadImageToDrupal(
+      xData.profileImageUrl,
+      profile.uuid,
+      "field_profile_picture",
+      `${xUsername}-pfp`
+    );
+    pfpUploaded = pfpId !== null;
+  }
+
+  if (xData.bannerUrl) {
+    const bannerId = await uploadImageToDrupal(
+      xData.bannerUrl,
+      profile.uuid,
+      "field_background_banner",
+      `${xUsername}-banner`
+    );
+    bannerUploaded = bannerId !== null;
+  }
+
+  // 7. Return summary
   return NextResponse.json({
     success: true,
     profileId: profile.uuid,
@@ -153,6 +230,9 @@ export async function POST(req: NextRequest) {
       postingFrequency: xData.metrics.posting_frequency,
       topThemes: xData.metrics.top_themes,
       profileImageUrl: xData.profileImageUrl,
+      bannerUrl: xData.bannerUrl,
+      pfpUploaded,
+      bannerUploaded,
       verified: xData.verified,
     },
   });

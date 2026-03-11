@@ -2,16 +2,19 @@ import Link from "next/link";
 import ThemeSelector from "@/components/ThemeSelector";
 import ProductManager from "@/components/ProductManager";
 import PrintfulManager from "@/components/PrintfulManager";
+import StoreApprovalButton from "@/components/StoreApprovalButton";
+import NotificationPreferences from "@/components/NotificationPreferences";
+
+import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function getStore(id: string) {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/commerce_store/online/${id}` +
       `?include=field_linked_x_profile`,
     {
-      headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+      headers: { ...drupalAuthHeaders() },
       next: { revalidate: 0 },
     }
   );
@@ -40,7 +43,13 @@ export default async function StoreDetailPage({
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{store.attributes.name}</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">{store.attributes.name}</h1>
+          <StoreApprovalButton
+            storeId={store.id}
+            currentStatus={store.attributes.field_store_status || "pending"}
+          />
+        </div>
         <a
           href={`https://${slug}.${base}`}
           target="_blank"
@@ -138,6 +147,10 @@ export default async function StoreDetailPage({
           storeId={store.id}
           storeDrupalId={String(store.attributes.drupal_internal__store_id)}
         />
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <NotificationPreferences />
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

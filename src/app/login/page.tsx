@@ -95,7 +95,7 @@ export default function LoginPage() {
 
         {/* Sign in with X */}
         <button
-          onClick={() => signIn("twitter", { callbackUrl: "/console" })}
+          onClick={() => signIn("twitter", { callbackUrl: "/build" })}
           className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 py-2.5 font-semibold text-white transition hover:border-zinc-600 hover:bg-zinc-800"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
@@ -103,7 +103,6 @@ export default function LoginPage() {
           </svg>
           Sign in with X
         </button>
-
         <p className="text-center text-xs text-zinc-600">
           <Link href="/" className="text-zinc-500 hover:text-zinc-300">
             &larr; Back to marketplace

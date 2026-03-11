@@ -88,7 +88,6 @@ export default function StoreBuilderWizard({
   const [storeId, setStoreId] = useState<string | null>(null);
   const [storeDrupalId, setStoreDrupalId] = useState<string | null>(null);
   const [profileNodeId, setProfileNodeId] = useState<string | null>(null);
-  const [storeUrl, setStoreUrl] = useState("");
 
   function autoSlug(name: string): string {
     return name
@@ -143,7 +142,6 @@ export default function StoreBuilderWizard({
       setStoreId(data.storeId);
       setStoreDrupalId(data.storeDrupalId || "");
       setProfileNodeId(data.profileNodeId || "");
-      setStoreUrl(data.url);
       setStep(2); // Jump to theme step
     } catch {
       setError("Network error — please try again");
@@ -587,38 +585,34 @@ export default function StoreBuilderWizard({
         </div>
       )}
 
-      {/* Step 4: Go Live */}
+      {/* Step 4: Submitted — Pending Approval */}
       {step === 4 && (
         <div className={`${sectionClass} text-center`}>
-          <div className="mb-4 text-4xl">&#127881;</div>
-          <h2 className="mb-2 text-2xl font-bold text-green-400">
-            Your Store is Live!
+          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20">
+            <svg className="h-8 w-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="mb-2 text-2xl font-bold text-amber-400">
+            Store Submitted for Review
           </h2>
-          <p className="mb-6 text-zinc-400">
-            Your store is now available at{" "}
-            <a
-              href={storeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-indigo-400 hover:text-indigo-300"
-            >
+          <p className="mb-2 text-zinc-400">
+            Your store at{" "}
+            <span className="font-semibold text-white">
               {slug}.{BASE_DOMAIN}
-            </a>
+            </span>{" "}
+            has been created and is pending admin approval.
+          </p>
+          <p className="mb-6 text-sm text-zinc-500">
+            We&apos;ll review your store shortly. Once approved, it will go live
+            on your subdomain.
           </p>
 
           <div className="flex justify-center gap-3">
-            <a
-              href={storeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
-            >
-              View Your Store
-            </a>
             {storeId && (
               <a
                 href={`/console/stores/${storeId}`}
-                className="rounded-lg border border-zinc-700 px-6 py-2.5 text-sm text-zinc-300 transition hover:bg-zinc-800"
+                className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
               >
                 Manage Store
               </a>
@@ -627,13 +621,12 @@ export default function StoreBuilderWizard({
 
           <div className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 text-left">
             <h3 className="mb-3 text-sm font-semibold text-zinc-300">
-              What&apos;s Next?
+              While you wait
             </h3>
             <ul className="space-y-2 text-sm text-zinc-500">
               <li>- Add more products from your store dashboard</li>
               <li>- Customize your theme and colors</li>
-              <li>- Share your store link on X</li>
-              <li>- Connect Stripe to start accepting payments</li>
+              <li>- Connect Stripe so payments are ready when you go live</li>
             </ul>
           </div>
         </div>

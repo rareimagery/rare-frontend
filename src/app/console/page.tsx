@@ -1,14 +1,14 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { drupalAuthHeaders } from "@/lib/drupal";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function getStoreBySlug(slug: string) {
   try {
     const res = await fetch(
       `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}&include=field_linked_x_profile`,
       {
-        headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+        headers: { ...drupalAuthHeaders() },
         next: { revalidate: 0 },
       }
     );

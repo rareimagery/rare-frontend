@@ -1,14 +1,15 @@
 import Link from "next/link";
+import StoreApprovalButton from "@/components/StoreApprovalButton";
+import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function getAllStores() {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/commerce_store/online` +
       `?sort=-created&include=field_linked_x_profile`,
     {
-      headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+      headers: { ...drupalAuthHeaders() },
       next: { revalidate: 30 },
     }
   );
@@ -22,10 +23,24 @@ export default async function StoresDashboard() {
   const included = data?.included || [];
   const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
 
+  const pendingCount = stores.filter(
+    (s: any) => s.attributes.field_store_status !== "approved"
+  ).length;
+
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Creator Stores ({stores.length})</h1>
+        <div>
+          <h1 className="text-2xl font-bold">
+            Creator Stores ({stores.length})
+          </h1>
+          {pendingCount > 0 && (
+            <p className="mt-1 text-sm text-amber-400">
+              {pendingCount} store{pendingCount !== 1 ? "s" : ""} pending
+              approval
+            </p>
+          )}
+        </div>
         <Link
           href="/console/stores/new"
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
@@ -43,15 +58,17 @@ export default async function StoresDashboard() {
               <tr>
                 <th className="px-4 py-3 font-medium text-zinc-400">Store Name</th>
                 <th className="px-4 py-3 font-medium text-zinc-400">Slug</th>
-                <th className="px-4 py-3 font-medium text-zinc-400">Live URL</th>
                 <th className="px-4 py-3 font-medium text-zinc-400">X Username</th>
                 <th className="px-4 py-3 font-medium text-zinc-400">Created</th>
+                <th className="px-4 py-3 font-medium text-zinc-400">Status</th>
                 <th className="px-4 py-3 font-medium text-zinc-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {stores.map((store: any) => {
                 const slug = store.attributes.field_store_slug;
+                const storeStatus =
+                  store.attributes.field_store_status || "pending";
                 const xProfileRef =
                   store.relationships?.field_linked_x_profile?.data;
                 const xProfile = xProfileRef
@@ -63,7 +80,6 @@ export default async function StoresDashboard() {
                     <td className="px-4 py-3 font-medium text-white">
                       {store.attributes.name}
                     </td>
-                    <td className="px-4 py-3 text-zinc-400">{slug}</td>
                     <td className="px-4 py-3">
                       <a
                         href={`https://${slug}.${base}`}
@@ -79,6 +95,12 @@ export default async function StoresDashboard() {
                     </td>
                     <td className="px-4 py-3 text-zinc-500">
                       {new Date(store.attributes.created).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StoreApprovalButton
+                        storeId={store.id}
+                        currentStatus={storeStatus}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <Link

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 async function createDrupalStore(slug: string, storeName: string) {
   const res = await fetch(`${DRUPAL_API}/jsonapi/commerce_store/online`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${DRUPAL_TOKEN}`,
+      ...drupalAuthHeaders(),
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({
@@ -38,7 +39,7 @@ async function findXProfile(xUsername: string): Promise<string | null> {
 
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` } }
+    { headers: { ...drupalAuthHeaders() } }
   );
 
   if (!res.ok) return null;
@@ -54,7 +55,7 @@ async function linkProfileToStore(profileId: string, storeId: string) {
     {
       method: "PATCH",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({

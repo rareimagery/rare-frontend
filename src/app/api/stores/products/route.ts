@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 // GET — list products for a store
 export async function GET(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/commerce_product/default?${params}`,
     {
-      headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+      headers: { ...drupalAuthHeaders() },
       next: { revalidate: 0 },
     }
   );
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -181,7 +182,7 @@ export async function DELETE(req: NextRequest) {
     `${DRUPAL_API}/jsonapi/commerce_product/default/${productId}`,
     {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+      headers: { ...drupalAuthHeaders() },
     }
   );
 

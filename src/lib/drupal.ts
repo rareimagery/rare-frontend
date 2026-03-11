@@ -1,6 +1,26 @@
 const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 // ---------------------------------------------------------------------------
+// Auth helper — Basic Auth for JSON:API write operations
+// ---------------------------------------------------------------------------
+
+export function drupalAuthHeaders(): Record<string, string> {
+  const user = process.env.DRUPAL_API_USER;
+  const pass = process.env.DRUPAL_API_PASS;
+  if (user && pass) {
+    return {
+      Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`,
+    };
+  }
+  // Fallback to Bearer token if configured
+  const token = process.env.DRUPAL_API_TOKEN;
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -147,6 +167,7 @@ export interface CreatorProfile {
   myspace_music_url: string | null;
   myspace_glitter_color: string | null;
   myspace_accent_color: string | null;
+  store_status: "pending" | "approved" | "rejected" | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +269,11 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
     myspace_music_url: attrs.field_myspace_music_url ?? null,
     myspace_glitter_color: attrs.field_myspace_glitter_color ?? null,
     myspace_accent_color: attrs.field_myspace_accent_color ?? null,
+    store_status: (() => {
+      if (!linkedStoreId) return null;
+      const storeEntity = included.find((inc: any) => inc.id === linkedStoreId);
+      return storeEntity?.attributes?.field_store_status ?? null;
+    })(),
   };
 }
 
@@ -404,14 +430,8 @@ export async function getStoreProducts(storeId: string): Promise<Product[]> {
 // Product Detail API Functions
 // ---------------------------------------------------------------------------
 
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
-
 function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (DRUPAL_TOKEN) {
-    headers["Authorization"] = `Bearer ${DRUPAL_TOKEN}`;
-  }
-  return headers;
+  return drupalAuthHeaders();
 }
 
 function slugify(title: string): string {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Save the Printful API key and store connection in Drupal
     // Store the Printful store ID on the Drupal commerce store
-    if (DRUPAL_API && DRUPAL_TOKEN) {
+    if (DRUPAL_API) {
       try {
         // Update the store with Printful connection info
         // Using a custom field or state API
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
             method: "PATCH",
             headers: {
               "Content-Type": "application/vnd.api+json",
-              Authorization: `Bearer ${DRUPAL_TOKEN}`,
+              ...drupalAuthHeaders(),
             },
             body: JSON.stringify({
               data: {

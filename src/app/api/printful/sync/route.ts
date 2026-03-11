@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
 
 export async function POST(req: NextRequest) {
@@ -48,9 +49,7 @@ export async function POST(req: NextRequest) {
       const existingRes = await fetch(
         `${DRUPAL_API}/jsonapi/commerce_product/printful?${existingParams.toString()}`,
         {
-          headers: DRUPAL_TOKEN
-            ? { Authorization: `Bearer ${DRUPAL_TOKEN}` }
-            : {},
+          headers: { ...drupalAuthHeaders() },
         }
       );
 
@@ -104,9 +103,7 @@ export async function POST(req: NextRequest) {
             method: "POST",
             headers: {
               "Content-Type": "application/vnd.api+json",
-              ...(DRUPAL_TOKEN
-                ? { Authorization: `Bearer ${DRUPAL_TOKEN}` }
-                : {}),
+              ...drupalAuthHeaders(),
             },
             body: JSON.stringify(varBody),
           }
@@ -154,9 +151,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: {
             "Content-Type": "application/vnd.api+json",
-            ...(DRUPAL_TOKEN
-              ? { Authorization: `Bearer ${DRUPAL_TOKEN}` }
-              : {}),
+            ...drupalAuthHeaders(),
           },
           body: JSON.stringify(productBody),
         }

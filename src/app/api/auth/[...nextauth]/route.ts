@@ -2,8 +2,9 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 /** Authenticate a store owner against Drupal */
 async function authenticateDrupalUser(
@@ -21,7 +22,7 @@ async function authenticateDrupalUser(
     const lookupRes = await fetch(
       `${DRUPAL_API}/jsonapi/user/user?filter[mail]=${encodeURIComponent(email)}&include=field_store`,
       {
-        headers: { Authorization: `Bearer ${DRUPAL_TOKEN}` },
+        headers: { ...drupalAuthHeaders() },
       }
     );
     if (!lookupRes.ok) return null;
@@ -73,6 +74,18 @@ const handler = NextAuth({
       clientId: process.env.X_CLIENT_ID!,
       clientSecret: process.env.X_CLIENT_SECRET!,
       version: "2.0",
+      authorization: {
+        params: {
+          scope: "users.read tweet.read follows.read offline.access",
+        },
+      },
+      userinfo: {
+        url: "https://api.twitter.com/2/users/me",
+        params: {
+          "user.fields":
+            "profile_image_url,profile_banner_url,public_metrics,description,verified",
+        },
+      },
     }),
     CredentialsProvider({
       name: "credentials",
@@ -127,8 +140,54 @@ const handler = NextAuth({
           (profile as any).data?.id ?? account.providerAccountId;
         token.xImage =
           (profile as any).data?.profile_image_url ?? token.picture;
+        token.xBannerUrl =
+          (profile as any).data?.profile_banner_url ?? null;
         token.xAccessToken = account.access_token;
+        token.xRefreshToken = account.refresh_token ?? null;
+        token.xTokenExpires = account.expires_at
+          ? account.expires_at * 1000
+          : Date.now() + 2 * 60 * 60 * 1000; // default 2h
         token.role = "creator";
+      }
+
+      // Auto-refresh expired X access token
+      if (
+        token.role === "creator" &&
+        token.xRefreshToken &&
+        typeof token.xTokenExpires === "number" &&
+        Date.now() > token.xTokenExpires - 5 * 60 * 1000 // refresh 5 min early
+      ) {
+        try {
+          const res = await fetch("https://api.twitter.com/2/oauth2/token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${Buffer.from(
+                `${process.env.X_CLIENT_ID}:${process.env.X_CLIENT_SECRET}`
+              ).toString("base64")}`,
+            },
+            body: new URLSearchParams({
+              grant_type: "refresh_token",
+              refresh_token: token.xRefreshToken as string,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            token.xAccessToken = data.access_token;
+            token.xRefreshToken = data.refresh_token ?? token.xRefreshToken;
+            token.xTokenExpires =
+              Date.now() + (data.expires_in ?? 7200) * 1000;
+          } else {
+            console.error(
+              "X token refresh failed:",
+              res.status,
+              await res.text()
+            );
+          }
+        } catch (err) {
+          console.error("X token refresh error:", err);
+        }
       }
       if (account?.provider === "credentials" && user) {
         token.role = (user as any).role || "admin";
@@ -143,6 +202,7 @@ const handler = NextAuth({
       (session as any).xUsername = token.xUsername ?? null;
       (session as any).xId = token.xId ?? null;
       (session as any).xAccessToken = token.xAccessToken ?? null;
+      (session as any).xBannerUrl = token.xBannerUrl ?? null;
       (session as any).role = token.role ?? "creator";
       (session as any).shopName = token.shopName ?? null;
       (session as any).storeSlug = token.storeSlug ?? null;

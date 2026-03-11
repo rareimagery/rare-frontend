@@ -151,7 +151,7 @@ export async function fetchXData(
 ): Promise<XImportData> {
   // 1. Fetch user profile
   const profileRes = await xApiFetch(
-    `/users/${userId}?user.fields=name,username,description,profile_image_url,public_metrics,verified`,
+    `/users/${userId}?user.fields=name,username,description,profile_image_url,profile_banner_url,public_metrics,verified`,
     accessToken
   );
 
@@ -272,7 +272,7 @@ export async function fetchXData(
     bio,
     followerCount,
     profileImageUrl,
-    bannerUrl: null, // not available via basic v2 API
+    bannerUrl: user.profile_banner_url ?? null,
     verified,
     topPosts,
     topFollowers,

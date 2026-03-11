@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
 export async function GET(req: NextRequest) {
   const storeId = req.nextUrl.searchParams.get("storeId");
@@ -20,9 +21,7 @@ export async function GET(req: NextRequest) {
     const res = await fetch(
       `${DRUPAL_API}/jsonapi/commerce_product/printful?${params.toString()}`,
       {
-        headers: DRUPAL_TOKEN
-          ? { Authorization: `Bearer ${DRUPAL_TOKEN}` }
-          : {},
+        headers: { ...drupalAuthHeaders() },
         next: { revalidate: 0 },
       }
     );

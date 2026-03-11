@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const DRUPAL_TOKEN = process.env.DRUPAL_API_TOKEN;
 
-const VALID_THEMES = ["default", "minimal", "neon", "editorial", "myspace"];
+const VALID_THEMES = ["xai3", "default", "minimal", "neon", "editorial", "myspace"];
 
 export async function PATCH(req: NextRequest) {
   const token = await getToken({ req });
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest) {
     {
       method: "PATCH",
       headers: {
-        Authorization: `Bearer ${DRUPAL_TOKEN}`,
+        ...drupalAuthHeaders(),
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({

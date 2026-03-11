@@ -2,7 +2,10 @@
 // X (Twitter) API v2 Data Import
 // ---------------------------------------------------------------------------
 
+import { drupalAuthHeaders } from "@/lib/drupal";
+
 const X_API_BASE = "https://api.twitter.com/2";
+const DRUPAL_API = process.env.DRUPAL_API_URL;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -278,4 +281,165 @@ export async function fetchXData(
     topFollowers,
     metrics,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Drupal sync helpers (shared with import-x-data route)
+// ---------------------------------------------------------------------------
+
+/** Find the creator X profile node UUID by username. */
+export async function findProfileByUsername(
+  username: string
+): Promise<{ uuid: string; nid: number } | null> {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(username)}`,
+    { headers: { ...drupalAuthHeaders() } }
+  );
+
+  if (!res.ok) {
+    console.error("Drupal lookup failed:", res.status, await res.text());
+    return null;
+  }
+
+  const json = await res.json();
+  const nodes = json.data ?? [];
+  if (nodes.length === 0) return null;
+
+  return {
+    uuid: nodes[0].id,
+    nid: nodes[0].attributes.drupal_internal__nid,
+  };
+}
+
+/** PATCH the creator profile node in Drupal with imported X data. */
+export async function patchProfile(
+  uuid: string,
+  attributes: Record<string, any>
+): Promise<void> {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/node/creator_x_profile/${uuid}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...drupalAuthHeaders(),
+        "Content-Type": "application/vnd.api+json",
+      },
+      body: JSON.stringify({
+        data: {
+          type: "node--creator_x_profile",
+          id: uuid,
+          attributes,
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Drupal PATCH failed (${res.status}): ${text}`);
+  }
+}
+
+/**
+ * Download an image from a URL and upload it to a Drupal image field.
+ * Returns the file resource UUID if successful, null otherwise.
+ */
+export async function uploadImageToDrupal(
+  imageUrl: string,
+  nodeUuid: string,
+  fieldName: string,
+  filename: string
+): Promise<string | null> {
+  try {
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) {
+      console.error(`Failed to download image from ${imageUrl}: ${imgRes.status}`);
+      return null;
+    }
+
+    const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : "jpg";
+    const imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+
+    const uploadRes = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile/${nodeUuid}/${fieldName}`,
+      {
+        method: "POST",
+        headers: {
+          ...drupalAuthHeaders(),
+          "Content-Type": "application/octet-stream",
+          "Content-Disposition": `file; filename="${filename}.${ext}"`,
+        },
+        body: imageBuffer,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      console.error(`Drupal file upload failed (${uploadRes.status}):`, text);
+      return null;
+    }
+
+    const uploadJson = await uploadRes.json();
+    return uploadJson.data?.id ?? null;
+  } catch (err: any) {
+    console.error(`Image upload error for ${fieldName}:`, err.message);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Full sync: fetch X data + write to Drupal (fire-and-forget safe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch fresh X data and sync it to the creator's Drupal profile.
+ * Designed to be called fire-and-forget (catches all errors internally).
+ */
+export async function syncXDataToDrupal(
+  xAccessToken: string,
+  xId: string,
+  xUsername: string
+): Promise<void> {
+  try {
+    const profile = await findProfileByUsername(xUsername);
+    if (!profile) {
+      console.log(`[x-sync] No Drupal profile for @${xUsername} — skipping`);
+      return;
+    }
+
+    const xData = await fetchXData(xAccessToken, xId);
+
+    const attributes: Record<string, any> = {
+      field_follower_count: xData.followerCount,
+      field_bio_description: { value: xData.bio, format: "basic_html" },
+      field_top_posts: xData.topPosts.map((p) => JSON.stringify(p)),
+      field_top_followers: xData.topFollowers.map((f) => JSON.stringify(f)),
+      field_metrics: JSON.stringify(xData.metrics),
+    };
+
+    await patchProfile(profile.uuid, attributes);
+
+    // Upload images (non-blocking within sync)
+    if (xData.profileImageUrl) {
+      await uploadImageToDrupal(
+        xData.profileImageUrl,
+        profile.uuid,
+        "field_profile_picture",
+        `${xUsername}-pfp`
+      );
+    }
+    if (xData.bannerUrl) {
+      await uploadImageToDrupal(
+        xData.bannerUrl,
+        profile.uuid,
+        "field_background_banner",
+        `${xUsername}-banner`
+      );
+    }
+
+    console.log(`[x-sync] Synced X data for @${xUsername} to Drupal`);
+  } catch (err) {
+    console.error(`[x-sync] Failed for @${xUsername}:`, err);
+  }
 }

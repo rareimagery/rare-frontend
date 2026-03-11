@@ -202,7 +202,6 @@ function formatCount(n: number): string {
 // ─── Main Xai3 Theme ──────────────────────────────────────────────────────
 
 export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
-  const [tab, setTab] = useState<"store" | "posts">("store");
   const [cart, setCart] = useState<(Product & { qty: number })[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -316,28 +315,13 @@ export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="xai3-tabs">
-            <button
-              className={`xai3-tab ${tab === "store" ? "active" : ""}`}
-              onClick={() => setTab("store")}
-            >
-              🛍️ Store ({products.length})
-            </button>
-            <button
-              className={`xai3-tab ${tab === "posts" ? "active" : ""}`}
-              onClick={() => setTab("posts")}
-            >
-              📝 Posts
-            </button>
-          </div>
-
-          {/* Store tab */}
-          {tab === "store" && (
-            <>
+          {/* Two-column layout: Products left, Posts right */}
+          <div className="xai3-two-col">
+            {/* Left column — Products */}
+            <div className="xai3-col-left">
               <div className="xai3-store-header">
                 <div className="xai3-store-title">
-                  @{profile.x_username}&apos;s Store
+                  🛍️ Store
                 </div>
                 {products.length > 0 && (
                   <div className="xai3-store-stats">
@@ -363,30 +347,30 @@ export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
                   No products listed yet. Check back soon.
                 </div>
               )}
-            </>
-          )}
-
-          {/* Posts tab */}
-          {tab === "posts" && (
-            <div className="xai3-posts">
-              <div className="xai3-posts-header">Recent Posts</div>
-              {profile.top_posts.length > 0 ? (
-                profile.top_posts.map((post, i) => (
-                  <Xai3PostCard key={post.id || i} post={post} />
-                ))
-              ) : (
-                <div
-                  style={{
-                    padding: "32px 16px",
-                    textAlign: "center",
-                    color: "var(--xai3-text-secondary)",
-                  }}
-                >
-                  No cached posts yet.
-                </div>
-              )}
             </div>
-          )}
+
+            {/* Right column — Recent Posts */}
+            <div className="xai3-col-right">
+              <div className="xai3-posts">
+                <div className="xai3-posts-header">Recent Posts</div>
+                {profile.top_posts.length > 0 ? (
+                  profile.top_posts.map((post, i) => (
+                    <Xai3PostCard key={post.id || i} post={post} />
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "32px 16px",
+                      textAlign: "center",
+                      color: "var(--xai3-text-secondary)",
+                    }}
+                  >
+                    No cached posts yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Top Followers as Suggested */}
           {profile.top_followers.length > 0 && (
@@ -525,7 +509,7 @@ const XAI3_STYLES = `
     --xai3-radius-sm:     4px;
     --xai3-radius-md:     12px;
     --xai3-radius-full:   9999px;
-    --xai3-col-width:     600px;
+    --xai3-col-width:     1100px;
     --xai3-transition:    0.15s ease;
   }
 
@@ -648,31 +632,37 @@ const XAI3_STYLES = `
     margin-left: 4px;
   }
 
-  /* ── Tabs ── */
-  .xai3-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--xai3-border);
-    position: sticky; top: 0;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(12px);
-    z-index: 10;
+  /* ── Two-column layout ── */
+  .xai3-two-col {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 1px;
+    background: var(--xai3-border-subtle);
+    border-top: 1px solid var(--xai3-border);
   }
-  .xai3-tab {
-    flex: 1;
-    padding: 16px 0;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--xai3-text-secondary) !important;
-    text-align: center;
-    border-bottom: 2px solid transparent;
-    transition: color var(--xai3-transition), border-color var(--xai3-transition);
-    cursor: pointer;
+  .xai3-col-left {
+    background: var(--xai3-bg);
+    min-height: 400px;
   }
-  .xai3-tab:hover { color: var(--xai3-text-primary) !important; background: var(--xai3-bg-hover); }
-  .xai3-tab.active {
-    color: var(--xai3-text-primary) !important;
-    border-bottom-color: var(--xai3-accent-blue);
-    font-weight: 600;
+  .xai3-col-right {
+    background: var(--xai3-bg);
+    border-left: 1px solid var(--xai3-border-subtle);
+    position: sticky;
+    top: 0;
+    height: fit-content;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  @media (max-width: 768px) {
+    .xai3-two-col {
+      grid-template-columns: 1fr;
+    }
+    .xai3-col-right {
+      position: static;
+      max-height: none;
+      border-left: none;
+      border-top: 1px solid var(--xai3-border);
+    }
   }
 
   /* ── Store panel ── */

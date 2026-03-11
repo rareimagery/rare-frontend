@@ -169,69 +169,85 @@ export default function NeonTheme({ profile, products = [] }: NeonThemeProps) {
             </div>
           )}
 
-          {/* SHOP */}
-          {products.length > 0 && (
-            <section style={{ marginBottom: 40 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#ffffff" }}>Shop</h2>
-              <div style={{ width: 80, height: 3, background: "linear-gradient(90deg, #a855f7, #06b6d4)", borderRadius: 2, marginBottom: 20 }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-                {products.map((product: Product) => (
-                  <div key={product.id} style={{
-                    background: "rgba(255,255,255,0.05)",
-                    backdropFilter: "blur(12px)",
-                    border: "1px solid rgba(168,85,247,0.25)",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    transition: "border-color 0.3s, box-shadow 0.3s",
-                  }} className="hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10">
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
-                    ) : (
-                      <div style={{ width: "100%", height: 180, background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
-                    )}
-                    <div style={{ padding: 16 }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>{product.title}</h3>
-                      {product.description && (
-                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: product.description }} />
-                      )}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 18, fontWeight: 700, background: "linear-gradient(90deg, #a855f7, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>${parseFloat(product.price).toFixed(2)}</span>
-                        <button style={{ background: "linear-gradient(90deg, #a855f7, #06b6d4)", border: "none", borderRadius: 10, color: "#fff", padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
+          {/* Two-column: Products left, Posts right */}
+          <section style={{ marginBottom: 40 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24 }}>
+              {/* Left — Shop */}
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#ffffff" }}>Shop</h2>
+                <div style={{ width: 80, height: 3, background: "linear-gradient(90deg, #a855f7, #06b6d4)", borderRadius: 2, marginBottom: 20 }} />
+                {products.length > 0 ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+                    {products.map((product: Product) => (
+                      <div key={product.id} style={{
+                        background: "rgba(255,255,255,0.05)",
+                        backdropFilter: "blur(12px)",
+                        border: "1px solid rgba(168,85,247,0.25)",
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        transition: "border-color 0.3s, box-shadow 0.3s",
+                      }} className="hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: 180, background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
+                        )}
+                        <div style={{ padding: 16 }}>
+                          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>{product.title}</h3>
+                          {product.description && (
+                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                          )}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 18, fontWeight: 700, background: "linear-gradient(90deg, #a855f7, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>${parseFloat(product.price).toFixed(2)}</span>
+                            <button style={{ background: "linear-gradient(90deg, #a855f7, #06b6d4)", border: "none", borderRadius: 10, color: "#fff", padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 15 }}>No products listed yet.</p>
+                )}
               </div>
-            </section>
-          )}
 
-          {/* 4. TOP POSTS */}
-          {profile.top_posts.length > 0 && (
-            <section style={{ marginBottom: 40 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#ffffff" }}>Top Posts</h2>
-              <div style={{ width: 80, height: 3, background: "linear-gradient(90deg, #a855f7, #06b6d4)", borderRadius: 2, marginBottom: 20 }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-                {profile.top_posts.map((post: TopPost, i: number) => (
-                  <div key={post.id || i} className={glassCardHoverable} style={{ ...glassCard, overflow: "hidden" }}>
-                    {post.image_url && (
-                      <img src={post.image_url} alt="" style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
-                    )}
-                    <div style={{ padding: "16px 20px" }}>
-                      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6, margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {post.text}
-                      </p>
-                      <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>
-                        <span style={{ color: "#a855f7" }}>{formatNumber(post.likes)} likes</span>
-                        <span>{formatNumber(post.retweets)} RTs</span>
-                        <span>{formatNumber(post.replies)} replies</span>
-                        <span>{formatNumber(post.views)} views</span>
+              {/* Right — Posts Feed */}
+              <div style={{ position: "sticky", top: 32, alignSelf: "start", maxHeight: "100vh", overflowY: "auto" }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#ffffff" }}>Recent Posts</h2>
+                <div style={{ width: 80, height: 3, background: "linear-gradient(90deg, #a855f7, #06b6d4)", borderRadius: 2, marginBottom: 20 }} />
+                {profile.top_posts.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {profile.top_posts.map((post: TopPost, i: number) => (
+                      <div key={post.id || i} className={glassCardHoverable} style={{ ...glassCard, overflow: "hidden" }}>
+                        {post.image_url && (
+                          <img src={post.image_url} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                        )}
+                        <div style={{ padding: "14px 16px" }}>
+                          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6, margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                            {post.text}
+                          </p>
+                          <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>
+                            <span style={{ color: "#a855f7" }}>{formatNumber(post.likes)} likes</span>
+                            <span>{formatNumber(post.retweets)} RTs</span>
+                            <span>{formatNumber(post.views)} views</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>No posts yet.</p>
+                )}
               </div>
-            </section>
-          )}
+            </div>
+          </section>
+
+          <style>{`
+            @media (max-width: 768px) {
+              section > div[style*="grid-template-columns: 1fr 380px"] {
+                grid-template-columns: 1fr !important;
+              }
+            }
+          `}</style>
 
           {/* 5. TOP FOLLOWERS */}
           {profile.top_followers.length > 0 && (

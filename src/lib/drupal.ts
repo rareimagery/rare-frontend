@@ -624,7 +624,7 @@ function mapProductDetail(
 const PRODUCT_TYPES = ["default", "clothing", "digital_download", "crafts", "printful"] as const;
 
 const PRODUCT_INCLUDES: Record<string, string> = {
-  default: "variations,field_images,stores,field_categories,field_tags",
+  default: "variations,field_images,stores",
   clothing: "variations,variations.field_variation_image,variations.field_color_swatch,field_images,stores,field_categories,field_tags",
   digital_download: "variations,field_images,field_preview_images,stores,field_categories,field_tags",
   crafts: "variations,variations.field_variation_image,field_images,stores,field_categories,field_tags",
@@ -719,4 +719,47 @@ export async function getProductsByStoreSlug(slug: string): Promise<Product[]> {
   // Fallback to mock products
   const { getMockProducts } = await import("./mock-products");
   return getMockProducts(slug);
+}
+
+// ---------------------------------------------------------------------------
+// Convenience: fetch all creator data in one call (for page-level usage)
+// ---------------------------------------------------------------------------
+
+export interface CreatorData {
+  profile: CreatorProfile;
+  products: Product[];
+  pfp: string | null;
+  banner: string | null;
+  pinnedPost: TopPost | null;
+  recentPosts: TopPost[];
+  topFollowers: TopFollower[];
+  bio: string;
+  followerCount: number;
+  handle: string;
+  displayName: string;
+  metrics: Metrics | null;
+}
+
+export async function fetchCreatorData(handle: string): Promise<CreatorData | null> {
+  const [profile, products] = await Promise.all([
+    getCreatorProfile(handle),
+    getProductsByStoreSlug(handle),
+  ]);
+
+  if (!profile) return null;
+
+  return {
+    profile,
+    products,
+    pfp: profile.profile_picture_url,
+    banner: profile.banner_url,
+    pinnedPost: profile.top_posts[0] ?? null,
+    recentPosts: profile.top_posts,
+    topFollowers: profile.top_followers,
+    bio: profile.bio,
+    followerCount: profile.follower_count,
+    handle: profile.x_username,
+    displayName: profile.title || profile.x_username,
+    metrics: profile.metrics,
+  };
 }

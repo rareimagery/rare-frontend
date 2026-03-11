@@ -187,124 +187,85 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
           />
         </section>
 
-        {/* Shop */}
-        {products.length > 0 && (
-          <section style={{ maxWidth: 896, margin: "0 auto", padding: "48px 24px 0" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111", marginBottom: 24 }}>Shop</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
-              {products.map((product: Product) => (
-                <div
-                  key={product.id}
-                  style={{
-                    border: "1px solid #e5e5e5",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "#fff",
-                    transition: "box-shadow 0.2s",
-                  }}
-                  className="hover:shadow-md"
-                >
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ width: "100%", height: 200, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
-                  )}
-                  <div style={{ padding: 16 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111", marginBottom: 4 }}>{product.title}</h3>
-                    {product.description && (
-                      <p style={{ fontSize: 13, color: "#666", marginBottom: 12, lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: product.description }} />
-                    )}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: "#111" }}>${parseFloat(product.price).toFixed(2)}</span>
-                      <button style={{ background: "#111", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Recent Posts */}
-        {profile.top_posts.length > 0 && (
-          <section
-            style={{
-              maxWidth: 896,
-              margin: "0 auto",
-              padding: "48px 24px 0",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 20,
-                fontWeight: 600,
-                margin: "0 0 24px",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Recent Posts
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 20,
-              }}
-            >
-              {profile.top_posts.map((post: TopPost, i: number) => (
-                <div
-                  key={post.id || i}
-                  className="minimal-card"
-                  style={{ overflow: "hidden" }}
-                >
-                  {post.image_url && (
-                    <img
-                      src={post.image_url}
-                      alt=""
-                      style={{
-                        width: "100%",
-                        aspectRatio: "16 / 9",
-                        objectFit: "cover",
-                        display: "block",
-                        borderBottom: "1px solid #e5e5e5",
-                      }}
-                    />
-                  )}
-                  <div style={{ padding: 20 }}>
-                    <p
-                      style={{
-                        fontSize: 14,
-                        color: "#333",
-                        margin: "0 0 12px",
-                        lineHeight: 1.6,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {post.text}
-                    </p>
+        {/* Two-column: Products left, Posts right */}
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 0" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 32 }}>
+            {/* Left — Products */}
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111", marginBottom: 24 }}>Shop</h2>
+              {products.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 20 }}>
+                  {products.map((product: Product) => (
                     <div
+                      key={product.id}
                       style={{
-                        display: "flex",
-                        gap: 16,
-                        fontSize: 12,
-                        color: "#999",
+                        border: "1px solid #e5e5e5",
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        background: "#fff",
+                        transition: "box-shadow 0.2s",
                       }}
+                      className="hover:shadow-md"
                     >
-                      <span>{formatNumber(post.likes)} likes</span>
-                      <span>{formatNumber(post.retweets)} RTs</span>
-                      <span>{formatNumber(post.replies)} replies</span>
-                      <span>{formatNumber(post.views)} views</span>
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: 200, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
+                      )}
+                      <div style={{ padding: 16 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111", marginBottom: 4 }}>{product.title}</h3>
+                        {product.description && (
+                          <p style={{ fontSize: 13, color: "#666", marginBottom: 12, lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 18, fontWeight: 700, color: "#111" }}>${parseFloat(product.price).toFixed(2)}</span>
+                          <button style={{ background: "#111", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Add to Cart</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p style={{ color: "#999", fontSize: 15 }}>No products listed yet.</p>
+              )}
             </div>
-          </section>
-        )}
+
+            {/* Right — Recent Posts */}
+            <div style={{ position: "sticky", top: 24, alignSelf: "start", maxHeight: "100vh", overflowY: "auto" }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 24px", letterSpacing: "-0.01em" }}>Recent Posts</h2>
+              {profile.top_posts.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {profile.top_posts.map((post: TopPost, i: number) => (
+                    <div key={post.id || i} className="minimal-card" style={{ overflow: "hidden" }}>
+                      {post.image_url && (
+                        <img src={post.image_url} alt="" style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block", borderBottom: "1px solid #e5e5e5" }} />
+                      )}
+                      <div style={{ padding: 16 }}>
+                        <p style={{ fontSize: 14, color: "#333", margin: "0 0 10px", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.text}</p>
+                        <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#999" }}>
+                          <span>{formatNumber(post.likes)} likes</span>
+                          <span>{formatNumber(post.retweets)} RTs</span>
+                          <span>{formatNumber(post.views)} views</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: "#999", fontSize: 14 }}>No posts yet.</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Responsive: stack on mobile */}
+        <style>{`
+          @media (max-width: 768px) {
+            section > div[style*="grid-template-columns: 1fr 380px"] {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
 
         {/* Notable Followers */}
         {profile.top_followers.length > 0 && (

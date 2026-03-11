@@ -4,12 +4,15 @@ import {
   getCreatorProfile,
   getAllCreatorProfiles,
   getProductsByStoreSlug,
+  fetchCreatorData,
 } from "@/lib/drupal";
 import MySpaceTheme from "@/components/themes/MySpaceTheme";
 import MinimalTheme from "@/components/themes/MinimalTheme";
 import NeonTheme from "@/components/themes/NeonTheme";
 import EditorialTheme from "@/components/themes/EditorialTheme";
 import Xai3Theme from "@/components/themes/Xai3Theme";
+import XMimicTheme from "@/components/themes/XMimicTheme";
+import Sidebar from "@/components/Sidebar";
 import StoreNav from "@/components/StoreNav";
 
 export async function generateStaticParams() {
@@ -130,6 +133,24 @@ export default async function CreatorStorePage({
           <EditorialTheme profile={profile} products={products} />
         </div>
       </>
+    );
+  }
+
+  if (profile.store_theme === "xmimic") {
+    const data = await fetchCreatorData(creator);
+    return (
+      <div className="bg-black text-white min-h-screen flex">
+        <Sidebar
+          handle={creator}
+          recentPosts={data?.recentPosts ?? []}
+          profilePictureUrl={profile.profile_picture_url}
+          displayName={profile.title || profile.x_username}
+          productCount={products.length}
+        />
+        <main className="ml-72 flex-1">
+          <XMimicTheme profile={profile} products={products} />
+        </main>
+      </div>
     );
   }
 

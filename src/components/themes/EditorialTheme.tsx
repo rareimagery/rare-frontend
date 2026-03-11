@@ -93,106 +93,82 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
         </section>
       )}
 
-      {/* ── SHOP ── */}
-      {products.length > 0 && (
-        <section className="max-w-3xl mx-auto px-4 py-10">
-          <h2 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 700, marginBottom: 8, color: "#1a1a1a" }}>Shop</h2>
-          <div style={{ width: 60, height: 2, background: "#1a1a1a", marginBottom: 24 }} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 24 }}>
-            {products.map((product: Product) => (
-              <div key={product.id} style={{ borderBottom: "2px solid #1a1a1a", paddingBottom: 16 }}>
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover", marginBottom: 12 }} />
-                ) : (
-                  <div style={{ width: "100%", height: 200, background: "#efe9dd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>🛍️</div>
+      {/* ── TWO-COLUMN: Shop left, Posts right ── */}
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 16px 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 40 }}>
+          {/* Left — Shop */}
+          <div>
+            <h2 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 700, marginBottom: 8, color: "#1a1a1a" }}>Shop</h2>
+            <div style={{ width: 60, height: 2, background: "#1a1a1a", marginBottom: 24 }} />
+            {products.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 24 }}>
+                {products.map((product: Product) => (
+                  <div key={product.id} style={{ borderBottom: "2px solid #1a1a1a", paddingBottom: 16 }}>
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover", marginBottom: 12 }} />
+                    ) : (
+                      <div style={{ width: "100%", height: 200, background: "#efe9dd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>🛍️</div>
+                    )}
+                    <h3 style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{product.title}</h3>
+                    {product.description && (
+                      <p style={{ fontSize: 13, color: "#555", marginBottom: 10, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: product.description }} />
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 700 }}>${parseFloat(product.price).toFixed(2)}</span>
+                      <button style={{ background: "#1a1a1a", color: "#f8f6f1", border: "none", padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5 }}>Add to Cart</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: "#999", fontFamily: SERIF, fontStyle: "italic" }}>No products listed yet.</p>
+            )}
+          </div>
+
+          {/* Right — Posts Feed */}
+          <div style={{ position: "sticky", top: 24, alignSelf: "start", maxHeight: "100vh", overflowY: "auto" }}>
+            <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: SERIF, color: "#111" }}>Recent Posts</h2>
+            {featuredPost && (
+              <div style={{ marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid #e5e0d5" }}>
+                {featuredPost.image_url && (
+                  <img src={featuredPost.image_url} alt="" style={{ width: "100%", borderRadius: 8, objectFit: "cover", marginBottom: 12, maxHeight: 240 }} />
                 )}
-                <h3 style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{product.title}</h3>
-                {product.description && (
-                  <p style={{ fontSize: 13, color: "#555", marginBottom: 10, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: product.description }} />
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 700 }}>${parseFloat(product.price).toFixed(2)}</span>
-                  <button style={{ background: "#1a1a1a", color: "#f8f6f1", border: "none", padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5 }}>Add to Cart</button>
+                <p style={{ fontFamily: SERIF, fontSize: 16, color: "#1f2937", lineHeight: 1.7, marginBottom: 8 }}>{featuredPost.text}</p>
+                <div className="flex gap-3 text-xs tracking-widest uppercase text-neutral-400" style={{ letterSpacing: "0.08em" }}>
+                  <span>{formatNumber(featuredPost.likes)} likes</span>
+                  <span>{formatNumber(featuredPost.retweets)} RT</span>
+                  <span>{formatNumber(featuredPost.views)} views</span>
                 </div>
               </div>
-            ))}
+            )}
+            {morePosts.length > 0 && (
+              <div className="divide-y divide-neutral-200">
+                {morePosts.map((post: TopPost, i: number) => (
+                  <article key={post.id || i} style={{ padding: "16px 0" }}>
+                    <p style={{ color: "#374151", fontSize: 15, lineHeight: 1.6, marginBottom: 8 }}>{post.text}</p>
+                    <div className="flex gap-3 text-xs tracking-widest uppercase text-neutral-400" style={{ letterSpacing: "0.08em" }}>
+                      <span>{formatNumber(post.likes)} likes</span>
+                      <span>{formatNumber(post.retweets)} RT</span>
+                      <span>{formatNumber(post.views)} views</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            {profile.top_posts.length === 0 && (
+              <p style={{ color: "#999", fontFamily: SERIF, fontStyle: "italic" }}>No posts yet.</p>
+            )}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* ── FEATURED POST ── */}
-      {featuredPost && (
-        <section className="max-w-4xl mx-auto px-4 py-10">
-          {featuredPost.image_url && (
-            <img
-              src={featuredPost.image_url}
-              alt=""
-              className="w-full rounded-lg object-cover mb-6"
-              style={{ maxHeight: 480 }}
-            />
-          )}
-          <p
-            className="text-lg md:text-xl leading-relaxed mb-4"
-            style={{ fontFamily: SERIF, color: "#1f2937" }}
-          >
-            {featuredPost.text}
-          </p>
-          <div
-            className="flex gap-4 text-xs tracking-widest uppercase text-neutral-400"
-            style={{ letterSpacing: "0.1em" }}
-          >
-            <span>{formatNumber(featuredPost.likes)} likes</span>
-            <span>{formatNumber(featuredPost.retweets)} retweets</span>
-            <span>{formatNumber(featuredPost.replies)} replies</span>
-            <span>{formatNumber(featuredPost.views)} views</span>
-          </div>
-        </section>
-      )}
-
-      {/* ── MORE POSTS ── */}
-      {morePosts.length > 0 && (
-        <section className="max-w-3xl mx-auto px-4 py-10">
-          <h2
-            className="text-2xl font-bold mb-8"
-            style={{ fontFamily: SERIF, color: "#111" }}
-          >
-            More Posts
-          </h2>
-
-          <div className="divide-y divide-neutral-200">
-            {morePosts.map((post: TopPost, i: number) => (
-              <article
-                key={post.id || i}
-                className="py-6 flex gap-6 items-start"
-              >
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-base leading-relaxed mb-3"
-                    style={{ color: "#374151" }}
-                  >
-                    {post.text}
-                  </p>
-                  <div
-                    className="flex gap-3 text-xs tracking-widest uppercase text-neutral-400"
-                    style={{ letterSpacing: "0.08em" }}
-                  >
-                    <span>{formatNumber(post.likes)} likes</span>
-                    <span>{formatNumber(post.retweets)} RT</span>
-                    <span>{formatNumber(post.views)} views</span>
-                  </div>
-                </div>
-                {post.image_url && (
-                  <img
-                    src={post.image_url}
-                    alt=""
-                    className="w-[120px] h-[120px] rounded object-cover flex-shrink-0"
-                  />
-                )}
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+      <style>{`
+        @media (max-width: 768px) {
+          section > div[style*="grid-template-columns: 1fr 380px"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
 
       {/* ── COMMUNITY ── */}
       {profile.top_followers.length > 0 && (

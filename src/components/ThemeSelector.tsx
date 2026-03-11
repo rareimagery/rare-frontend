@@ -32,6 +32,12 @@ const THEMES = [
     description: "Retro 2007 nostalgia with glitter, marquees, and music",
     preview: "bg-[#000033]",
   },
+  {
+    id: "xmimic",
+    name: "X Profile",
+    description: "Exact X/Twitter profile clone — 3-column layout with Store tab",
+    preview: "bg-black",
+  },
 ];
 
 interface ThemeSelectorProps {

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { syncXDataToDrupal } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -148,6 +149,13 @@ const handler = NextAuth({
           ? account.expires_at * 1000
           : Date.now() + 2 * 60 * 60 * 1000; // default 2h
         token.role = "creator";
+
+        // Fire-and-forget: sync X data to Drupal on login
+        syncXDataToDrupal(
+          account.access_token as string,
+          token.xId as string,
+          token.xUsername as string
+        ).catch(() => {}); // swallow — logged inside syncXDataToDrupal
       }
 
       // Auto-refresh expired X access token

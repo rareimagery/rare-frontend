@@ -996,7 +996,7 @@ const XMIMIC_STYLES = `
   /* Store grid tab */
   .xm-store-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 1px;
     background: var(--xm-border);
   }

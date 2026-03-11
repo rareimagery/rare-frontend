@@ -14,6 +14,7 @@ import Xai3Theme from "@/components/themes/Xai3Theme";
 import XMimicTheme from "@/components/themes/XMimicTheme";
 import Sidebar from "@/components/Sidebar";
 import StoreNav from "@/components/StoreNav";
+import BuilderGate from "@/components/builder/BuilderGate";
 
 export async function generateStaticParams() {
   try {
@@ -99,6 +100,7 @@ export default async function CreatorStorePage({
             themeConfig={profile.store_theme_config ?? undefined}
           />
         </div>
+        <BuilderGate storeSlug={creator} />
       </>
     );
   }
@@ -110,6 +112,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <MinimalTheme profile={profile} products={products} />
         </div>
+        <BuilderGate storeSlug={creator} />
       </>
     );
   }
@@ -121,6 +124,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <NeonTheme profile={profile} products={products} />
         </div>
+        <BuilderGate storeSlug={creator} />
       </>
     );
   }
@@ -132,6 +136,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <EditorialTheme profile={profile} products={products} />
         </div>
+        <BuilderGate storeSlug={creator} />
       </>
     );
   }
@@ -139,18 +144,21 @@ export default async function CreatorStorePage({
   if (profile.store_theme === "xmimic") {
     const data = await fetchCreatorData(creator);
     return (
-      <div className="bg-black text-white min-h-screen flex">
-        <Sidebar
-          handle={creator}
-          recentPosts={data?.recentPosts ?? []}
-          profilePictureUrl={profile.profile_picture_url}
-          displayName={profile.title || profile.x_username}
-          productCount={products.length}
-        />
-        <main className="ml-72 flex-1">
-          <XMimicTheme profile={profile} products={products} />
-        </main>
-      </div>
+      <>
+        <div className="bg-black text-white min-h-screen flex">
+          <Sidebar
+            handle={creator}
+            recentPosts={data?.recentPosts ?? []}
+            profilePictureUrl={profile.profile_picture_url}
+            displayName={profile.title || profile.x_username}
+            productCount={products.length}
+          />
+          <main className="ml-72 flex-1">
+            <XMimicTheme profile={profile} products={products} />
+          </main>
+        </div>
+        <BuilderGate storeSlug={creator} />
+      </>
     );
   }
 
@@ -162,6 +170,7 @@ export default async function CreatorStorePage({
       <div className="pt-12">
         <Xai3Theme profile={profile} products={products} />
       </div>
+      <BuilderGate storeSlug={creator} />
     </>
   );
 }

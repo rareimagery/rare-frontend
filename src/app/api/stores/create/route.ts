@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isValidSlug } from "@/lib/slugs";
 import { notifyAdminNewStore } from "@/lib/notifications";
 
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -23,10 +23,11 @@ async function createDrupalStore(
   ownerEmail: string,
   currency: string
 ) {
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(`${DRUPAL_API}/jsonapi/commerce_store/online`, {
     method: "POST",
     headers: {
-      ...drupalAuthHeaders(),
+      ...writeHeaders,
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({
@@ -36,13 +37,32 @@ async function createDrupalStore(
           name: storeName,
           field_store_slug: slug,
           mail: ownerEmail,
-          default_currency: currency || "USD",
+          timezone: "America/New_York",
+          address: {
+            country_code: "US",
+            address_line1: "N/A",
+            locality: "New York",
+            administrative_area: "NY",
+            postal_code: "10001",
+          },
           field_store_status: "pending",
+        },
+        relationships: {
+          default_currency: {
+            data: {
+              type: "commerce_currency--commerce_currency",
+              id: "7be59a35-eea8-4d2d-8be4-b113aafad8d4",
+            },
+          },
         },
       },
     }),
   });
-  if (!res.ok) throw new Error(`Drupal store creation failed: ${res.status}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Store creation error:", errText);
+    throw new Error(`Drupal store creation failed: ${res.status} — ${errText.slice(0, 300)}`);
+  }
   return res.json();
 }
 
@@ -110,10 +130,11 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
     attributes.field_myspace_music_url = fields.myspaceMusicUrl;
   }
 
+  const profileWriteHeaders = await drupalWriteHeaders();
   const res = await fetch(`${DRUPAL_API}/jsonapi/node/creator_x_profile`, {
     method: "POST",
     headers: {
-      ...drupalAuthHeaders(),
+      ...profileWriteHeaders,
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({

@@ -1,49 +1,85 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import ConsoleUserMenu from "@/components/ConsoleUserMenu";
+import { authOptions } from "@/lib/auth";
+import { drupalAuthHeaders } from "@/lib/drupal";
+import {
+  ConsoleContextProvider,
+  ConsoleContextValue,
+} from "@/components/ConsoleContext";
+import ConsoleSidebar from "@/components/ConsoleSidebar";
+
+const DRUPAL_API = process.env.DRUPAL_API_URL;
+
+async function getUserStoreData(xUsername: string) {
+  try {
+    const profileRes = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${xUsername}&include=field_linked_store`,
+      { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+    );
+    if (!profileRes.ok) return null;
+    const profileData = await profileRes.json();
+    if (!profileData.data || profileData.data.length === 0) return null;
+
+    const profile = profileData.data[0];
+    const included = profileData.included || [];
+
+    const storeRef = profile.relationships?.field_linked_store?.data;
+    const store = storeRef
+      ? included.find((inc: any) => inc.id === storeRef.id)
+      : null;
+
+    return {
+      profileNodeId: profile.id,
+      storeName: store?.attributes?.name || profile.attributes?.title || null,
+      storeSlug: store?.attributes?.field_store_slug || xUsername,
+      storeId: store?.id || null,
+      storeDrupalId: store
+        ? String(store.attributes?.drupal_internal__store_id)
+        : null,
+      storeStatus: store?.attributes?.field_store_status || null,
+      currentTheme: profile.attributes?.field_store_theme || "xai3",
+    };
+  } catch {
+    return null;
+  }
+}
 
 export default async function ConsoleLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const role = (session as any).role;
-  const isAdmin = role === "admin";
+  const role = ((session as any).role ||
+    "creator") as ConsoleContextValue["role"];
+  const xUsername =
+    (session as any).xUsername || (session as any).storeSlug || null;
+
+  const storeData = xUsername ? await getUserStoreData(xUsername) : null;
+
+  const contextValue: ConsoleContextValue = {
+    role,
+    xUsername,
+    hasStore: !!storeData?.storeId,
+    storeId: storeData?.storeId || null,
+    storeDrupalId: storeData?.storeDrupalId || null,
+    profileNodeId: storeData?.profileNodeId || null,
+    storeName: storeData?.storeName || null,
+    storeSlug: storeData?.storeSlug || null,
+    storeStatus: storeData?.storeStatus || null,
+    currentTheme: storeData?.currentTheme || null,
+  };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <nav className="border-b border-zinc-800 bg-zinc-900/80">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-          <Link
-            href="/console"
-            className="text-lg font-bold text-indigo-400 transition hover:text-indigo-300"
-          >
-            RareImagery Console
-          </Link>
-          {isAdmin && (
-            <>
-              <Link
-                href="/console/stores"
-                className="text-sm text-zinc-400 transition hover:text-white"
-              >
-                All Stores
-              </Link>
-              <Link
-                href="/console/stores/new"
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
-              >
-                + New Store
-              </Link>
-            </>
-          )}
-          <ConsoleUserMenu />
-        </div>
-      </nav>
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-    </div>
+    <ConsoleContextProvider value={contextValue}>
+      <div className="flex min-h-screen bg-zinc-950 text-white">
+        <ConsoleSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-5xl px-8 py-8">{children}</div>
+        </main>
+      </div>
+    </ConsoleContextProvider>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
 import BuildPageClient from "@/components/BuildPageClient";
 
 export const metadata = {
@@ -30,7 +31,7 @@ function SignInButton() {
 }
 
 export default async function BuildPage() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
 
   // Store owners with existing stores go to console
   if (session && (session as any).role === "store_owner") {

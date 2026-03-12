@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { isValidSlug } from "@/lib/slugs";
 import { notifyAdminNewStore } from "@/lib/notifications";
 
@@ -137,7 +138,7 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

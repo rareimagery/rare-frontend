@@ -7,6 +7,9 @@ import { syncXDataToDrupal } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+// Store last auth error for debugging
+let lastAuthError: string | null = null;
+
 /** Authenticate a store owner against Drupal */
 async function authenticateDrupalUser(
   email: string,
@@ -75,18 +78,6 @@ const handler = NextAuth({
       clientId: process.env.X_CLIENT_ID!,
       clientSecret: process.env.X_CLIENT_SECRET!,
       version: "2.0",
-      authorization: {
-        params: {
-          scope: "users.read tweet.read follows.read offline.access",
-        },
-      },
-      userinfo: {
-        url: "https://api.twitter.com/2/users/me",
-        params: {
-          "user.fields":
-            "profile_image_url,profile_banner_url,public_metrics,description,verified",
-        },
-      },
     }),
     CredentialsProvider({
       name: "credentials",
@@ -130,75 +121,52 @@ const handler = NextAuth({
       },
     }),
   ],
+  debug: true,
+  logger: {
+    error(code, metadata) {
+      const msg = `[AUTH ERROR] ${code}: ${JSON.stringify(metadata)}`;
+      console.error(msg);
+      lastAuthError = msg;
+    },
+    warn(code) {
+      console.warn("[AUTH WARN]", code);
+    },
+    debug(code, metadata) {
+      console.log("[AUTH DEBUG]", code, JSON.stringify(metadata));
+    },
+  },
   callbacks: {
+    async signIn({ account, profile }) {
+      console.log("=== SIGNIN CALLBACK ===");
+      console.log("Provider:", account?.provider);
+      console.log("Account:", JSON.stringify(account, null, 2));
+      console.log("Profile:", JSON.stringify(profile, null, 2));
+      return true;
+    },
     async jwt({ token, account, profile, user }) {
       if (account?.provider === "twitter" && profile) {
+        // OAuth 1.0a returns screen_name, id_str, profile_image_url_https
         token.xUsername =
-          (profile as any).data?.username ??
           (profile as any).screen_name ??
+          (profile as any).data?.username ??
           "";
         token.xId =
-          (profile as any).data?.id ?? account.providerAccountId;
+          (profile as any).id_str ??
+          (profile as any).data?.id ??
+          account.providerAccountId;
         token.xImage =
-          (profile as any).data?.profile_image_url ?? token.picture;
+          (profile as any).profile_image_url_https ??
+          (profile as any).data?.profile_image_url ??
+          token.picture;
         token.xBannerUrl =
-          (profile as any).data?.profile_banner_url ?? null;
-        token.xAccessToken = account.access_token;
-        token.xRefreshToken = account.refresh_token ?? null;
-        token.xTokenExpires = account.expires_at
-          ? account.expires_at * 1000
-          : Date.now() + 2 * 60 * 60 * 1000; // default 2h
+          (profile as any).profile_banner_url ?? null;
+        token.xAccessToken = account.access_token ?? account.oauth_token ?? null;
+        token.xAccessTokenSecret = account.oauth_token_secret ?? null;
+
         // Grant admin role if this X account matches the admin username
         const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         const xUser = (token.xUsername as string || "").toLowerCase();
         token.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
-
-        // Fire-and-forget: sync X data to Drupal on login
-        syncXDataToDrupal(
-          account.access_token as string,
-          token.xId as string,
-          token.xUsername as string
-        ).catch(() => {}); // swallow — logged inside syncXDataToDrupal
-      }
-
-      // Auto-refresh expired X access token
-      if (
-        token.role === "creator" &&
-        token.xRefreshToken &&
-        typeof token.xTokenExpires === "number" &&
-        Date.now() > token.xTokenExpires - 5 * 60 * 1000 // refresh 5 min early
-      ) {
-        try {
-          const res = await fetch("https://api.twitter.com/2/oauth2/token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Basic ${Buffer.from(
-                `${process.env.X_CLIENT_ID}:${process.env.X_CLIENT_SECRET}`
-              ).toString("base64")}`,
-            },
-            body: new URLSearchParams({
-              grant_type: "refresh_token",
-              refresh_token: token.xRefreshToken as string,
-            }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            token.xAccessToken = data.access_token;
-            token.xRefreshToken = data.refresh_token ?? token.xRefreshToken;
-            token.xTokenExpires =
-              Date.now() + (data.expires_in ?? 7200) * 1000;
-          } else {
-            console.error(
-              "X token refresh failed:",
-              res.status,
-              await res.text()
-            );
-          }
-        } catch (err) {
-          console.error("X token refresh error:", err);
-        }
       }
       if (account?.provider === "credentials" && user) {
         token.role = (user as any).role || "admin";
@@ -230,3 +198,10 @@ const handler = NextAuth({
 });
 
 export { handler as GET, handler as POST };
+
+// Debug endpoint - GET /api/auth/error-log
+export async function OPTIONS() {
+  return new Response(JSON.stringify({ lastAuthError }), {
+    headers: { "Content-Type": "application/json" },
+  });
+}

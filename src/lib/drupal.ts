@@ -251,7 +251,7 @@ export interface CreatorProfile {
   myspace_music_url: string | null;
   myspace_glitter_color: string | null;
   myspace_accent_color: string | null;
-  store_status: "pending" | "approved" | "rejected" | null;
+  store_status: "pending" | "approved" | "rejected" | "suspended" | null;
   subscription_tiers: import("@/lib/payments").SubscriptionTier[];
 }
 

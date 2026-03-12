@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
-
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+// USD currency UUID in Drupal (commerce_currency entity)
+const USD_CURRENCY_UUID = "7be59a35-eea8-4d2d-8be4-b113aafad8d4";
+
 async function createDrupalStore(slug: string, storeName: string) {
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(`${DRUPAL_API}/jsonapi/commerce_store/online`, {
     method: "POST",
     headers: {
-      ...drupalAuthHeaders(),
+      ...writeHeaders,
       "Content-Type": "application/vnd.api+json",
     },
     body: JSON.stringify({
@@ -18,7 +21,23 @@ async function createDrupalStore(slug: string, storeName: string) {
         attributes: {
           name: storeName,
           field_store_slug: slug,
-          default_currency: "USD",
+          timezone: "America/New_York",
+          address: {
+            country_code: "US",
+            address_line1: "N/A",
+            locality: "New York",
+            administrative_area: "NY",
+            postal_code: "10001",
+          },
+          field_store_status: "pending",
+        },
+        relationships: {
+          default_currency: {
+            data: {
+              type: "commerce_currency--commerce_currency",
+              id: USD_CURRENCY_UUID,
+            },
+          },
         },
       },
     }),
@@ -26,7 +45,7 @@ async function createDrupalStore(slug: string, storeName: string) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Drupal store creation failed: ${res.status} — ${body}`);
+    throw new Error(`Drupal store creation failed: ${res.status} — ${body.slice(0, 300)}`);
   }
 
   return res.json();
@@ -50,12 +69,13 @@ async function findXProfile(xUsername: string): Promise<string | null> {
 }
 
 async function linkProfileToStore(profileId: string, storeId: string) {
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile/${profileId}`,
     {
       method: "PATCH",
       headers: {
-        ...drupalAuthHeaders(),
+        ...writeHeaders,
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -74,25 +94,72 @@ async function linkProfileToStore(profileId: string, storeId: string) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Profile-store link failed: ${res.status} — ${body}`);
+    throw new Error(`Profile-store link failed: ${res.status} — ${body.slice(0, 300)}`);
   }
 
   return res.json();
 }
 
-async function createSubscription(customerId: string) {
+/**
+ * Create a $3/month recurring subscription for the store creator.
+ * Uses Stripe's built-in subscription billing.
+ */
+async function createMonthlySubscription(customerId: string, storeSlug: string) {
   const stripe = getStripeClient();
+
   const price = await stripe.prices.create({
     currency: "usd",
-    unit_amount: 100,
+    unit_amount: 300, // $3.00/month
     recurring: { interval: "month" },
-    product_data: { name: "RareImagery Creator Store Monthly" },
+    product_data: {
+      name: "RareImagery Creator Store — Monthly",
+      metadata: { store_slug: storeSlug },
+    },
   });
 
   await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: price.id }],
+    metadata: { store_slug: storeSlug, type: "store_monthly" },
   });
+}
+
+/**
+ * Disable a store when its subscription lapses.
+ */
+async function disableStore(storeSlug: string) {
+  // Find store by slug
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${encodeURIComponent(storeSlug)}`,
+    { headers: { ...drupalAuthHeaders() } }
+  );
+
+  if (!res.ok) return;
+  const json = await res.json();
+  const stores = json.data ?? [];
+  if (stores.length === 0) return;
+
+  const storeUuid = stores[0].id;
+
+  const writeHeaders = await drupalWriteHeaders();
+  await fetch(`${DRUPAL_API}/jsonapi/commerce_store/online/${storeUuid}`, {
+    method: "PATCH",
+    headers: {
+      ...writeHeaders,
+      "Content-Type": "application/vnd.api+json",
+    },
+    body: JSON.stringify({
+      data: {
+        type: "commerce_store--online",
+        id: storeUuid,
+        attributes: {
+          field_store_status: "suspended",
+        },
+      },
+    }),
+  });
+
+  console.log(`Store "${storeSlug}" suspended due to subscription lapse`);
 }
 
 export async function POST(req: NextRequest) {
@@ -125,6 +192,11 @@ export async function POST(req: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;
+      const sessionType = session.metadata?.type;
+
+      // Only handle store setup checkouts (not product purchases)
+      if (sessionType !== "store_setup") break;
+
       const storeSlug = session.metadata?.storeSlug;
       const xUsername = session.metadata?.xUsername;
 
@@ -151,13 +223,16 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // 3. Create the $1/month subscription
+        // 3. Create the $3/month recurring subscription (first month included in setup fee)
         if (session.customer) {
-          await createSubscription(session.customer as string);
+          await createMonthlySubscription(
+            session.customer as string,
+            storeSlug
+          );
         }
 
         console.log(
-          `Store "${storeSlug}" created for @${xUsername}, subscription started`
+          `Store "${storeSlug}" created for @${xUsername}, $3/month subscription started`
         );
       } catch (err: any) {
         console.error("Webhook processing error:", err.message);
@@ -168,10 +243,28 @@ export async function POST(req: NextRequest) {
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
+      const storeSlug = subscription.metadata?.store_slug;
+
       console.log(
         `Subscription ${subscription.id} cancelled for customer ${subscription.customer}`
       );
-      // TODO: disable store access when subscription lapses
+
+      if (storeSlug) {
+        try {
+          await disableStore(storeSlug);
+        } catch (err: any) {
+          console.error("Failed to disable store on subscription lapse:", err.message);
+        }
+      }
+      break;
+    }
+
+    case "invoice.payment_failed": {
+      const invoice = event.data.object;
+      console.warn(
+        `Payment failed for customer ${invoice.customer}, invoice ${invoice.id}`
+      );
+      // Stripe will retry — store stays active until subscription.deleted fires
       break;
     }
 

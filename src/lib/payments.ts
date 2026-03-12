@@ -180,6 +180,23 @@ export class StripeProvider implements PaymentProvider {
       quantity: item.quantity,
     }));
 
+    // Platform processing fee: 2.9% + $0.30 per order
+    const subtotalCents = params.items.reduce(
+      (sum, i) => sum + Math.round(i.price * 100) * i.quantity,
+      0
+    );
+    const feeCents = Math.round(subtotalCents * 0.029) + 30;
+    const currency = params.items[0]?.currency?.toLowerCase() ?? "usd";
+
+    lineItems.push({
+      price_data: {
+        currency,
+        product_data: { name: "Platform processing fee" },
+        unit_amount: feeCents,
+      },
+      quantity: 1,
+    });
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -188,6 +205,7 @@ export class StripeProvider implements PaymentProvider {
         store_id: params.storeId,
         buyer_x_id: params.buyerXId ?? "",
         seller_x_id: params.sellerXId ?? "",
+        type: "product_purchase",
         items: JSON.stringify(
           params.items.map((i) => ({
             id: i.productId,

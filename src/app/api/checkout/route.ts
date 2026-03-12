@@ -27,11 +27,11 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Store Setup Fee",
+              name: "Store Setup + First Month",
               description:
-                "One-time setup fee for your RareImagery Creator Store",
+                "$5 one-time setup fee + $3 first month for your RareImagery Creator Store",
             },
-            unit_amount: 500,
+            unit_amount: 800, // $5 setup + $3 first month = $8
           },
           quantity: 1,
         },
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       metadata: {
         storeSlug,
         xUsername,
+        type: "store_setup",
       },
       success_url: `${process.env.NEXTAUTH_URL}/console/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXTAUTH_URL}/console`,

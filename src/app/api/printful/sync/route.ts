@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -28,12 +28,13 @@ async function uploadProductImage(
     const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const ext = contentType.includes("png") ? "png" : "jpg";
 
+    const writeHeaders = await drupalWriteHeaders();
     await fetch(
       `${DRUPAL_API}/jsonapi/commerce_product/printful/${productUuid}/field_images`,
       {
         method: "POST",
         headers: {
-          ...drupalAuthHeaders(),
+          ...writeHeaders,
           "Content-Type": "application/octet-stream",
           "Content-Disposition": `file; filename="${filename}.${ext}"`,
         },
@@ -138,13 +139,14 @@ export async function POST(req: NextRequest) {
           },
         };
 
+        const writeHeaders = await drupalWriteHeaders();
         const varRes = await fetch(
           `${DRUPAL_API}/jsonapi/commerce_product_variation/printful`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/vnd.api+json",
-              ...drupalAuthHeaders(),
+              ...writeHeaders,
             },
             body: JSON.stringify(varBody),
           }
@@ -184,13 +186,14 @@ export async function POST(req: NextRequest) {
         },
       };
 
+      const prodWriteHeaders = await drupalWriteHeaders();
       const prodRes = await fetch(
         `${DRUPAL_API}/jsonapi/commerce_product/printful`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/vnd.api+json",
-            ...drupalAuthHeaders(),
+            ...prodWriteHeaders,
           },
           body: JSON.stringify(productBody),
         }

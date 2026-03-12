@@ -2,7 +2,7 @@
 // X (Twitter) API v2 Data Import
 // ---------------------------------------------------------------------------
 
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const X_API_BASE = "https://api.twitter.com/2";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
@@ -316,12 +316,13 @@ export async function patchProfile(
   uuid: string,
   attributes: Record<string, any>
 ): Promise<void> {
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile/${uuid}`,
     {
       method: "PATCH",
       headers: {
-        ...drupalAuthHeaders(),
+        ...writeHeaders,
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({
@@ -361,12 +362,13 @@ export async function uploadImageToDrupal(
     const ext = contentType.includes("png") ? "png" : "jpg";
     const imageBuffer = Buffer.from(await imgRes.arrayBuffer());
 
+    const writeHeaders = await drupalWriteHeaders();
     const uploadRes = await fetch(
       `${DRUPAL_API}/jsonapi/node/creator_x_profile/${nodeUuid}/${fieldName}`,
       {
         method: "POST",
         headers: {
-          ...drupalAuthHeaders(),
+          ...writeHeaders,
           "Content-Type": "application/octet-stream",
           "Content-Disposition": `file; filename="${filename}.${ext}"`,
         },

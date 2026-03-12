@@ -17,7 +17,6 @@ export const RESERVED_SLUGS = [
   "login",
   "signup",
   "dashboard",
-  "rareimagery",
 ];
 
 /**

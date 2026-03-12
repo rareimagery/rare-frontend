@@ -1,10 +1,81 @@
 const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 // ---------------------------------------------------------------------------
-// Auth helper — Basic Auth for JSON:API write operations
+// Auth helper — Cookie session auth for JSON:API (Basic Auth fails on writes)
 // ---------------------------------------------------------------------------
 
+let _sessionCache: {
+  cookie: string;
+  csrfToken: string;
+  expiresAt: number;
+} | null = null;
+
+async function getDrupalSession(): Promise<{
+  cookie: string;
+  csrfToken: string;
+}> {
+  // Return cached session if still valid (refresh every 10 minutes)
+  if (_sessionCache && _sessionCache.expiresAt > Date.now()) {
+    return { cookie: _sessionCache.cookie, csrfToken: _sessionCache.csrfToken };
+  }
+
+  const user = process.env.DRUPAL_API_USER;
+  const pass = process.env.DRUPAL_API_PASS;
+  if (!user || !pass) {
+    throw new Error("DRUPAL_API_USER and DRUPAL_API_PASS must be set");
+  }
+
+  // Login to get session cookie
+  const loginRes = await fetch(`${DRUPAL_API_URL}/user/login?_format=json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: user, pass }),
+  });
+
+  if (!loginRes.ok) {
+    throw new Error(`Drupal login failed: ${loginRes.status}`);
+  }
+
+  // Extract session cookie from Set-Cookie header
+  const setCookies = loginRes.headers.getSetCookie?.() || [];
+  const sessionCookie = setCookies
+    .map((c) => c.split(";")[0])
+    .find((c) => c.startsWith("SESS") || c.startsWith("SSESS"));
+
+  if (!sessionCookie) {
+    // Fallback: try raw header
+    const rawCookie = loginRes.headers.get("set-cookie") || "";
+    const match = rawCookie.match(/(S?SESS[^=]+=[^;]+)/);
+    if (!match) throw new Error("No session cookie in login response");
+    _sessionCache = {
+      cookie: match[1],
+      csrfToken: "",
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+  } else {
+    _sessionCache = {
+      cookie: sessionCookie,
+      csrfToken: "",
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+  }
+
+  // Get CSRF token
+  const csrfRes = await fetch(`${DRUPAL_API_URL}/session/token`, {
+    headers: { Cookie: _sessionCache!.cookie },
+  });
+  if (csrfRes.ok) {
+    _sessionCache!.csrfToken = await csrfRes.text();
+  }
+
+  return {
+    cookie: _sessionCache!.cookie,
+    csrfToken: _sessionCache!.csrfToken,
+  };
+}
+
 export function drupalAuthHeaders(): Record<string, string> {
+  // For synchronous callers (GET requests), Basic Auth still works
   const user = process.env.DRUPAL_API_USER;
   const pass = process.env.DRUPAL_API_PASS;
   if (user && pass) {
@@ -12,12 +83,20 @@ export function drupalAuthHeaders(): Record<string, string> {
       Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`,
     };
   }
-  // Fallback to Bearer token if configured
   const token = process.env.DRUPAL_API_TOKEN;
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
   return {};
+}
+
+/** Get auth headers for write operations (POST/PATCH/DELETE) using cookie auth */
+export async function drupalWriteHeaders(): Promise<Record<string, string>> {
+  const session = await getDrupalSession();
+  return {
+    Cookie: session.cookie,
+    "X-CSRF-Token": session.csrfToken,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +158,8 @@ export interface Product {
   currency: string;
   sku: string;
   image_url: string | null;
+  subscriber_only: boolean;
+  min_tier: string | null;
 }
 
 export interface ProductDetail {
@@ -143,6 +224,9 @@ export interface ProductDetail {
   // Printful POD
   printful_product_id: string | null;
   print_technique: string | null;
+  // Access control
+  subscriber_only: boolean;
+  min_tier: string | null;
   // Related
   related_product_ids: string[];
 }
@@ -168,6 +252,7 @@ export interface CreatorProfile {
   myspace_glitter_color: string | null;
   myspace_accent_color: string | null;
   store_status: "pending" | "approved" | "rejected" | null;
+  subscription_tiers: import("@/lib/payments").SubscriptionTier[];
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +358,13 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
       if (!linkedStoreId) return null;
       const storeEntity = included.find((inc: any) => inc.id === linkedStoreId);
       return storeEntity?.attributes?.field_store_status ?? null;
+    })(),
+    subscription_tiers: (() => {
+      if (!linkedStoreId) return [];
+      const storeEntity = included.find((inc: any) => inc.id === linkedStoreId);
+      const raw = storeEntity?.attributes?.field_subscription_tiers;
+      if (!raw) return [];
+      try { return JSON.parse(raw); } catch { return []; }
     })(),
   };
 }
@@ -423,6 +515,8 @@ export async function getStoreProducts(storeId: string): Promise<Product[]> {
           currency,
           sku,
           image_url: imageUrl,
+          subscriber_only: attrs.field_subscriber_only ?? false,
+          min_tier: attrs.field_min_tier ?? null,
         });
       }
     } catch {
@@ -623,6 +717,9 @@ function mapProductDetail(
     // Printful
     printful_product_id: attrs.field_printful_product_id ?? null,
     print_technique: attrs.field_print_technique ?? null,
+    // Access control
+    subscriber_only: attrs.field_subscriber_only ?? false,
+    min_tier: attrs.field_min_tier ?? null,
     // Related
     related_product_ids: relatedIds,
   };

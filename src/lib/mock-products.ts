@@ -1,6 +1,8 @@
 import { Product } from "./drupal";
 
-const mockProducts: Record<string, Product[]> = {
+type MockProduct = Omit<Product, "subscriber_only" | "min_tier">;
+
+const mockProducts: Record<string, MockProduct[]> = {
   elonmusk: [
     { id: "mock-em-1", title: "Mars Colony Blueprint Poster", description: "High-res digital print of the SpaceX Mars colony concept art. Limited edition.", price: "29.99", currency: "USD", sku: "elonmusk-mars-poster", image_url: null },
     { id: "mock-em-2", title: "Cybertruck Scale Model", description: "Die-cast 1:64 scale Cybertruck. Bulletproof glass not included.", price: "49.99", currency: "USD", sku: "elonmusk-cybertruck", image_url: null },
@@ -44,5 +46,9 @@ const mockProducts: Record<string, Product[]> = {
 };
 
 export function getMockProducts(slug: string): Product[] {
-  return mockProducts[slug] ?? [];
+  return (mockProducts[slug] ?? []).map((p) => ({
+    ...p,
+    subscriber_only: false,
+    min_tier: null,
+  }));
 }

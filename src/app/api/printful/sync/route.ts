@@ -3,16 +3,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { drupalAuthHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
+
+/** Retrieve the per-store Printful API key from Drupal */
+async function getStorePrintfulKey(storeUuid: string): Promise<string | null> {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/commerce_store/online/${storeUuid}`,
+    { headers: { ...drupalAuthHeaders() } }
+  );
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.attributes?.field_printful_api_key || null;
+}
+
+/** Download an image and upload it as a Drupal file entity on a product */
+async function uploadProductImage(
+  imageUrl: string,
+  productUuid: string,
+  filename: string
+): Promise<void> {
+  try {
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) return;
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+    const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : "jpg";
+
+    await fetch(
+      `${DRUPAL_API}/jsonapi/commerce_product/printful/${productUuid}/field_images`,
+      {
+        method: "POST",
+        headers: {
+          ...drupalAuthHeaders(),
+          "Content-Type": "application/octet-stream",
+          "Content-Disposition": `file; filename="${filename}.${ext}"`,
+        },
+        body: buffer,
+      }
+    );
+  } catch {
+    // Non-critical — product still syncs without image
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { storeId, storeDrupalId } = await req.json();
 
-    if (!PRINTFUL_API_KEY) {
+    // Get the per-store Printful API key from Drupal
+    const printfulApiKey = await getStorePrintfulKey(storeId);
+    if (!printfulApiKey) {
       return NextResponse.json(
-        { error: "Printful API key not configured on server" },
-        { status: 500 }
+        { error: "Printful not connected. Enter your API key first." },
+        { status: 400 }
       );
     }
 
@@ -20,7 +62,7 @@ export async function POST(req: NextRequest) {
     const printfulRes = await fetch(
       "https://api.printful.com/store/products",
       {
-        headers: { Authorization: `Bearer ${PRINTFUL_API_KEY}` },
+        headers: { Authorization: `Bearer ${printfulApiKey}` },
       }
     );
 
@@ -44,13 +86,14 @@ export async function POST(req: NextRequest) {
         "filter[field_printful_product_id]",
         String(pfProduct.id)
       );
-      existingParams.set("filter[stores.meta.drupal_internal__target_id]", storeDrupalId);
+      existingParams.set(
+        "filter[stores.meta.drupal_internal__target_id]",
+        storeDrupalId
+      );
 
       const existingRes = await fetch(
         `${DRUPAL_API}/jsonapi/commerce_product/printful?${existingParams.toString()}`,
-        {
-          headers: { ...drupalAuthHeaders() },
-        }
+        { headers: { ...drupalAuthHeaders() } }
       );
 
       if (existingRes.ok) {
@@ -64,9 +107,7 @@ export async function POST(req: NextRequest) {
       // Fetch product details from Printful
       const detailRes = await fetch(
         `https://api.printful.com/store/products/${pfProduct.id}`,
-        {
-          headers: { Authorization: `Bearer ${PRINTFUL_API_KEY}` },
-        }
+        { headers: { Authorization: `Bearer ${printfulApiKey}` } }
       );
 
       if (!detailRes.ok) continue;
@@ -90,9 +131,9 @@ export async function POST(req: NextRequest) {
                 currency_code: sv.currency || "USD",
               },
               field_printful_variant_id: String(sv.id),
-              field_printful_base_cost: String(sv.product?.retail_price || "0.00"),
-              field_size: sv.size || null,
-              field_color: sv.color || null,
+              field_printful_base_cost: String(
+                sv.product?.retail_price || "0.00"
+              ),
             },
           },
         };
@@ -122,8 +163,6 @@ export async function POST(req: NextRequest) {
           attributes: {
             title: syncProduct.name,
             field_printful_product_id: String(syncProduct.id),
-            field_printful_store_id: String(storeDrupalId),
-            field_production_time: "2-7 business days",
             status: true,
           },
           relationships: {
@@ -159,6 +198,18 @@ export async function POST(req: NextRequest) {
 
       if (prodRes.ok) {
         synced++;
+
+        // Upload thumbnail image (fire-and-forget)
+        const thumbnailUrl =
+          pfProduct.thumbnail_url || syncProduct.thumbnail_url;
+        if (thumbnailUrl) {
+          const prodData = await prodRes.json();
+          uploadProductImage(
+            thumbnailUrl,
+            prodData.data.id,
+            `printful-${syncProduct.id}`
+          ).catch(() => {});
+        }
       }
     }
 

@@ -6,7 +6,7 @@ const DRUPAL_API = process.env.DRUPAL_API_URL;
 
 export async function POST(req: NextRequest) {
   try {
-    const { storeId, storeDrupalId, apiKey } = await req.json();
+    const { storeId, apiKey } = await req.json();
 
     if (!apiKey) {
       return NextResponse.json(
@@ -29,42 +29,41 @@ export async function POST(req: NextRequest) {
 
     const printfulData = await printfulRes.json();
     const printfulStoreName = printfulData.result?.name || "Printful Store";
+    const printfulStoreId = String(printfulData.result?.id || "");
 
-    // Save the Printful API key and store connection in Drupal
-    // Store the Printful store ID on the Drupal commerce store
-    if (DRUPAL_API) {
-      try {
-        // Update the store with Printful connection info
-        // Using a custom field or state API
-        await fetch(
-          `${DRUPAL_API}/jsonapi/commerce_store/online/${storeId}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/vnd.api+json",
-              ...drupalAuthHeaders(),
-            },
-            body: JSON.stringify({
-              data: {
-                type: "commerce_store--online",
-                id: storeId,
-                attributes: {
-                  // Store Printful connection status in store theme field as JSON
-                  // In production, use a dedicated field
-                },
+    // Persist the API key and Printful store ID to the Drupal commerce_store
+    if (DRUPAL_API && storeId) {
+      const patchRes = await fetch(
+        `${DRUPAL_API}/jsonapi/commerce_store/online/${storeId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/vnd.api+json",
+            ...drupalAuthHeaders(),
+          },
+          body: JSON.stringify({
+            data: {
+              type: "commerce_store--online",
+              id: storeId,
+              attributes: {
+                field_printful_api_key: apiKey,
+                field_printful_store_id: printfulStoreId,
               },
-            }),
-          }
-        );
-      } catch {
-        // Non-critical — connection still valid
+            },
+          }),
+        }
+      );
+
+      if (!patchRes.ok) {
+        const text = await patchRes.text();
+        console.error("Failed to save Printful key to Drupal:", text);
       }
     }
 
     return NextResponse.json({
       success: true,
       printful_store: printfulStoreName,
-      printful_store_id: printfulData.result?.id,
+      printful_store_id: printfulStoreId,
     });
   } catch (err: any) {
     return NextResponse.json(

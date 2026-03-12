@@ -365,65 +365,72 @@ export async function getCreatorStoreBySlug(
 }
 
 export async function getStoreProducts(storeId: string): Promise<Product[]> {
-  // Drupal Commerce JSON:API: filter products by store
-  const params = new URLSearchParams({
-    "filter[stores.meta.drupal_internal__target_id]": storeId,
-    include: "variations,field_images",
-    "page[limit]": "50",
-  });
+  // Query all product types for this store
+  const productTypes = ["default", "clothing", "digital_download", "crafts", "printful"];
+  const allProducts: Product[] = [];
 
-  const url = `${DRUPAL_API_URL}/jsonapi/commerce_product/default?${params.toString()}`;
+  for (const type of productTypes) {
+    try {
+      const params = new URLSearchParams({
+        "filter[stores.meta.drupal_internal__target_id]": storeId,
+        include: "variations,field_images",
+        "page[limit]": "50",
+      });
 
-  const res = await fetch(url, { next: { revalidate: 60 } });
+      const url = `${DRUPAL_API_URL}/jsonapi/commerce_product/${type}?${params.toString()}`;
+      const res = await fetch(url, { next: { revalidate: 60 } });
 
-  if (!res.ok) {
-    console.error(`Drupal products API error: ${res.status}`);
-    return [];
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      const products = json.data ?? [];
+      const included = json.included ?? [];
+
+      for (const p of products) {
+        const attrs = p.attributes;
+
+        const variationRef = p.relationships?.variations?.data?.[0];
+        let price = "0.00";
+        let currency = "USD";
+        let sku = "";
+        if (variationRef) {
+          const variation = included.find(
+            (inc: any) => inc.id === variationRef.id
+          );
+          if (variation) {
+            price = variation.attributes?.price?.number ?? "0.00";
+            currency = variation.attributes?.price?.currency_code ?? "USD";
+            sku = variation.attributes?.sku ?? "";
+          }
+        }
+
+        let imageUrl: string | null = null;
+        const imageRef = p.relationships?.field_images?.data?.[0];
+        if (imageRef) {
+          const imageFile = included.find(
+            (inc: any) => inc.id === imageRef.id && inc.type === "file--file"
+          );
+          if (imageFile) {
+            imageUrl = drupalAbsoluteUrl(imageFile.attributes?.uri?.url);
+          }
+        }
+
+        allProducts.push({
+          id: p.id,
+          title: attrs.title,
+          description: attrs.body?.processed ?? attrs.body?.value ?? "",
+          price,
+          currency,
+          sku,
+          image_url: imageUrl,
+        });
+      }
+    } catch {
+      // Skip failing product types silently
+    }
   }
 
-  const json = await res.json();
-  const products = json.data ?? [];
-  const included = json.included ?? [];
-
-  return products.map((p: any) => {
-    const attrs = p.attributes;
-
-    // Get first variation for price
-    const variationRef = p.relationships?.variations?.data?.[0];
-    let price = "0.00";
-    let currency = "USD";
-    let sku = "";
-    if (variationRef) {
-      const variation = included.find((inc: any) => inc.id === variationRef.id);
-      if (variation) {
-        price = variation.attributes?.price?.number ?? "0.00";
-        currency = variation.attributes?.price?.currency_code ?? "USD";
-        sku = variation.attributes?.sku ?? "";
-      }
-    }
-
-    // Get first image
-    let imageUrl: string | null = null;
-    const imageRef = p.relationships?.field_images?.data?.[0];
-    if (imageRef) {
-      const imageFile = included.find(
-        (inc: any) => inc.id === imageRef.id && inc.type === "file--file"
-      );
-      if (imageFile) {
-        imageUrl = drupalAbsoluteUrl(imageFile.attributes?.uri?.url);
-      }
-    }
-
-    return {
-      id: p.id,
-      title: attrs.title,
-      description: attrs.body?.processed ?? attrs.body?.value ?? "",
-      price,
-      currency,
-      sku,
-      image_url: imageUrl,
-    };
-  });
+  return allProducts;
 }
 
 // ---------------------------------------------------------------------------

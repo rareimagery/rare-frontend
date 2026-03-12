@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface PrintfulProduct {
   id: string;
@@ -26,6 +26,28 @@ export default function PrintfulManager({
   const [syncing, setSyncing] = useState(false);
   const [products, setProducts] = useState<PrintfulProduct[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Check connection status on mount
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        const res = await fetch(`/api/printful/status?storeId=${storeId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) {
+            setConnected(true);
+            await loadProducts();
+          }
+        }
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkStatus();
+  }, [storeId]);
 
   const handleConnect = async () => {
     if (!apiKey.trim()) return;
@@ -36,7 +58,7 @@ export default function PrintfulManager({
       const res = await fetch("/api/printful/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, storeDrupalId, apiKey }),
+        body: JSON.stringify({ storeId, apiKey }),
       });
 
       if (!res.ok) {
@@ -83,7 +105,12 @@ export default function PrintfulManager({
         throw new Error(data.error || "Sync failed");
       }
 
+      const result = await res.json();
       await loadProducts();
+
+      if (result.synced > 0) {
+        setError(""); // clear any previous errors
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -98,6 +125,14 @@ export default function PrintfulManager({
     cut_sew: "Cut & Sew",
     sublimation: "Sublimation",
   };
+
+  if (loading) {
+    return (
+      <div className="py-8 text-center text-zinc-500">
+        Checking Printful connection...
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -168,8 +203,18 @@ export default function PrintfulManager({
                 title: "Zero Inventory",
                 desc: "Products are printed and shipped only when a customer orders",
                 icon: (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
                   </svg>
                 ),
               },
@@ -177,8 +222,18 @@ export default function PrintfulManager({
                 title: "482+ Products",
                 desc: "T-shirts, hoodies, mugs, posters, phone cases, and more",
                 icon: (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
                   </svg>
                 ),
               },
@@ -186,8 +241,18 @@ export default function PrintfulManager({
                 title: "Global Shipping",
                 desc: "Printful fulfills and ships worldwide from their facilities",
                 icon: (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 ),
               },

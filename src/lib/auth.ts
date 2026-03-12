@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { syncXDataToDrupal } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -134,6 +135,15 @@ export const authOptions: NextAuthOptions = {
         const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         const xUser = (token.xUsername as string || "").toLowerCase();
         token.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
+
+        // Auto-sync X profile data to Drupal (fire-and-forget)
+        if (account.access_token && token.xId && token.xUsername) {
+          syncXDataToDrupal(
+            account.access_token,
+            token.xId as string,
+            token.xUsername as string
+          ).catch(() => {}); // errors logged inside syncXDataToDrupal
+        }
       }
       if (account?.provider === "credentials" && user) {
         token.role = (user as any).role || "admin";

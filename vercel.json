@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/frontend-agent",
+      "schedule": "*/30 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

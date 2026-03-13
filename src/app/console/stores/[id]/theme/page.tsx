@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+
 interface StoreTheme {
   bgColor: string;
   bgTile: string;
@@ -22,9 +24,13 @@ interface StoreTheme {
   songUrl: string;
   songTitle: string;
   songArtist: string;
+  // Full bot config stored alongside for future renderer upgrades
+  botConfig?: Record<string, unknown>;
 }
 
-const PRESET_THEMES: Record<string, Partial<StoreTheme>> = {
+// ─── PRESETS ──────────────────────────────────────────────────────────────────
+
+const QUICK_PRESETS: Record<string, Partial<StoreTheme>> = {
   "Y2K Pink": {
     bgColor: "#1a0010",
     accentColor: "#ff69b4",
@@ -93,17 +99,182 @@ const COLOR_FIELDS: [string, keyof StoreTheme][] = [
   ["Panel Background", "tableBgColor"],
 ];
 
+// ─── QUIZ CONFIG (from MYSPACE_THEME_BOT_RULES.md Section 7) ─────────────────
+
+const QUIZ_QUESTIONS = [
+  {
+    key: "vibe",
+    question: "Pick a vibe",
+    options: ["Dark & moody", "Loud & chaotic", "Clean & minimal", "Soft & warm", "Bold & aggressive"],
+  },
+  {
+    key: "color",
+    question: "Pick a color",
+    options: ["Black", "Pink", "Neon", "Earth tones", "White + one pop"],
+  },
+  {
+    key: "store_type",
+    question: "Your store is…",
+    options: ["A stage", "A shop", "A vibe"],
+  },
+  {
+    key: "known_for",
+    question: "Your audience mostly knows you for…",
+    options: ["Music", "Looks / fashion", "Thoughts / takes", "Products / merch"],
+  },
+];
+
+const SUBCULTURE_PRESETS = [
+  { label: "Emo / Dark Emo", value: "emo" },
+  { label: "Scene Kid / Scene Queen", value: "scene" },
+  { label: "Pop Princess", value: "pop princess" },
+  { label: "Hip-Hop / Rap", value: "hip-hop" },
+  { label: "Indie / Alt", value: "indie" },
+  { label: "Gamer / Neon Cyber", value: "gamer" },
+  { label: "Cottagecore / Soft", value: "cottagecore" },
+  { label: "Y2K / McBling", value: "y2k" },
+  { label: "Goth / Dark Romantic", value: "goth" },
+  { label: "Skate / Streetwear", value: "skate" },
+];
+
+// ─── BOT CONFIG → STORE THEME MAPPER ─────────────────────────────────────────
+
+function botConfigToTheme(bot: Record<string, unknown>): Partial<StoreTheme> {
+  const colors = (bot.colors as Record<string, string>) || {};
+  const bg = (bot.background as Record<string, unknown>) || {};
+  const typo = (bot.typography as Record<string, string>) || {};
+  const deco = (bot.decorations as Record<string, unknown>) || {};
+  const header = (bot.header as Record<string, unknown>) || {};
+
+  // Map Google Font name → existing font key (best effort)
+  const fontMap: Record<string, string> = {
+    "Boogaloo": "comic",
+    "Pacifico": "comic",
+    "Comic Sans MS": "comic",
+    "Quicksand": "comic",
+    "Nunito": "comic",
+    "Bebas Neue": "impact",
+    "Impact": "impact",
+    "Black Han Sans": "impact",
+    "Orbitron": "impact",
+    "Dancing Script": "cursive",
+    "Brush Script MT": "cursive",
+    "Cinzel": "times",
+    "Cinzel Decorative": "times",
+    "Playfair Display": "times",
+    "IM Fell English": "times",
+    "Special Elite": "times",
+    "Lora": "times",
+  };
+
+  const fontHeading = typo.font_heading || "";
+  const mappedFont = fontMap[fontHeading] || "comic";
+
+  // Map pattern_style → bgTile
+  const patternMap: Record<string, string> = {
+    stars: "stars",
+    hearts: "hearts",
+    skulls: "skulls",
+    dots: "stars",
+    lightning: "stars",
+    plaid: "stars",
+  };
+  const bgPattern = bg.pattern_style as string;
+  const bgType = bg.type as string;
+  const bgTile =
+    bgType === "tiled_pattern" && bgPattern && patternMap[bgPattern]
+      ? patternMap[bgPattern]
+      : "stars";
+
+  // Extract mood from header
+  const moodIcon = (header.mood_icon as string) || "";
+  const moodText = (header.mood_text as string) || "";
+  const profileMood = [moodIcon, moodText].filter(Boolean).join(" ") || "🎵 Feeling it";
+
+  // Marquee from subculture vibe
+  const meta = (bot.meta as Record<string, string>) || {};
+  const subculture = meta.subculture || "";
+  const marqueeMap: Record<string, string> = {
+    scene: "✨ Welcome to my store! ✨ Scene forever! ✨ xoxo ✨",
+    emo: "💔 Welcome to my store 💔 Stay true 💔",
+    goth: "🖤 Darkness welcomes you 🖤 Browse at your peril 🖤",
+    "hip-hop": "🔥 Welcome to the drop 🔥 Stay RARE 🔥",
+    indie: "✦ Welcome in ✦ Thanks for stopping by ✦",
+    gamer: "// LOADING STORE... >> WELCOME >> RARE >>",
+    cottagecore: "🌿 Welcome to my little shop 🌿 Made with love 🌿",
+    y2k: "✨ OMG welcome!! ✨ U found my store!! ✨",
+    "pop princess": "💖 Welcome to my world 💖 xoxo 💖",
+    skate: "DROP INCOMING >> WELCOME TO THE SHOP >> STAY RARE",
+  };
+  const marqueeText =
+    marqueeMap[subculture] ||
+    "✨ Welcome to my store! ✨ Thanks for visiting! ✨";
+
+  return {
+    bgColor: colors.page_bg || "#000033",
+    accentColor: colors.accent_primary || "#ff00ff",
+    secondColor: colors.accent_secondary || "#00ffff",
+    textColor: colors.text_body || "#ffffff",
+    tableBorderColor: colors.border || colors.accent_primary || "#ff00ff",
+    tableBgColor: colors.card_bg || colors.content_bg || "#000066",
+    font: mappedFont,
+    bgTile,
+    glitterText: Array.isArray(deco.glitter_text_on)
+      ? (deco.glitter_text_on as string[]).includes("username")
+      : false,
+    cursorTrail: (deco.cursor_style as string) === "star" || (deco.cursor_style as string) === "heart",
+    marqueeText,
+    profileMood,
+    botConfig: bot,
+  };
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+
 export default function ThemeEditorPage() {
   const params = useParams<{ id: string }>();
   const storeId = params.id;
+
   const [theme, setTheme] = useState<StoreTheme>(DEFAULT_THEME);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const applyPreset = (presetName: string) => {
-    const preset = PRESET_THEMES[presetName];
+  // Quiz state
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
+  const [selectedPreset, setSelectedPreset] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState("");
+  const [lastGenerated, setLastGenerated] = useState<Record<string, unknown> | null>(null);
+
+  const applyQuickPreset = (presetName: string) => {
+    const preset = QUICK_PRESETS[presetName];
     if (preset) setTheme((t) => ({ ...t, ...preset }));
+  };
+
+  const generateTheme = async () => {
+    setGenerating(true);
+    setGenError("");
+    try {
+      const res = await fetch("/api/stores/generate-theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quizAnswers,
+          preset: selectedPreset || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      const botConfig = data.themeConfig as Record<string, unknown>;
+      setLastGenerated(botConfig);
+      const mapped = botConfigToTheme(botConfig);
+      setTheme((t) => ({ ...t, ...mapped }));
+    } catch (err: unknown) {
+      setGenError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const save = async () => {
@@ -121,8 +292,8 @@ export default function ThemeEditorPage() {
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -131,7 +302,7 @@ export default function ThemeEditorPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">🎨 Theme Editor</h1>
+        <h1 className="text-2xl font-bold">🎨 MySpace Theme Editor</h1>
         <Link
           href={`/console/stores/${storeId}`}
           className="text-sm text-zinc-500 hover:text-zinc-300"
@@ -140,16 +311,119 @@ export default function ThemeEditorPage() {
         </Link>
       </div>
 
-      {/* Presets */}
+      {/* ── AI THEME GENERATOR ── */}
+      <section className="rounded-xl border border-fuchsia-800/50 bg-fuchsia-950/20 p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-2xl">🤖</span>
+          <div>
+            <h2 className="text-lg font-bold text-fuchsia-300">AI Theme Generator</h2>
+            <p className="text-sm text-zinc-400">
+              Answer 4 questions and pick a vibe — AI generates your full MySpace theme.
+            </p>
+          </div>
+        </div>
+
+        {/* Subculture preset */}
+        <div className="mb-5">
+          <label className="mb-2 block text-sm font-medium text-zinc-300">
+            Subculture Preset (optional — overrides quiz signals)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedPreset("")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                selectedPreset === ""
+                  ? "bg-fuchsia-600 text-white"
+                  : "border border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-500"
+              }`}
+            >
+              Auto-detect
+            </button>
+            {SUBCULTURE_PRESETS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setSelectedPreset(p.value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  selectedPreset === p.value
+                    ? "bg-fuchsia-600 text-white"
+                    : "border border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-500"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mood quiz */}
+        <div className="mb-5 grid gap-4 sm:grid-cols-2">
+          {QUIZ_QUESTIONS.map((q) => (
+            <div key={q.key}>
+              <p className="mb-2 text-sm font-medium text-zinc-300">{q.question}</p>
+              <div className="flex flex-wrap gap-2">
+                {q.options.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() =>
+                      setQuizAnswers((prev) => ({
+                        ...prev,
+                        [q.question]: opt,
+                      }))
+                    }
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      quizAnswers[q.question] === opt
+                        ? "bg-fuchsia-600 text-white"
+                        : "border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-fuchsia-700 hover:text-white"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={generateTheme}
+            disabled={generating}
+            className="rounded-lg bg-fuchsia-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-fuchsia-500 disabled:opacity-60"
+          >
+            {generating ? "⏳ Generating..." : "✨ Generate Theme"}
+          </button>
+          {lastGenerated && (
+            <span className="text-sm text-green-400">
+              ✓ Theme generated — scroll down to fine-tune or save
+            </span>
+          )}
+          {genError && (
+            <span className="text-sm text-red-400">{genError}</span>
+          )}
+        </div>
+
+        {lastGenerated && (
+          <details className="mt-4">
+            <summary className="cursor-pointer text-xs text-zinc-500 hover:text-zinc-300">
+              View full bot config JSON
+            </summary>
+            <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-400">
+              {JSON.stringify(lastGenerated, null, 2)}
+            </pre>
+          </details>
+        )}
+      </section>
+
+      {/* ── QUICK PRESETS ── */}
       <div>
         <h2 className="mb-3 text-lg font-semibold text-zinc-300">
           Quick Presets
         </h2>
         <div className="flex flex-wrap gap-2">
-          {Object.keys(PRESET_THEMES).map((name) => (
+          {Object.keys(QUICK_PRESETS).map((name) => (
             <button
               key={name}
-              onClick={() => applyPreset(name)}
+              onClick={() => applyQuickPreset(name)}
               className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition hover:border-zinc-500 hover:bg-zinc-700"
             >
               {name}
@@ -158,15 +432,13 @@ export default function ThemeEditorPage() {
         </div>
       </div>
 
+      {/* ── MANUAL EDITOR ── */}
       <div className="grid gap-6 sm:grid-cols-2">
         {/* Colors */}
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
           <h3 className="mb-4 text-lg font-semibold text-zinc-300">Colors</h3>
           {COLOR_FIELDS.map(([label, key]) => (
-            <div
-              key={key}
-              className="mb-3 flex items-center gap-3"
-            >
+            <div key={key} className="mb-3 flex items-center gap-3">
               <label className="w-36 text-sm text-zinc-400">{label}</label>
               <input
                 type="color"
@@ -334,9 +606,7 @@ export default function ThemeEditorPage() {
           </div>
 
           <div className="mb-3">
-            <label className="mb-1 block text-sm text-zinc-400">
-              Song Title
-            </label>
+            <label className="mb-1 block text-sm text-zinc-400">Song Title</label>
             <input
               value={theme.songTitle}
               onChange={(e) =>

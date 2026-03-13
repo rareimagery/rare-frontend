@@ -206,7 +206,7 @@ export default function ConsoleBuilderPage() {
         <div className="px-5 py-3 border-b border-zinc-800">
           <h2 className="text-sm font-semibold text-white">Saved Builds</h2>
         </div>
-        <div className="[&_p]:text-zinc-400 [&_button]:cursor-pointer [&_.text-gray-800]:text-white [&_.text-gray-400]:text-zinc-500 [&_.text-gray-500]:text-zinc-500 [&_.bg-gray-100]:bg-zinc-800 [&_.bg-purple-700]:bg-indigo-600 [&_.hover\\:bg-purple-800]:hover:bg-indigo-500 [&_.hover\\:bg-gray-200]:hover:bg-zinc-700 [&_.divide-gray-100]:divide-zinc-800">
+        <div className="[&_p]:text-zinc-400 [&_button]:cursor-pointer [&_.text-gray-800]:text-white [&_.text-gray-400]:text-zinc-500 [&_.text-gray-500]:text-zinc-500 [&_.bg-gray-100]:bg-zinc-800 [&_.bg-purple-700]:bg-indigo-600 [&_.divide-gray-100]:divide-zinc-800">
           <BuildLibrary onLoad={handleLoad} />
         </div>
       </div>

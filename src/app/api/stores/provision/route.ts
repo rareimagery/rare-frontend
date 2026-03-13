@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkXSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { syncXDataToDrupal } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -101,6 +102,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const profile = await createProfile(xUsername, xId);
+
+    // Auto-sync X data to the newly created profile
+    if (xAccessToken) {
+      syncXDataToDrupal(xAccessToken, xId, xUsername).catch((err) =>
+        console.error(`[provision] X data sync failed for @${xUsername}:`, err)
+      );
+    }
 
     return NextResponse.json({
       success: true,

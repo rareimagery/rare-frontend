@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
 import { drupalAuthHeaders } from "@/lib/drupal";
-import { syncXDataToDrupal } from "@/lib/x-import";
+import { syncXDataToDrupal, findProfileByUsername } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -136,13 +136,48 @@ export const authOptions: NextAuthOptions = {
         const xUser = (token.xUsername as string || "").toLowerCase();
         token.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
 
-        // Auto-sync X profile data to Drupal (fire-and-forget)
+        // Auto-sync X profile data to Drupal
         if (account.access_token && token.xId && token.xUsername) {
-          syncXDataToDrupal(
-            account.access_token,
-            token.xId as string,
-            token.xUsername as string
-          ).catch(() => {}); // errors logged inside syncXDataToDrupal
+          const xUser = token.xUsername as string;
+          (async () => {
+            // Auto-provision profile if it doesn't exist yet
+            const existing = await findProfileByUsername(xUser);
+            if (!existing) {
+              try {
+                await fetch(
+                  `${DRUPAL_API}/jsonapi/node/creator_x_profile`,
+                  {
+                    method: "POST",
+                    headers: {
+                      ...drupalAuthHeaders(),
+                      "Content-Type": "application/vnd.api+json",
+                    },
+                    body: JSON.stringify({
+                      data: {
+                        type: "node--creator_x_profile",
+                        attributes: {
+                          title: `${xUser} X Profile`,
+                          field_x_username: xUser,
+                          field_store_theme: "xai3",
+                        },
+                      },
+                    }),
+                  }
+                );
+                console.log(`[auth] Auto-provisioned profile for @${xUser}`);
+              } catch (err) {
+                console.error(`[auth] Failed to auto-provision @${xUser}:`, err);
+                return;
+              }
+            }
+            await syncXDataToDrupal(
+              account.access_token!,
+              token.xId as string,
+              xUser
+            );
+          })().catch((err) =>
+            console.error(`[auth] X sync failed for @${token.xUsername}:`, err)
+          );
         }
       }
       if (account?.provider === "credentials" && user) {

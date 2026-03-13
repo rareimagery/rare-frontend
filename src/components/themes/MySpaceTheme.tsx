@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { CreatorProfile, TopPost, TopFollower, Product } from "@/lib/drupal";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
 
 // ─── THEME CONFIG ────────────────────────────────────────────────────────────
 
@@ -600,6 +603,17 @@ export default function MySpaceTheme({
                 >
                   Mood: {theme.profileMood}
                 </div>
+                {profile.linked_store_id && (
+                  <div style={{ marginTop: 8 }}>
+                    <FollowButton
+                      targetStoreId={profile.linked_store_id}
+                      targetStoreName={profile.x_username}
+                      followerCount={profile.follower_count}
+                      size="md"
+                      showCount={false}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
@@ -1094,6 +1108,23 @@ export default function MySpaceTheme({
                 </div>
               </Panel>
             </div>
+          </div>
+
+          {/* MyPicks + ShoutoutWall */}
+          <div style={{ marginTop: 12 }}>
+            {profile.linked_store_id && (
+              <MyPicks
+                storeId={profile.linked_store_id}
+                creatorUsername={profile.x_username}
+              />
+            )}
+
+            {profile.linked_store_id && (
+              <ShoutoutWall
+                storeId={profile.linked_store_id}
+                storeName={profile.x_username}
+              />
+            )}
           </div>
 
           {/* ── GROK MARQUEE ── */}

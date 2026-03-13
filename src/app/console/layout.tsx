@@ -38,6 +38,7 @@ async function getUserStoreData(xUsername: string) {
         : null,
       storeStatus: store?.attributes?.field_store_status || null,
       currentTheme: profile.attributes?.field_store_theme || "xai3",
+      xSubscriptionTier: profile.attributes?.field_x_subscription_tier || null,
     };
   } catch {
     return null;
@@ -70,6 +71,7 @@ export default async function ConsoleLayout({
     storeSlug: storeData?.storeSlug || null,
     storeStatus: storeData?.storeStatus || null,
     currentTheme: storeData?.currentTheme || null,
+    xSubscriptionTier: storeData?.xSubscriptionTier || null,
   };
 
   return (

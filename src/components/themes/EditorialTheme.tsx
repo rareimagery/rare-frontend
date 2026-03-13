@@ -1,6 +1,9 @@
 "use client";
 
 import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -74,6 +77,17 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
             <span className="text-neutral-600">
               {formatNumber(profile.follower_count)} followers
             </span>
+          </div>
+          <div className="mt-4 flex justify-center">
+            {profile.linked_store_id && (
+              <FollowButton
+                targetStoreId={profile.linked_store_id}
+                targetStoreName={profile.x_username}
+                followerCount={profile.follower_count}
+                size="md"
+                showCount={false}
+              />
+            )}
           </div>
         </div>
       </header>
@@ -321,6 +335,23 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
           </div>
         </section>
       )}
+
+      {/* ── MyPicks + ShoutoutWall ── */}
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        {profile.linked_store_id && (
+          <MyPicks
+            storeId={profile.linked_store_id}
+            creatorUsername={profile.x_username}
+          />
+        )}
+
+        {profile.linked_store_id && (
+          <ShoutoutWall
+            storeId={profile.linked_store_id}
+            storeName={profile.x_username}
+          />
+        )}
+      </div>
 
       {/* ── STORE LINK ── */}
       {profile.linked_store_id && (

@@ -3,7 +3,12 @@
 import { useSession } from "next-auth/react";
 import FloatingBuilder from "./FloatingBuilder";
 
-export default function BuilderGate({ storeSlug }: { storeSlug: string }) {
+interface BuilderGateProps {
+  storeSlug: string;
+  theme?: string;
+}
+
+export default function BuilderGate({ storeSlug, theme }: BuilderGateProps) {
   const { data: session } = useSession();
   if (!session) return null;
 
@@ -18,5 +23,5 @@ export default function BuilderGate({ storeSlug }: { storeSlug: string }) {
 
   if (!isOwner) return null;
 
-  return <FloatingBuilder />;
+  return <FloatingBuilder theme={theme} />;
 }

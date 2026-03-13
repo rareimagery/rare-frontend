@@ -33,6 +33,18 @@ export default function BuildLibrary({
     setBuilds((prev) => prev.filter((b) => b.id !== id));
   }
 
+  function handleDownload(build: Build) {
+    const blob = new Blob([build.code], { type: "text/typescript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${build.label.replace(/[^a-zA-Z0-9_-]/g, "_")}.tsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   if (loading)
     return <p className="p-4 text-sm text-gray-400">Loading builds...</p>;
   if (!builds.length)
@@ -55,6 +67,13 @@ export default function BuildLibrary({
             className="px-3 py-1 text-xs bg-purple-700 text-white rounded hover:bg-purple-800 cursor-pointer"
           >
             Load
+          </button>
+          <button
+            onClick={() => handleDownload(b)}
+            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
+            title="Download as .tsx"
+          >
+            Export
           </button>
           <button
             onClick={() => handleDelete(b.id)}

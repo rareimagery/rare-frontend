@@ -1,6 +1,9 @@
 "use client";
 
 import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -177,6 +180,18 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
               dangerouslySetInnerHTML={{ __html: profile.bio }}
             />
           )}
+
+          <div style={{ marginTop: 16 }}>
+            {profile.linked_store_id && (
+              <FollowButton
+                targetStoreId={profile.linked_store_id}
+                targetStoreName={profile.x_username}
+                followerCount={profile.follower_count}
+                size="md"
+                showCount={false}
+              />
+            )}
+          </div>
 
           <hr
             style={{
@@ -457,6 +472,23 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
             )}
           </section>
         )}
+
+        {/* MyPicks + ShoutoutWall */}
+        <div style={{ maxWidth: 896, margin: "0 auto", padding: "48px 24px 0" }}>
+          {profile.linked_store_id && (
+            <MyPicks
+              storeId={profile.linked_store_id}
+              creatorUsername={profile.x_username}
+            />
+          )}
+
+          {profile.linked_store_id && (
+            <ShoutoutWall
+              storeId={profile.linked_store_id}
+              storeName={profile.x_username}
+            />
+          )}
+        </div>
 
         {/* Store Link */}
         {profile.linked_store_id && (

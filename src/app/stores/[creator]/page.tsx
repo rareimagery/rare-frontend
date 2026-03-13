@@ -100,7 +100,7 @@ export default async function CreatorStorePage({
             themeConfig={profile.store_theme_config ?? undefined}
           />
         </div>
-        <BuilderGate storeSlug={creator} />
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
     );
   }
@@ -112,7 +112,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <MinimalTheme profile={profile} products={products} />
         </div>
-        <BuilderGate storeSlug={creator} />
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
     );
   }
@@ -124,7 +124,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <NeonTheme profile={profile} products={products} />
         </div>
-        <BuilderGate storeSlug={creator} />
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
     );
   }
@@ -136,7 +136,7 @@ export default async function CreatorStorePage({
         <div className="pt-12">
           <EditorialTheme profile={profile} products={products} />
         </div>
-        <BuilderGate storeSlug={creator} />
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
     );
   }
@@ -157,7 +157,7 @@ export default async function CreatorStorePage({
             <XMimicTheme profile={profile} products={products} />
           </main>
         </div>
-        <BuilderGate storeSlug={creator} />
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
     );
   }
@@ -170,7 +170,7 @@ export default async function CreatorStorePage({
       <div className="pt-12">
         <Xai3Theme profile={profile} products={products} />
       </div>
-      <BuilderGate storeSlug={creator} />
+      <BuilderGate storeSlug={creator} theme={profile.store_theme} />
     </>
   );
 }

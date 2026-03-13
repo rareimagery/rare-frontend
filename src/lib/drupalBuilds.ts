@@ -1,4 +1,4 @@
-import { drupalAuthHeaders } from "./drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "./drupal";
 
 const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
@@ -60,12 +60,13 @@ export async function saveBuilds(
   const uuid = await resolveStoreUuid(storeSlug);
   if (!uuid) return false;
 
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
     `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${uuid}`,
     {
       method: "PATCH",
       headers: {
-        ...drupalAuthHeaders(),
+        ...writeHeaders,
         "Content-Type": "application/vnd.api+json",
         Accept: "application/vnd.api+json",
       },

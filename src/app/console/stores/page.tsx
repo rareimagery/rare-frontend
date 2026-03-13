@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import StoreApprovalButton from "@/components/StoreApprovalButton";
 import { drupalAuthHeaders } from "@/lib/drupal";
@@ -18,6 +19,7 @@ async function getAllStores() {
 }
 
 export default async function StoresDashboard() {
+  redirect("/console/admin");
   const data = await getAllStores();
   const stores = data?.data || [];
   const included = data?.included || [];

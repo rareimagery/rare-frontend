@@ -84,6 +84,9 @@ export default function StoreBuilderWizard({
   const [myspaceBackgroundUrl, setMyspaceBackgroundUrl] = useState("");
   const [myspaceMusicUrl, setMyspaceMusicUrl] = useState("");
 
+  // Legal agreement
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   // After store is created
   const [storeId, setStoreId] = useState<string | null>(null);
   const [storeDrupalId, setStoreDrupalId] = useState<string | null>(null);
@@ -104,6 +107,10 @@ export default function StoreBuilderWizard({
   }
 
   async function handleCreateStore() {
+    if (!agreedToTerms) {
+      setError("You must agree to the Terms of Service, EULA, and Privacy Policy.");
+      return;
+    }
     setCreating(true);
     setError("");
 
@@ -116,6 +123,7 @@ export default function StoreBuilderWizard({
           slug,
           ownerEmail,
           currency,
+          agreedToTerms: true,
           xUsername: xUsernameField || xUsername || slug,
           bioDescription,
           followerCount: followerCount ? parseInt(followerCount) : null,
@@ -495,6 +503,34 @@ export default function StoreBuilderWizard({
               </div>
             </div>
 
+            {/* Legal Agreement */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-zinc-300">Legal Agreements</h3>
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
+                  I have read and agree to the{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+                    Terms of Service
+                  </a>
+                  ,{" "}
+                  <a href="/eula" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+                    End User License Agreement
+                  </a>
+                  , and{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+                    Privacy Policy
+                  </a>
+                  . *
+                </span>
+              </label>
+            </div>
+
             {error && <p className="text-sm text-red-400">{error}</p>}
 
             <div className="flex justify-between">
@@ -506,7 +542,7 @@ export default function StoreBuilderWizard({
               </button>
               <button
                 onClick={handleCreateStore}
-                disabled={creating || !xUsernameField}
+                disabled={creating || !xUsernameField || !agreedToTerms}
                 className="rounded-lg bg-indigo-600 px-6 py-2.5 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
               >
                 {creating ? "Creating store..." : "Create Store & Continue"}

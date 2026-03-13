@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -33,13 +33,14 @@ export async function POST(req: NextRequest) {
 
     // Persist the API key and Printful store ID to the Drupal commerce_store
     if (DRUPAL_API && storeId) {
+      const writeHeaders = await drupalWriteHeaders();
       const patchRes = await fetch(
         `${DRUPAL_API}/jsonapi/commerce_store/online/${storeId}`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/vnd.api+json",
-            ...drupalAuthHeaders(),
+            ...writeHeaders,
           },
           body: JSON.stringify({
             data: {

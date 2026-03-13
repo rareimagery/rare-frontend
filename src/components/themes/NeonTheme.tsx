@@ -1,6 +1,9 @@
 "use client";
 
 import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -132,6 +135,17 @@ export default function NeonTheme({ profile, products = [] }: NeonThemeProps) {
                 </div>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 4, textShadow: "0 0 8px rgba(168,85,247,0.3)" }}>
                   {formatNumber(profile.follower_count)} followers
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  {profile.linked_store_id && (
+                    <FollowButton
+                      targetStoreId={profile.linked_store_id}
+                      targetStoreName={profile.x_username}
+                      followerCount={profile.follower_count}
+                      size="md"
+                      showCount={false}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -307,6 +321,23 @@ export default function NeonTheme({ profile, products = [] }: NeonThemeProps) {
                 )}
               </section>
             )}
+
+          {/* MyPicks + ShoutoutWall */}
+          <div style={{ marginBottom: 40 }}>
+            {profile.linked_store_id && (
+              <MyPicks
+                storeId={profile.linked_store_id}
+                creatorUsername={profile.x_username}
+              />
+            )}
+
+            {profile.linked_store_id && (
+              <ShoutoutWall
+                storeId={profile.linked_store_id}
+                storeName={profile.x_username}
+              />
+            )}
+          </div>
 
           {/* 7. STORE CTA */}
           {profile.linked_store_id && (

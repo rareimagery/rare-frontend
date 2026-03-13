@@ -117,6 +117,13 @@ export default async function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-800 py-8 text-center text-sm text-zinc-600">
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <Link href="/terms" className="hover:text-zinc-400 transition-colors">Terms of Service</Link>
+          <span>&middot;</span>
+          <Link href="/eula" className="hover:text-zinc-400 transition-colors">EULA</Link>
+          <span>&middot;</span>
+          <Link href="/privacy" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
+        </div>
         &copy; {new Date().getFullYear()} RareImagery. All rights reserved.
       </footer>
     </div>

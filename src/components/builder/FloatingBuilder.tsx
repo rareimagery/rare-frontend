@@ -6,7 +6,11 @@ import LivePreview from "./LivePreview";
 
 type Tab = "generate" | "preview" | "saved";
 
-export default function FloatingBuilder() {
+interface FloatingBuilderProps {
+  theme?: string;
+}
+
+export default function FloatingBuilder({ theme = "xai3" }: FloatingBuilderProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("generate");
   const [prompt, setPrompt] = useState("");
@@ -26,19 +30,43 @@ export default function FloatingBuilder() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify({ message: prompt, theme }),
       });
       if (res.status === 429) {
         setError("Rate limit reached. Try again in an hour.");
+        setLoading(false);
         return;
       }
       if (!res.ok) {
         setError("Something went wrong.");
+        setLoading(false);
         return;
       }
-      const data = await res.json();
-      setResult(data.result);
-      setTab("preview");
+
+      // Stream the response
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setError("No response stream.");
+        setLoading(false);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let switched = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setResult(accumulated);
+
+        // Auto-switch to preview after first chunk
+        if (!switched) {
+          setTab("preview");
+          switched = true;
+        }
+      }
     } catch {
       setError("Request failed. Check your connection.");
     } finally {
@@ -87,12 +115,17 @@ export default function FloatingBuilder() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-purple-700 text-white">
         <span className="text-sm font-semibold">Page Builder</span>
-        <button
-          onClick={() => setOpen(false)}
-          className="text-white/70 hover:text-white text-lg leading-none cursor-pointer"
-        >
-          x
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-purple-200/70">
+            {theme}
+          </span>
+          <button
+            onClick={() => setOpen(false)}
+            className="text-white/70 hover:text-white text-lg leading-none cursor-pointer"
+          >
+            x
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -135,7 +168,7 @@ export default function FloatingBuilder() {
             {error && <p className="text-xs text-red-500">{error}</p>}
             {result && (
               <div className="relative">
-                <pre className="p-3 bg-gray-900 text-gray-100 text-xs rounded-lg overflow-x-auto whitespace-pre-wrap">
+                <pre className="p-3 bg-gray-900 text-gray-100 text-xs rounded-lg overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto">
                   {result}
                 </pre>
                 <button
@@ -147,7 +180,7 @@ export default function FloatingBuilder() {
                 </button>
               </div>
             )}
-            {result && (
+            {result && !loading && (
               <div className="flex gap-2">
                 <input
                   className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm

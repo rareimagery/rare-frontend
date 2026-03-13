@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
     slug,
     ownerEmail,
     currency,
+    agreedToTerms,
     xUsername,
     bioDescription,
     followerCount,
@@ -181,6 +182,13 @@ export async function POST(req: NextRequest) {
     myspaceBackgroundUrl,
     myspaceMusicUrl,
   } = body;
+
+  if (!agreedToTerms) {
+    return NextResponse.json(
+      { error: "You must agree to the Terms of Service, EULA, and Privacy Policy" },
+      { status: 400 }
+    );
+  }
 
   if (!isValidSlug(slug)) {
     return NextResponse.json(

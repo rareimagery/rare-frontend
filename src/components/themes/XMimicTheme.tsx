@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
 // Sidebar is rendered by the parent page — this component is just the main content
 
 // ---------------------------------------------------------------------------
@@ -62,6 +65,7 @@ interface Profile {
   metrics: Metrics | null;
   store_theme: string;
   store_status: string | null;
+  linked_store_id: string | null;
 }
 
 interface XMimicThemeProps {
@@ -485,6 +489,18 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
                 <strong>{products.length}</strong> Products
               </span>
             </div>
+
+            {profile.linked_store_id && (
+              <div style={{ marginTop: 16 }}>
+                <FollowButton
+                  targetStoreId={profile.linked_store_id}
+                  targetStoreName={profile.x_username}
+                  followerCount={profile.follower_count}
+                  size="md"
+                  showCount={false}
+                />
+              </div>
+            )}
           </div>
 
           {/* Tab bar */}
@@ -587,6 +603,23 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
                   </div>
                 )}
               </>
+            )}
+          </div>
+
+          {/* MyPicks + ShoutoutWall */}
+          <div style={{ borderTop: "1px solid var(--xm-border)", padding: "24px 16px" }}>
+            {profile.linked_store_id && (
+              <MyPicks
+                storeId={profile.linked_store_id}
+                creatorUsername={profile.x_username}
+              />
+            )}
+
+            {profile.linked_store_id && (
+              <ShoutoutWall
+                storeId={profile.linked_store_id}
+                storeName={profile.x_username}
+              />
             )}
           </div>
         </main>

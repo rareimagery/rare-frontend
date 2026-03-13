@@ -5,6 +5,10 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import FollowButton from "@/components/FollowButton";
+import ShoutoutWall from "@/components/ShoutoutWall";
+import MyPicks from "@/components/MyPicks";
+import SupporterBadge from "@/components/SupporterBadge";
 
 interface Product {
   id: string;
@@ -58,6 +62,8 @@ interface Profile {
   metrics: Metrics | null;
   store_theme: string;
   store_status: string | null;
+  linked_store_id: string | null;
+  x_subscription_tier?: string | null;
 }
 
 interface Xai3ThemeProps {
@@ -275,6 +281,9 @@ export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
             <div className="xai3-display-name">
               {profile.x_username}
               <VerifiedBadge />
+              {profile.x_subscription_tier && profile.x_subscription_tier !== "none" && (
+                <SupporterBadge tier={profile.x_subscription_tier as "rare_supporter" | "inner_circle"} size="sm" />
+              )}
             </div>
             <div className="xai3-handle">@{profile.x_username}</div>
             {profile.bio && (
@@ -296,6 +305,18 @@ export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
                 </strong>
               </div>
             </div>
+
+            {profile.linked_store_id && (
+              <div style={{ margin: "12px 0" }}>
+                <FollowButton
+                  targetStoreId={profile.linked_store_id}
+                  targetStoreName={profile.x_username}
+                  followerCount={profile.follower_count}
+                  size="md"
+                  showCount={false}
+                />
+              </div>
+            )}
 
             <div className="xai3-stats">
               <div className="xai3-stat">
@@ -424,6 +445,26 @@ export default function Xai3Theme({ profile, products }: Xai3ThemeProps) {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* My Picks */}
+          {profile.linked_store_id && (
+            <div style={{ padding: "0 16px", marginBottom: 24 }}>
+              <MyPicks
+                storeId={profile.linked_store_id}
+                creatorUsername={profile.x_username}
+              />
+            </div>
+          )}
+
+          {/* Shoutout Wall */}
+          {profile.linked_store_id && (
+            <div style={{ padding: "0 16px", marginBottom: 24 }}>
+              <ShoutoutWall
+                storeId={profile.linked_store_id}
+                storeName={profile.x_username}
+              />
             </div>
           )}
 

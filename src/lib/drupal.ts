@@ -253,6 +253,7 @@ export interface CreatorProfile {
   myspace_accent_color: string | null;
   store_status: "pending" | "approved" | "rejected" | "suspended" | null;
   subscription_tiers: import("@/lib/payments").SubscriptionTier[];
+  x_subscription_tier: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,6 +367,7 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
       if (!raw) return [];
       try { return JSON.parse(raw); } catch { return []; }
     })(),
+    x_subscription_tier: attrs.field_x_subscription_tier ?? null,
   };
 }
 

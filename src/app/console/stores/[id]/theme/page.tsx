@@ -303,12 +303,20 @@ export default function ThemeEditorPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">🎨 MySpace Theme Editor</h1>
-        <Link
-          href={`/console/stores/${storeId}`}
-          className="text-sm text-zinc-500 hover:text-zinc-300"
-        >
-          ← Back to Store
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/console/stores/${storeId}/theme/chat`}
+            className="rounded-lg bg-fuchsia-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-fuchsia-600"
+          >
+            💬 Chat Builder
+          </Link>
+          <Link
+            href={`/console/stores/${storeId}`}
+            className="text-sm text-zinc-500 hover:text-zinc-300"
+          >
+            ← Back to Store
+          </Link>
+        </div>
       </div>
 
       {/* ── AI THEME GENERATOR ── */}

@@ -129,7 +129,38 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ products: allProducts });
 }
 
-// ─── POST — create a new product (requires $0.05 listing fee) ────────────────
+// Free product threshold — listing fee kicks in after this many products per store
+const FREE_LISTING_LIMIT = 50;
+
+/** Count total products across all types for a store (by Drupal internal store ID). */
+async function countStoreProducts(storeId: string): Promise<number> {
+  const productTypes = ["default", "digital_download", "crafts"];
+  let total = 0;
+
+  await Promise.all(
+    productTypes.map(async (type) => {
+      try {
+        const params = new URLSearchParams({
+          "filter[stores.meta.drupal_internal__target_id]": storeId,
+          "page[limit]": "1", // we only need the count
+        });
+        const res = await fetch(
+          `${DRUPAL_API}/jsonapi/commerce_product/${type}?${params}`,
+          { headers: { ...drupalAuthHeaders() }, cache: "no-store" }
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        total += json.meta?.count ?? (json.data?.length ?? 0);
+      } catch {
+        // skip
+      }
+    })
+  );
+
+  return total;
+}
+
+// ─── POST — create a new product ($0.05 fee after 50 listings) ───────────────
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -164,58 +195,70 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const stripe = getStripeClient();
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : `https://${process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net"}`;
+  // Check product count — free under limit, $0.05 fee after
+  const productCount = await countStoreProducts(storeId);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          unit_amount: LISTING_FEE_CENTS,
-          product_data: { name: "Product Listing Fee" },
+  if (productCount >= FREE_LISTING_LIMIT) {
+    // Require listing fee via Stripe checkout
+    const stripe = getStripeClient();
+    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+      : `https://${process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net"}`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: LISTING_FEE_CENTS,
+            product_data: { name: "Product Listing Fee" },
+          },
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      metadata: {
+        type: "product_listing",
+        title: title.slice(0, 200),
+        description: (description || "").slice(0, 490),
+        price: String(price),
+        store_id: storeId,
+        product_type: productType,
+        image_url: imageUrl || "",
+        subscriber_only: String(subscriberOnly),
+        min_tier: minTier || "",
       },
-    ],
-    metadata: {
-      type: "product_listing",
-      title: title.slice(0, 200),
-      description: (description || "").slice(0, 490),
-      price: String(price),
-      store_id: storeId,
-      product_type: productType,
-      image_url: imageUrl || "",
-      subscriber_only: String(subscriberOnly),
-      min_tier: minTier || "",
-    },
-    success_url: `${baseUrl}/console/products?listed=true`,
-    cancel_url: `${baseUrl}/console/products`,
-  });
+      success_url: `${baseUrl}/console/products?listed=true`,
+      cancel_url: `${baseUrl}/console/products`,
+    });
 
-  return NextResponse.json({
-    checkoutUrl: session.url,
-    sessionId: session.id,
+    return NextResponse.json({
+      requiresPayment: true,
+      checkoutUrl: session.url,
+      sessionId: session.id,
+      productCount,
+      freeLimit: FREE_LISTING_LIMIT,
+    });
+  }
+
+  // Under limit — create directly (no fee)
+  return createProductDirect({
+    title, description, price, storeId, productType, imageUrl, subscriberOnly, minTier,
   });
 }
 
-/**
- * Create a product in Drupal after listing fee payment.
- * Called from the Stripe webhook handler.
- */
-export async function createProductFromMetadata(metadata: Record<string, string>): Promise<void> {
-  const title = metadata.title;
-  const description = metadata.description;
-  const price = metadata.price;
-  const storeId = metadata.store_id;
-  const productType = metadata.product_type || "default";
-  const imageUrl = metadata.image_url;
-  const subscriberOnly = metadata.subscriber_only === "true";
-  const minTier = metadata.min_tier;
-
+/** Create product directly in Drupal (no payment required). */
+async function createProductDirect(opts: {
+  title: string;
+  description?: string;
+  price: string;
+  storeId: string;
+  productType: string;
+  imageUrl?: string;
+  subscriberOnly: boolean;
+  minTier?: string;
+}) {
+  const { title, description, price, storeId, productType, imageUrl, subscriberOnly, minTier } = opts;
   const bundle = TYPE_MAP[productType] ?? "default";
   const sku = `${storeId}-${Date.now()}`;
   const writeHeaders = await drupalWriteHeaders();
@@ -240,8 +283,11 @@ export async function createProductFromMetadata(metadata: Record<string, string>
   );
 
   if (!variationRes.ok) {
-    const text = await variationRes.text();
-    throw new Error(`Variation creation failed: ${variationRes.status} — ${text.slice(0, 300)}`);
+    console.error("Variation creation failed:", await variationRes.text());
+    return NextResponse.json(
+      { error: "Failed to create product variation" },
+      { status: 500 }
+    );
   }
   const variationId = (await variationRes.json()).data.id as string;
 
@@ -282,15 +328,42 @@ export async function createProductFromMetadata(metadata: Record<string, string>
   );
 
   if (!productRes.ok) {
-    const text = await productRes.text();
-    throw new Error(`Product creation failed: ${productRes.status} — ${text.slice(0, 300)}`);
+    console.error("Product creation failed:", await productRes.text());
+    return NextResponse.json(
+      { error: "Failed to create product" },
+      { status: 500 }
+    );
   }
   const productId = (await productRes.json()).data.id as string;
 
   // 3. Attach image fire-and-forget
   if (imageUrl) attachProductImage(imageUrl, productId, bundle, sku);
 
-  console.log(`[listing-fee] Product "${title}" created (${productId}) after $0.05 fee`);
+  return NextResponse.json({ id: productId, title, price, sku, product_type: bundle });
+}
+
+/**
+ * Create a product in Drupal after listing fee payment.
+ * Called from the Stripe webhook handler.
+ */
+export async function createProductFromMetadata(metadata: Record<string, string>): Promise<void> {
+  const res = await createProductDirect({
+    title: metadata.title,
+    description: metadata.description,
+    price: metadata.price,
+    storeId: metadata.store_id,
+    productType: metadata.product_type || "default",
+    imageUrl: metadata.image_url || undefined,
+    subscriberOnly: metadata.subscriber_only === "true",
+    minTier: metadata.min_tier || undefined,
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(`Product creation failed: ${body.error}`);
+  }
+
+  console.log(`[listing-fee] Product "${metadata.title}" created (${body.id}) after $0.05 fee`);
 }
 
 // ─── PATCH — update an existing product ───────────────────────────────────────

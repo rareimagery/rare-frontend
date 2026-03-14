@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
+import { createProductFromMetadata } from "@/app/api/stores/products/route";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -193,6 +194,16 @@ export async function POST(req: NextRequest) {
     case "checkout.session.completed": {
       const session = event.data.object;
       const sessionType = session.metadata?.type;
+
+      // Handle product listing fee payments
+      if (sessionType === "product_listing") {
+        try {
+          await createProductFromMetadata(session.metadata as Record<string, string>);
+        } catch (err: any) {
+          console.error("[webhook] Product creation after listing fee failed:", err.message);
+        }
+        break;
+      }
 
       // Only handle store setup checkouts (not product purchases)
       if (sessionType !== "store_setup") break;

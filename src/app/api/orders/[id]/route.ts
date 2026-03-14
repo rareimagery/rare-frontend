@@ -6,21 +6,23 @@ const DRUPAL_API = process.env.DRUPAL_API_URL;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const token = await getToken({ req });
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;
+
   try {
     const [orderRes, shipmentsRes] = await Promise.all([
       fetch(
-        `${DRUPAL_API}/jsonapi/commerce_order/default/${params.id}?include=order_items,billing_profile`,
+        `${DRUPAL_API}/jsonapi/commerce_order/default/${id}?include=order_items,billing_profile`,
         { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
       ),
       fetch(
-        `${DRUPAL_API}/jsonapi/commerce_shipment/default?filter[order_id.id]=${params.id}&include=shipping_method`,
+        `${DRUPAL_API}/jsonapi/commerce_shipment/default?filter[order_id.id]=${id}&include=shipping_method`,
         { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
       ),
     ]);
@@ -102,19 +104,21 @@ export async function GET(
 // Update order state (e.g., cancel)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const token = await getToken({ req });
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;
+
   try {
     const body = await req.json();
     const writeHeaders = await drupalWriteHeaders();
 
     const res = await fetch(
-      `${DRUPAL_API}/jsonapi/commerce_order/default/${params.id}`,
+      `${DRUPAL_API}/jsonapi/commerce_order/default/${id}`,
       {
         method: "PATCH",
         headers: {
@@ -124,7 +128,7 @@ export async function PATCH(
         body: JSON.stringify({
           data: {
             type: "commerce_order--default",
-            id: params.id,
+            id: id,
             attributes: body.attributes,
           },
         }),

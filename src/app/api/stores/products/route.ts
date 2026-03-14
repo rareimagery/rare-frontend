@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
+import { getStripeClient } from "@/lib/stripe";
+import { LISTING_FEE_CENTS } from "@/lib/payments";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -127,7 +129,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ products: allProducts });
 }
 
-// ─── POST — create a new product ──────────────────────────────────────────────
+// ─── POST — create a new product (requires $0.05 listing fee) ────────────────
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -162,6 +164,58 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const stripe = getStripeClient();
+  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    : `https://${process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net"}`;
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          unit_amount: LISTING_FEE_CENTS,
+          product_data: { name: "Product Listing Fee" },
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      type: "product_listing",
+      title: title.slice(0, 200),
+      description: (description || "").slice(0, 490),
+      price: String(price),
+      store_id: storeId,
+      product_type: productType,
+      image_url: imageUrl || "",
+      subscriber_only: String(subscriberOnly),
+      min_tier: minTier || "",
+    },
+    success_url: `${baseUrl}/console/products?listed=true`,
+    cancel_url: `${baseUrl}/console/products`,
+  });
+
+  return NextResponse.json({
+    checkoutUrl: session.url,
+    sessionId: session.id,
+  });
+}
+
+/**
+ * Create a product in Drupal after listing fee payment.
+ * Called from the Stripe webhook handler.
+ */
+export async function createProductFromMetadata(metadata: Record<string, string>): Promise<void> {
+  const title = metadata.title;
+  const description = metadata.description;
+  const price = metadata.price;
+  const storeId = metadata.store_id;
+  const productType = metadata.product_type || "default";
+  const imageUrl = metadata.image_url;
+  const subscriberOnly = metadata.subscriber_only === "true";
+  const minTier = metadata.min_tier;
+
   const bundle = TYPE_MAP[productType] ?? "default";
   const sku = `${storeId}-${Date.now()}`;
   const writeHeaders = await drupalWriteHeaders();
@@ -186,11 +240,8 @@ export async function POST(req: NextRequest) {
   );
 
   if (!variationRes.ok) {
-    console.error("Variation creation failed:", await variationRes.text());
-    return NextResponse.json(
-      { error: "Failed to create product variation" },
-      { status: 500 }
-    );
+    const text = await variationRes.text();
+    throw new Error(`Variation creation failed: ${variationRes.status} — ${text.slice(0, 300)}`);
   }
   const variationId = (await variationRes.json()).data.id as string;
 
@@ -231,18 +282,15 @@ export async function POST(req: NextRequest) {
   );
 
   if (!productRes.ok) {
-    console.error("Product creation failed:", await productRes.text());
-    return NextResponse.json(
-      { error: "Failed to create product" },
-      { status: 500 }
-    );
+    const text = await productRes.text();
+    throw new Error(`Product creation failed: ${productRes.status} — ${text.slice(0, 300)}`);
   }
   const productId = (await productRes.json()).data.id as string;
 
   // 3. Attach image fire-and-forget
   if (imageUrl) attachProductImage(imageUrl, productId, bundle, sku);
 
-  return NextResponse.json({ id: productId, title, price, sku, product_type: bundle });
+  console.log(`[listing-fee] Product "${title}" created (${productId}) after $0.05 fee`);
 }
 
 // ─── PATCH — update an existing product ───────────────────────────────────────

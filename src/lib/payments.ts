@@ -5,6 +5,9 @@
 // Stripe serves as the interim/fallback provider.
 // ---------------------------------------------------------------------------
 
+/** Anti-spam listing fee charged via Stripe before product creation. */
+export const LISTING_FEE_CENTS = 5; // $0.05
+
 export interface PaymentIntent {
   id: string;
   provider: "xmoney" | "stripe" | "free";

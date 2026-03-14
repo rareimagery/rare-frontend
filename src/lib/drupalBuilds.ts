@@ -7,6 +7,12 @@ export interface Build {
   label: string;
   code: string;
   createdAt: string;
+  published?: boolean;
+}
+
+export async function getPublishedBuilds(storeSlug: string): Promise<Build[]> {
+  const all = await getBuilds(storeSlug);
+  return all.filter((b) => b.published === true);
 }
 
 /** Resolve the JSON:API UUID for a store given its slug */

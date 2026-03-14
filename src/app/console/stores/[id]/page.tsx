@@ -11,8 +11,7 @@ const DRUPAL_API = process.env.DRUPAL_API_URL;
 
 async function getStore(id: string) {
   const res = await fetch(
-    `${DRUPAL_API}/jsonapi/commerce_store/online/${id}` +
-      `?include=field_linked_x_profile`,
+    `${DRUPAL_API}/jsonapi/commerce_store/online/${id}`,
     {
       headers: { ...drupalAuthHeaders() },
       next: { revalidate: 0 },
@@ -22,23 +21,34 @@ async function getStore(id: string) {
   return res.json();
 }
 
+async function getProfileByStore(storeId: string) {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_linked_store.id]=${storeId}`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.[0] ?? null;
+}
+
 export default async function StoreDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const data = await getStore(id);
+  const [data, xProfile] = await Promise.all([
+    getStore(id),
+    getProfileByStore(id),
+  ]);
   const store = data?.data;
   if (!store) return <div className="text-zinc-500">Store not found</div>;
 
   const slug = store.attributes.field_store_slug;
   const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
-  const included = data?.included || [];
-  const xProfileRef = store.relationships?.field_linked_x_profile?.data;
-  const xProfile = xProfileRef
-    ? included.find((inc: any) => inc.id === xProfileRef.id)
-    : null;
 
   return (
     <div className="space-y-8">

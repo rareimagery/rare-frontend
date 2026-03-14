@@ -6,6 +6,7 @@ import {
   getProductsByStoreSlug,
   fetchCreatorData,
 } from "@/lib/drupal";
+import { getPublishedBuilds } from "@/lib/drupalBuilds";
 import MySpaceTheme from "@/components/themes/MySpaceTheme";
 import MinimalTheme from "@/components/themes/MinimalTheme";
 import NeonTheme from "@/components/themes/NeonTheme";
@@ -15,6 +16,7 @@ import XMimicTheme from "@/components/themes/XMimicTheme";
 import Sidebar from "@/components/Sidebar";
 import StoreNav from "@/components/StoreNav";
 import BuilderGate from "@/components/builder/BuilderGate";
+import StoreBuildRenderer from "@/components/builder/StoreBuildRenderer";
 
 export async function generateStaticParams() {
   try {
@@ -45,9 +47,10 @@ export default async function CreatorStorePage({
   params: Promise<{ creator: string }>;
 }) {
   const { creator } = await params;
-  const [profile, products] = await Promise.all([
+  const [profile, products, publishedBuilds] = await Promise.all([
     getCreatorProfile(creator),
     getProductsByStoreSlug(creator),
+    getPublishedBuilds(creator),
   ]);
 
   if (!profile) {
@@ -99,6 +102,7 @@ export default async function CreatorStorePage({
             accentColor={profile.myspace_accent_color ?? undefined}
             themeConfig={profile.store_theme_config ?? undefined}
           />
+          <StoreBuildRenderer builds={publishedBuilds} />
         </div>
         <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
@@ -111,6 +115,7 @@ export default async function CreatorStorePage({
         <StoreNav creator={creator} />
         <div className="pt-12">
           <MinimalTheme profile={profile} products={products} />
+          <StoreBuildRenderer builds={publishedBuilds} />
         </div>
         <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
@@ -123,6 +128,7 @@ export default async function CreatorStorePage({
         <StoreNav creator={creator} />
         <div className="pt-12">
           <NeonTheme profile={profile} products={products} />
+          <StoreBuildRenderer builds={publishedBuilds} />
         </div>
         <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
@@ -135,6 +141,7 @@ export default async function CreatorStorePage({
         <StoreNav creator={creator} />
         <div className="pt-12">
           <EditorialTheme profile={profile} products={products} />
+          <StoreBuildRenderer builds={publishedBuilds} />
         </div>
         <BuilderGate storeSlug={creator} theme={profile.store_theme} />
       </>
@@ -155,6 +162,7 @@ export default async function CreatorStorePage({
           />
           <main className="ml-72 flex-1">
             <XMimicTheme profile={profile} products={products} />
+            <StoreBuildRenderer builds={publishedBuilds} />
           </main>
         </div>
         <BuilderGate storeSlug={creator} theme={profile.store_theme} />
@@ -169,6 +177,7 @@ export default async function CreatorStorePage({
       <StoreNav creator={creator} />
       <div className="pt-12">
         <Xai3Theme profile={profile} products={products} />
+        <StoreBuildRenderer builds={publishedBuilds} />
       </div>
       <BuilderGate storeSlug={creator} theme={profile.store_theme} />
     </>

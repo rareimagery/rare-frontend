@@ -19,7 +19,7 @@ export async function queueShoutoutCandidate(
 
   const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
-    `${DRUPAL_API_URL}/jsonapi/node/shoutout_candidate`,
+    `${DRUPAL_API_URL}/jsonapi/node/shoutout`,
     {
       method: "POST",
       headers: {
@@ -28,15 +28,15 @@ export async function queueShoutoutCandidate(
       },
       body: JSON.stringify({
         data: {
-          type: "node--shoutout_candidate",
+          type: "node--shoutout",
           attributes: {
             title: `Shoutout from @${mention.user.screen_name}`,
             field_shoutout_text: text,
-            field_from_x_handle: mention.user.screen_name,
+            field_from_x_username: mention.user.screen_name,
             field_from_x_user_id: mention.user.id_str,
             field_for_creator_x_id: creatorXUserId,
             field_source_post_id: mention.id_str,
-            field_status: "pending",
+            field_shoutout_status: "pending",
             field_created_at: mention.created_at,
           },
         },

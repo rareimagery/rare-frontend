@@ -48,10 +48,21 @@ function LoginForm() {
       {oauthError && (
         <div className="rounded-lg border border-red-800 bg-red-900/30 p-3 text-sm text-red-300">
           <p className="font-semibold">X Login Error: {oauthError}</p>
-          <p className="mt-1 text-xs text-red-400">
-            Check X Developer Portal: Redirect URI must be exactly
-            https://rareimagery.net/api/auth/callback/twitter
-          </p>
+          <div className="mt-1 space-y-1 text-xs text-red-400">
+            <p>
+              Check X Developer Portal: Callback URL must be exactly
+              https://rareimagery.net/api/auth/callback/twitter
+            </p>
+            <p>
+              This build uses X OAuth 2.0. `X_CLIENT_ID` and `X_CLIENT_SECRET`
+              must be the OAuth 2.0 client credentials, not the older consumer
+              key and secret.
+            </p>
+            <p>
+              `NEXTAUTH_URL` must be set to https://rareimagery.net in the live
+              environment.
+            </p>
+          </div>
         </div>
       )}
 

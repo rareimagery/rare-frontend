@@ -1,34 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useConsole } from "@/components/ConsoleContext";
+import RareProjectConversations from "@/components/RareProjectConversations";
 import XSeedImport from "@/components/XSeedImport";
 import CreatorProfileCard from "@/components/CreatorProfileCard";
 import MyPicksManager from "@/components/MyPicksManager";
 import type { FollowerInfo } from "@/lib/social";
 
 export default function ConsoleSocialPage() {
-  const { storeId, xUsername, hasStore } = useConsole();
+  const { storeId, hasStore } = useConsole();
   const [tab, setTab] = useState<"followers" | "following">("followers");
   const [followers, setFollowers] = useState<FollowerInfo[]>([]);
   const [following, setFollowing] = useState<FollowerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [xSeedImported, setXSeedImported] = useState(false);
 
-  useEffect(() => {
-    if (storeId) {
-      fetchSocialData();
-    } else {
-      setLoading(false);
-    }
-  }, [storeId]);
+  const fetchSocialData = useCallback(async (currentStoreId: string) => {
+    if (!currentStoreId) return;
 
-  async function fetchSocialData() {
     setLoading(true);
     try {
       const [followersRes, followingRes] = await Promise.all([
-        fetch(`/api/social/followers?storeId=${storeId}&type=followers`),
-        fetch(`/api/social/followers?storeId=${storeId}&type=following`),
+        fetch(`/api/social/followers?storeId=${currentStoreId}&type=followers`),
+        fetch(`/api/social/followers?storeId=${currentStoreId}&type=following`),
       ]);
 
       if (followersRes.ok) {
@@ -44,7 +39,15 @@ export default function ConsoleSocialPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (storeId) {
+      void fetchSocialData(storeId);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchSocialData, storeId]);
 
   if (!hasStore) {
     return (
@@ -63,6 +66,8 @@ export default function ConsoleSocialPage() {
       <p className="text-zinc-400 text-sm mb-6">
         Manage your follower network and discover creators.
       </p>
+
+      <RareProjectConversations />
 
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -85,7 +90,9 @@ export default function ConsoleSocialPage() {
         <XSeedImport
           onComplete={() => {
             setXSeedImported(true);
-            fetchSocialData();
+            if (storeId) {
+              void fetchSocialData(storeId);
+            }
           }}
           className="mb-6"
         />

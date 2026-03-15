@@ -71,6 +71,11 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.X_CLIENT_ID!,
       clientSecret: process.env.X_CLIENT_SECRET!,
       version: "2.0",
+      authorization: {
+        params: {
+          scope: "tweet.read users.read follows.read offline.access",
+        },
+      },
     }),
     CredentialsProvider({
       name: "credentials",

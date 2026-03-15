@@ -1,6 +1,4 @@
-import { drupalAuthHeaders, drupalWriteHeaders } from "./drupal";
-
-const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
+import { drupalAuthHeaders, drupalWriteHeaders, DRUPAL_API_URL } from "./drupal";
 
 export interface Build {
   id: string;

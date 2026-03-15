@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { verifyProfileOwnership } from "@/lib/ownership";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -19,6 +20,10 @@ export async function PATCH(req: NextRequest) {
       { error: "profileNodeId and theme are required" },
       { status: 400 }
     );
+  }
+
+  if (!(await verifyProfileOwnership(token, profileNodeId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (!VALID_THEMES.includes(theme)) {

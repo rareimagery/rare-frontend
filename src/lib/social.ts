@@ -2,9 +2,7 @@
 // Social Layer — Follow system helpers
 // ---------------------------------------------------------------------------
 
-import { drupalWriteHeaders } from "@/lib/drupal";
-
-const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
+import { drupalWriteHeaders, DRUPAL_API_URL } from "@/lib/drupal";
 
 // ---------------------------------------------------------------------------
 // Types

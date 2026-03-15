@@ -3,22 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import StoreApprovalButton from "@/components/StoreApprovalButton";
 import { authOptions } from "@/lib/auth";
-import { drupalAuthHeaders } from "@/lib/drupal";
-
-const DRUPAL_API = process.env.DRUPAL_API_URL;
-
-async function getAllStores() {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/commerce_store/online` +
-      `?sort=-created&include=field_linked_x_profile`,
-    {
-      headers: { ...drupalAuthHeaders() },
-      next: { revalidate: 30 },
-    }
-  );
-  if (!res.ok) return { data: [] };
-  return res.json();
-}
+import { getAllStoresForAdmin } from "@/lib/drupal";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -26,9 +11,7 @@ export default async function AdminPage() {
     redirect("/console");
   }
 
-  const data = await getAllStores();
-  const stores = data?.data || [];
-  const included = data?.included || [];
+  const { data: stores, included } = await getAllStoresForAdmin();
   const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
 
   const pendingCount = stores.filter(

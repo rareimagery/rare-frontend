@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { checkXSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal } from "@/lib/x-import";
+import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -51,6 +52,8 @@ async function createProfile(
   return { id: json.data.id };
 }
 
+const provisionLimit = createRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 }); // 5/hour
+
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
 
@@ -60,6 +63,10 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   }
+
+  const userId = (token.xId as string) || (token.sub as string) || "anon";
+  const rl = provisionLimit(userId);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
 
   const xUsername = token.xUsername as string;
   const xId = token.xId as string;
@@ -83,8 +90,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Verify X subscription (follows @rareimagery)
-  if (xAccessToken) {
+  // Verify X subscription (follows @rareimagery) — require access token
+  if (!xAccessToken) {
+    return NextResponse.json(
+      { error: "X access token required — please sign in with X again" },
+      { status: 401 }
+    );
+  }
+
+  {
     const { subscribed, error } = await checkXSubscription(xAccessToken, xId);
     if (!subscribed) {
       return NextResponse.json(
@@ -98,7 +112,6 @@ export async function POST(req: NextRequest) {
       );
     }
   }
-  // If no access token, allow provisioning anyway (admin or fallback)
 
   try {
     const profile = await createProfile(xUsername, xId);

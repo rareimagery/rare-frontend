@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product, DRUPAL_API_URL } from "@/lib/drupal";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
 import MyPicks from "@/components/MyPicks";
@@ -30,7 +30,6 @@ interface EditorialThemeProps {
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 
 export default function EditorialTheme({ profile, products = [] }: EditorialThemeProps) {
-  const drupalBase = process.env.DRUPAL_API_URL || "http://72.62.80.155";
   const featuredPost = profile.top_posts[0] ?? null;
   const morePosts = profile.top_posts.slice(1);
 
@@ -357,7 +356,7 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
       {profile.linked_store_id && (
         <section className="max-w-3xl mx-auto px-4 py-10 text-center">
           <a
-            href={`${drupalBase}${profile.linked_store_path || `/store/${profile.linked_store_id}`}`}
+            href={`${DRUPAL_API_URL}${profile.linked_store_path || `/store/${profile.linked_store_id}`}`}
             className="text-xl underline underline-offset-4 hover:opacity-80 transition-opacity"
             style={{ fontFamily: SERIF, color: "#b45309" }}
           >

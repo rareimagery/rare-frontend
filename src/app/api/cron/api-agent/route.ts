@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runAgent } from "@/lib/frontend-agent";
+import { runApiAgent } from "@/lib/api-agent";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const report = await runAgent();
+  const report = await runApiAgent();
 
   return NextResponse.json(report, {
     status: report.status === "critical" ? 503 : 200,

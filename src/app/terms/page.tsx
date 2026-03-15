@@ -74,7 +74,7 @@ export default function TermsPage() {
           <Section title="7. Fees and Payments">
             <ul className="ml-4 list-disc space-y-1 text-zinc-400">
               <li><strong className="text-zinc-300">Store Setup:</strong> One-time $5.00 fee + first month&apos;s subscription</li>
-              <li><strong className="text-zinc-300">Monthly Subscription:</strong> $3.00/month, billed via Stripe</li>
+              <li><strong className="text-zinc-300">Monthly Subscription:</strong> $6.00/month, billed via Stripe</li>
               <li><strong className="text-zinc-300">Transaction Fee:</strong> 2.9% + $0.30 per sale</li>
             </ul>
             <p className="mt-2">Fees may change with 30 days&apos; notice. Non-payment results in Store suspension. You are responsible for applicable taxes.</p>

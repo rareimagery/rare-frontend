@@ -2,45 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { getSubscriberProfiles, getAllProfilesForAdmin } from "@/lib/drupal";
 import SubscriberTierControl from "@/components/SubscriberTierControl";
-
-const DRUPAL_API = process.env.DRUPAL_API_URL;
-
-async function getSubscribers() {
-  // Fetch all profiles that have a subscription tier set (not "none")
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile` +
-      `?filter[tier-filter][condition][path]=field_x_subscription_tier` +
-      `&filter[tier-filter][condition][operator]=<>` +
-      `&filter[tier-filter][condition][value]=none` +
-      `&fields[node--creator_x_profile]=field_x_username,field_x_subscription_tier,field_x_subscriber_since,title` +
-      `&sort=-field_x_subscriber_since`,
-    {
-      headers: { ...drupalAuthHeaders() },
-      next: { revalidate: 0 },
-    }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.data || [];
-}
-
-async function getAllProfiles() {
-  // For the "set tier" dropdown — get all profiles
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile` +
-      `?fields[node--creator_x_profile]=field_x_username,field_x_subscription_tier,title` +
-      `&sort=field_x_username&page[limit]=100`,
-    {
-      headers: { ...drupalAuthHeaders() },
-      next: { revalidate: 0 },
-    }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.data || [];
-}
 
 export default async function AdminSubscribersPage() {
   const session = await getServerSession(authOptions);
@@ -49,8 +12,8 @@ export default async function AdminSubscribersPage() {
   }
 
   const [subscribers, allProfiles] = await Promise.all([
-    getSubscribers(),
-    getAllProfiles(),
+    getSubscriberProfiles(),
+    getAllProfilesForAdmin(),
   ]);
 
   const TIER_LABELS: Record<string, string> = {

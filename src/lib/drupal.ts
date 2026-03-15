@@ -1,4 +1,4 @@
-const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
+export const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 // ---------------------------------------------------------------------------
 // Auth helper — Cookie session auth for JSON:API (Basic Auth fails on writes)
@@ -260,7 +260,7 @@ export interface CreatorProfile {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function drupalAbsoluteUrl(path: string | null | undefined): string | null {
+export function drupalAbsoluteUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   if (path.startsWith("http")) return path;
   return `${DRUPAL_API_URL}${path}`;
@@ -844,6 +844,135 @@ export interface CreatorData {
   handle: string;
   displayName: string;
   metrics: Metrics | null;
+}
+
+// ---------------------------------------------------------------------------
+// Console-specific queries (admin pages, layout)
+// All use Basic Auth (drupalAuthHeaders) for read operations.
+// ---------------------------------------------------------------------------
+
+export interface ConsoleStoreData {
+  profileNodeId: string;
+  storeName: string | null;
+  storeSlug: string;
+  storeId: string | null;
+  storeDrupalId: string | null;
+  storeStatus: string | null;
+  currentTheme: string;
+  xSubscriptionTier: string | null;
+}
+
+/** Fetch console context data for a user by X username. */
+export async function getConsoleProfile(xUsername: string): Promise<ConsoleStoreData | null> {
+  try {
+    const res = await fetch(
+      `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?filter[field_x_username]=${xUsername}&include=field_linked_store`,
+      { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.data || data.data.length === 0) return null;
+
+    const profile = data.data[0];
+    const included = data.included || [];
+
+    const storeRef = profile.relationships?.field_linked_store?.data;
+    const store = storeRef
+      ? included.find((inc: any) => inc.id === storeRef.id)
+      : null;
+
+    return {
+      profileNodeId: profile.id,
+      storeName: store?.attributes?.name || profile.attributes?.title || null,
+      storeSlug: store?.attributes?.field_store_slug || xUsername,
+      storeId: store?.id || null,
+      storeDrupalId: store
+        ? String(store.attributes?.drupal_internal__store_id)
+        : null,
+      storeStatus: store?.attributes?.field_store_status || null,
+      currentTheme: profile.attributes?.field_store_theme || "xai3",
+      xSubscriptionTier: profile.attributes?.field_x_subscription_tier || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch all stores sorted by creation date, with linked X profiles. */
+export async function getAllStoresForAdmin(): Promise<{ data: any[]; included: any[] }> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/commerce_store/online?sort=-created&include=field_linked_x_profile`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 30 },
+    }
+  );
+  if (!res.ok) return { data: [], included: [] };
+  const json = await res.json();
+  return { data: json.data || [], included: json.included || [] };
+}
+
+/** Fetch profiles with an active subscription tier (not "none"). */
+export async function getSubscriberProfiles(): Promise<any[]> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile` +
+      `?filter[tier-filter][condition][path]=field_x_subscription_tier` +
+      `&filter[tier-filter][condition][operator]=<>` +
+      `&filter[tier-filter][condition][value]=none` +
+      `&fields[node--creator_x_profile]=field_x_username,field_x_subscription_tier,field_x_subscriber_since,title` +
+      `&sort=-field_x_subscriber_since`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data || [];
+}
+
+/** Fetch all profiles with sparse fields for admin tier management. */
+export async function getAllProfilesForAdmin(): Promise<any[]> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile` +
+      `?fields[node--creator_x_profile]=field_x_username,field_x_subscription_tier,title` +
+      `&sort=field_x_username&page[limit]=100`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data || [];
+}
+
+/** Fetch a single store by UUID. */
+export async function getStoreById(id: string): Promise<any | null> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${id}`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data || null;
+}
+
+/** Fetch the creator X profile linked to a given store UUID. */
+export async function getProfileByStoreId(storeId: string): Promise<any | null> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?filter[field_linked_store.id]=${storeId}`,
+    {
+      headers: { ...drupalAuthHeaders() },
+      next: { revalidate: 0 },
+    }
+  );
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.[0] ?? null;
 }
 
 export async function fetchCreatorData(handle: string): Promise<CreatorData | null> {

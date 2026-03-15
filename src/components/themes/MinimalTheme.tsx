@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product, DRUPAL_API_URL } from "@/lib/drupal";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
 import MyPicks from "@/components/MyPicks";
@@ -24,7 +24,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
-const DRUPAL_BASE = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -501,7 +500,7 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
             }}
           >
             <a
-              href={`${DRUPAL_BASE}/store/${profile.linked_store_id}`}
+              href={`${DRUPAL_API_URL}/store/${profile.linked_store_id}`}
               className="minimal-btn"
               target="_blank"
               rel="noopener noreferrer"

@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { getAllCreatorProfiles, getStoreProducts } from "@/lib/drupal";
+import { getAllCreatorProfiles, getStoreProducts, DRUPAL_API_URL } from "@/lib/drupal";
 import { sendEmail } from "@/lib/notifications";
 import type { CreatorProfile } from "@/lib/drupal";
 
@@ -42,7 +42,6 @@ export interface HealthReport {
 // Config
 // ---------------------------------------------------------------------------
 
-const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 const BASE_URL =
   process.env.NEXT_PUBLIC_VERCEL_URL
     ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`

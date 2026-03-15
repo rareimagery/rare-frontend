@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getPaymentProvider } from "@/lib/payments";
+import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
+
+const subCheckoutLimit = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 }); // 10/hour
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const userId = (token.xId as string) || (token.sub as string) || "anon";
+  const rl = subCheckoutLimit(userId);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
 
   try {
     const { tierId, tierName, amount, currency, interval, storeId, sellerXId, storeSlug } =

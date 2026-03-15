@@ -62,7 +62,7 @@ export default function EulaPage() {
           <Section title="5. Fees, Payments, and Subscriptions">
             <ul className="ml-4 list-disc space-y-1 text-zinc-400">
               <li><strong className="text-zinc-300">Setup:</strong> One-time $5.00 + first month&apos;s subscription at checkout</li>
-              <li><strong className="text-zinc-300">Monthly:</strong> $3.00/month recurring via Stripe</li>
+              <li><strong className="text-zinc-300">Monthly:</strong> $6.00/month recurring via Stripe</li>
               <li><strong className="text-zinc-300">Transaction Fee:</strong> 2.9% + $0.30 per sale</li>
               <li><strong className="text-zinc-300">Payouts:</strong> Via Stripe Connect, after platform fee deduction</li>
             </ul>

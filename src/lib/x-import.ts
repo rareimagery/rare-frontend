@@ -1,10 +1,14 @@
 // ---------------------------------------------------------------------------
-// X (Twitter) API v2 Data Import
+// X (Twitter) API v2 Data Import — raw fetch per x-api-integration.md
 // ---------------------------------------------------------------------------
 
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
+import { xApiHeaders, xUserHeaders, X_API_BASE } from "@/lib/x-api/client";
+import { fetchWithRetry } from "@/lib/x-api/fetch-with-retry";
+import { XApiError } from "@/lib/x-api/errors";
+import { isSafeImageUrl } from "@/lib/ownership";
+import type { XUser, XPost, XMedia } from "@/lib/x-api/types";
 
-const X_API_BASE = "https://api.twitter.com/2";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
 // ---------------------------------------------------------------------------
@@ -19,6 +23,7 @@ export interface XImportData {
   profileImageUrl: string | null;
   bannerUrl: string | null;
   verified: boolean;
+  verifiedType: string;
   topPosts: Array<{
     id: string;
     text: string;
@@ -52,28 +57,6 @@ export interface XImportData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function xApiFetch(
-  path: string,
-  accessToken: string
-): Promise<{ ok: boolean; data: any; status: number }> {
-  const res = await fetch(`${X_API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`X API error ${res.status} on ${path}:`, text);
-    return { ok: false, data: null, status: res.status };
-  }
-
-  const json = await res.json();
-  return { ok: true, data: json, status: res.status };
-}
-
-/**
- * Extract simple themes from tweet texts by finding hashtags and common
- * significant words. Returns the top `limit` themes.
- */
 function extractThemes(tweets: Array<{ text: string }>, limit = 5): string[] {
   const stopWords = new Set([
     "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
@@ -94,14 +77,12 @@ function extractThemes(tweets: Array<{ text: string }>, limit = 5): string[] {
   const freq: Record<string, number> = {};
 
   for (const tweet of tweets) {
-    // Extract hashtags
     const hashtags = tweet.text.match(/#[\w]+/g) ?? [];
     for (const tag of hashtags) {
       const clean = tag.toLowerCase();
       freq[clean] = (freq[clean] ?? 0) + 1;
     }
 
-    // Extract significant words (4+ chars, not URLs)
     const words = tweet.text
       .replace(/https?:\/\/\S+/g, "")
       .replace(/[^a-zA-Z\s]/g, "")
@@ -120,9 +101,6 @@ function extractThemes(tweets: Array<{ text: string }>, limit = 5): string[] {
     .map(([word]) => word);
 }
 
-/**
- * Estimate posting frequency from tweet dates.
- */
 function estimatePostingFrequency(dates: string[]): string {
   if (dates.length < 2) return "Unknown";
 
@@ -145,61 +123,92 @@ function estimatePostingFrequency(dates: string[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Main fetch function
+// Main fetch function — raw X API v2 fetch per spec
 // ---------------------------------------------------------------------------
 
+/**
+ * Fetch X profile data, tweets, and followers using raw X API v2 calls.
+ * Uses api.x.com/2/ base URL per spec. verified_type replaces deprecated verified.
+ */
 export async function fetchXData(
-  accessToken: string,
+  accessToken: string | undefined,
   userId: string
 ): Promise<XImportData> {
-  // 1. Fetch user profile
-  const profileRes = await xApiFetch(
-    `/users/${userId}?user.fields=name,username,description,profile_image_url,profile_banner_url,public_metrics,verified`,
-    accessToken
+  const headers = accessToken ? xUserHeaders(accessToken) : xApiHeaders();
+
+  // 1. Fetch user profile with all storefront-relevant fields
+  const profileParams = new URLSearchParams({
+    "user.fields": [
+      "id", "name", "username", "description", "profile_image_url",
+      "public_metrics", "verified_type", "url", "entities", "location", "created_at",
+    ].join(","),
+  });
+
+  const profileRes = await fetchWithRetry(
+    `${X_API_BASE}/users/${encodeURIComponent(userId)}?${profileParams}`,
+    { headers }
   );
 
-  if (!profileRes.ok) {
-    throw new Error(`Failed to fetch X profile (status ${profileRes.status})`);
+  if (!profileRes.ok) throw new XApiError(profileRes.status, await profileRes.json());
+  const profileJson = await profileRes.json();
+  const user: XUser = profileJson.data;
+
+  if (!user) {
+    throw new Error(`Failed to fetch X profile for user ${userId}`);
   }
 
-  const user = profileRes.data.data;
-  const publicMetrics = user.public_metrics ?? {};
-
+  const publicMetrics = user.public_metrics ?? {} as NonNullable<XUser["public_metrics"]>;
   const username: string = user.username ?? "";
   const displayName: string = user.name ?? username;
   const bio: string = user.description ?? "";
   const followerCount: number = publicMetrics.followers_count ?? 0;
-  const verified: boolean = user.verified ?? false;
+  const verifiedType: string = user.verified_type ?? "none";
+  const verified: boolean = verifiedType !== "none";
   const profileImageUrl: string | null = user.profile_image_url
     ? user.profile_image_url.replace("_normal", "_400x400")
     : null;
 
-  // 2. Fetch recent tweets
-  const tweetsRes = await xApiFetch(
-    `/users/${userId}/tweets?max_results=10&tweet.fields=public_metrics,created_at,attachments&expansions=attachments.media_keys&media.fields=url,preview_image_url`,
-    accessToken
-  );
+  // 2. Fetch recent tweets with media expansions (exclude replies/retweets for cleaner feed)
+  let rawTweets: XPost[] = [];
+  const mediaMap = new Map<string, XMedia>();
 
-  const rawTweets: any[] = tweetsRes.ok ? tweetsRes.data.data ?? [] : [];
-  const mediaIncludes: any[] = tweetsRes.ok
-    ? tweetsRes.data.includes?.media ?? []
-    : [];
+  try {
+    const tweetsParams = new URLSearchParams({
+      max_results: "10",
+      "tweet.fields": "id,text,public_metrics,created_at,attachments",
+      expansions: "attachments.media_keys",
+      "media.fields": "media_key,type,url,preview_image_url,width,height",
+      exclude: "replies,retweets",
+    });
 
-  // Build media lookup
-  const mediaMap = new Map<string, string>();
-  for (const m of mediaIncludes) {
-    const url = m.url ?? m.preview_image_url;
-    if (m.media_key && url) {
-      mediaMap.set(m.media_key, url);
+    const tweetsRes = await fetchWithRetry(
+      `${X_API_BASE}/users/${encodeURIComponent(userId)}/tweets?${tweetsParams}`,
+      { headers }
+    );
+
+    if (tweetsRes.ok) {
+      const tweetsJson = await tweetsRes.json();
+      rawTweets = tweetsJson.data ?? [];
+      const mediaIncludes: XMedia[] = tweetsJson.includes?.media ?? [];
+
+      for (const m of mediaIncludes) {
+        if (m.media_key) {
+          mediaMap.set(m.media_key, m);
+        }
+      }
     }
+  } catch (err) {
+    console.error("[x-import] Failed to fetch tweets:", err);
   }
 
-  const topPosts = rawTweets.map((t: any) => {
-    const pm = t.public_metrics ?? {};
+  const topPosts = rawTweets.map((t) => {
+    const pm = t.public_metrics ?? {} as NonNullable<XPost["public_metrics"]>;
     const mediaKeys: string[] = t.attachments?.media_keys ?? [];
     const imageUrl = mediaKeys
-      .map((k: string) => mediaMap.get(k))
-      .find((u: string | undefined) => !!u);
+      .map((k) => mediaMap.get(k))
+      .filter(Boolean)
+      .map((m) => m!.url ?? m!.preview_image_url)
+      .find((u) => !!u);
 
     const post: XImportData["topPosts"][number] = {
       id: t.id,
@@ -215,24 +224,35 @@ export async function fetchXData(
   });
 
   // 3. Fetch top followers (get 20, sort by follower_count, take top 8)
-  const followersRes = await xApiFetch(
-    `/users/${userId}/followers?max_results=20&user.fields=public_metrics,profile_image_url,verified`,
-    accessToken
-  );
+  let rawFollowers: XUser[] = [];
+  try {
+    const followersParams = new URLSearchParams({
+      max_results: "20",
+      "user.fields": "id,name,username,public_metrics,profile_image_url,verified_type",
+    });
 
-  const rawFollowers: any[] = followersRes.ok
-    ? followersRes.data.data ?? []
-    : [];
+    const followersRes = await fetchWithRetry(
+      `${X_API_BASE}/users/${encodeURIComponent(userId)}/followers?${followersParams}`,
+      { headers }
+    );
+
+    if (followersRes.ok) {
+      const followersJson = await followersRes.json();
+      rawFollowers = followersJson.data ?? [];
+    }
+  } catch (err) {
+    console.error("[x-import] Failed to fetch followers:", err);
+  }
 
   const topFollowers = rawFollowers
-    .map((f: any) => ({
+    .map((f) => ({
       username: f.username ?? "",
       display_name: f.name ?? f.username ?? "",
       profile_image_url: f.profile_image_url
         ? f.profile_image_url.replace("_normal", "_400x400")
         : undefined,
       follower_count: f.public_metrics?.followers_count ?? 0,
-      verified: f.verified ?? false,
+      verified: (f.verified_type ?? "none") !== "none",
     }))
     .sort((a, b) => b.follower_count - a.follower_count)
     .slice(0, 8);
@@ -247,7 +267,6 @@ export async function fetchXData(
   const avgRetweets = Math.round(totalRetweets / count);
   const avgViews = Math.round(totalViews / count);
 
-  // Engagement score: (avg engagements per tweet / follower count) * 10000, capped at 100
   const avgEngagements = (totalLikes + totalRetweets) / count;
   const engagementScore =
     followerCount > 0
@@ -275,8 +294,9 @@ export async function fetchXData(
     bio,
     followerCount,
     profileImageUrl,
-    bannerUrl: user.profile_banner_url ?? null,
+    bannerUrl: null,
     verified,
+    verifiedType,
     topPosts,
     topFollowers,
     metrics,
@@ -284,10 +304,9 @@ export async function fetchXData(
 }
 
 // ---------------------------------------------------------------------------
-// Drupal sync helpers (shared with import-x-data route)
+// Drupal sync helpers
 // ---------------------------------------------------------------------------
 
-/** Find the creator X profile node UUID by username. */
 export async function findProfileByUsername(
   username: string
 ): Promise<{ uuid: string; nid: number } | null> {
@@ -311,7 +330,6 @@ export async function findProfileByUsername(
   };
 }
 
-/** PATCH the creator profile node in Drupal with imported X data. */
 export async function patchProfile(
   uuid: string,
   attributes: Record<string, any>
@@ -341,16 +359,16 @@ export async function patchProfile(
   }
 }
 
-/**
- * Download an image from a URL and upload it to a Drupal image field.
- * Returns the file resource UUID if successful, null otherwise.
- */
 export async function uploadImageToDrupal(
   imageUrl: string,
   nodeUuid: string,
   fieldName: string,
   filename: string
 ): Promise<string | null> {
+  if (!isSafeImageUrl(imageUrl)) {
+    console.warn(`[x-import] Blocked unsafe image URL: ${imageUrl}`);
+    return null;
+  }
   try {
     const imgRes = await fetch(imageUrl);
     if (!imgRes.ok) {
@@ -391,15 +409,11 @@ export async function uploadImageToDrupal(
 }
 
 // ---------------------------------------------------------------------------
-// Full sync: fetch X data + write to Drupal (fire-and-forget safe)
+// Full sync: fetch X data + enhance with Grok + write to Drupal
 // ---------------------------------------------------------------------------
 
-/**
- * Fetch fresh X data and sync it to the creator's Drupal profile.
- * Designed to be called fire-and-forget (catches all errors internally).
- */
 export async function syncXDataToDrupal(
-  xAccessToken: string,
+  xAccessToken: string | undefined,
   xId: string,
   xUsername: string
 ): Promise<void> {
@@ -412,28 +426,35 @@ export async function syncXDataToDrupal(
 
     const xData = await fetchXData(xAccessToken, xId);
 
+    let enhanced = xData;
+    try {
+      const { enhanceAndMergeMetrics } = await import("@/lib/grok");
+      enhanced = await enhanceAndMergeMetrics(xData);
+    } catch (err) {
+      console.warn("[x-sync] Grok enhancement skipped:", err);
+    }
+
     const attributes: Record<string, any> = {
-      field_follower_count: xData.followerCount,
-      field_bio_description: { value: xData.bio, format: "basic_html" },
-      field_top_posts: xData.topPosts.map((p) => JSON.stringify(p)),
-      field_top_followers: xData.topFollowers.map((f) => JSON.stringify(f)),
-      field_metrics: JSON.stringify(xData.metrics),
+      field_follower_count: enhanced.followerCount,
+      field_bio_description: { value: enhanced.bio, format: "basic_html" },
+      field_top_posts: enhanced.topPosts.map((p) => JSON.stringify(p)),
+      field_top_followers: enhanced.topFollowers.map((f) => JSON.stringify(f)),
+      field_metrics: JSON.stringify(enhanced.metrics),
     };
 
     await patchProfile(profile.uuid, attributes);
 
-    // Upload images (non-blocking within sync)
-    if (xData.profileImageUrl) {
+    if (enhanced.profileImageUrl) {
       await uploadImageToDrupal(
-        xData.profileImageUrl,
+        enhanced.profileImageUrl,
         profile.uuid,
         "field_profile_picture",
         `${xUsername}-pfp`
       );
     }
-    if (xData.bannerUrl) {
+    if (enhanced.bannerUrl) {
       await uploadImageToDrupal(
-        xData.bannerUrl,
+        enhanced.bannerUrl,
         profile.uuid,
         "field_background_banner",
         `${xUsername}-banner`

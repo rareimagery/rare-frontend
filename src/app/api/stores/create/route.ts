@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isValidSlug } from "@/lib/slugs";
 import { notifyAdminNewStore } from "@/lib/notifications";
+import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
@@ -158,11 +159,17 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
   return res.json();
 }
 
+const storeCreateLimit = createRateLimiter({ limit: 3, windowMs: 60 * 60 * 1000 }); // 3/hour
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const userId = session.user?.email || "anon";
+  const rl = storeCreateLimit(userId);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
 
   const body = await req.json();
   const {

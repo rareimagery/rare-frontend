@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { createRateLimiter, getClientIP, rateLimitResponse } from "@/lib/rate-limit";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+const inviteRateLimit = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 }); // 10/hour
+
 export async function POST(req: NextRequest) {
+  const ip = getClientIP(req);
+  const rl = inviteRateLimit(ip);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
+
   const { code } = await req.json();
 
   if (!code || typeof code !== "string") {

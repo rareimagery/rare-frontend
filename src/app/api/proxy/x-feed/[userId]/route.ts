@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { X_API_BASE, xApiHeaders } from "@/lib/x-api/client";
+import { fetchWithRetry } from "@/lib/x-api/fetch-with-retry";
+import { createRateLimiter, getClientIP, rateLimitResponse } from "@/lib/rate-limit";
+import type { XPost, XMedia } from "@/lib/x-api/types";
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 
@@ -6,10 +10,16 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+const feedRateLimit = createRateLimiter({ limit: 60, windowMs: 60 * 60 * 1000 }); // 60/hour
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  const ip = getClientIP(req);
+  const rl = feedRateLimit(ip);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
+
   const { userId } = await params;
   const searchParams = req.nextUrl.searchParams;
   const maxResults = Math.min(
@@ -31,7 +41,86 @@ export async function GET(
     });
   }
 
-  // Try xAI Grok API with built-in x_search tool
+  // Primary: Raw X API v2 via app-only Bearer Token (api.x.com/2/)
+  if (process.env.X_API_BEARER_TOKEN) {
+    try {
+      const tweetsParams = new URLSearchParams({
+        max_results: String(maxResults),
+        "tweet.fields": [
+          "id", "text", "created_at", "public_metrics",
+          "attachments", "entities", "referenced_tweets",
+        ].join(","),
+        expansions: "attachments.media_keys,referenced_tweets.id",
+        "media.fields": "media_key,type,url,preview_image_url,width,height,alt_text",
+      });
+
+      if (excludeReplies) {
+        tweetsParams.set("exclude", "replies,retweets");
+      }
+
+      const tweetsRes = await fetchWithRetry(
+        `${X_API_BASE}/users/${encodeURIComponent(userId)}/tweets?${tweetsParams}`,
+        { headers: xApiHeaders(), next: { revalidate: 900 } } as RequestInit
+      );
+
+      if (tweetsRes.ok) {
+        const tweetsJson = await tweetsRes.json();
+        const rawTweets: XPost[] = tweetsJson.data ?? [];
+        const mediaIncludes: XMedia[] = tweetsJson.includes?.media ?? [];
+
+        const mediaMap = new Map<string, XMedia>();
+        for (const m of mediaIncludes) {
+          if (m.media_key) mediaMap.set(m.media_key, m);
+        }
+
+        const posts = rawTweets.map((t) => {
+          const pm = t.public_metrics ?? {} as NonNullable<XPost["public_metrics"]>;
+          const mediaKeys: string[] = t.attachments?.media_keys ?? [];
+          const media = mediaKeys
+            .map((k) => mediaMap.get(k))
+            .filter(Boolean)
+            .map((m) => ({
+              type: m!.type ?? "photo",
+              url: m!.url ?? m!.preview_image_url ?? "",
+              width: m!.width ?? null,
+              height: m!.height ?? null,
+            }));
+
+          return {
+            id: t.id,
+            text: t.text ?? "",
+            created_at: t.created_at ?? "",
+            media,
+            metrics: {
+              like_count: pm.like_count ?? 0,
+              retweet_count: pm.retweet_count ?? 0,
+              reply_count: pm.reply_count ?? 0,
+            },
+            url: `https://x.com/i/status/${t.id}`,
+          };
+        });
+
+        const result = {
+          posts,
+          next_token: tweetsJson.meta?.next_token ?? null,
+          source: "x-api",
+        };
+
+        cache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+        return NextResponse.json(result, {
+          headers: {
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+            "X-Cache": "MISS",
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[x-feed] X API fetch failed, falling back to Grok:", err);
+    }
+  }
+
+  // Fallback: xAI Grok API
   if (XAI_API_KEY) {
     try {
       const grokRes = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -75,8 +164,7 @@ export async function GET(
 
           return NextResponse.json(result, {
             headers: {
-              "Cache-Control":
-                "public, s-maxage=300, stale-while-revalidate=600",
+              "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
               "X-Cache": "MISS",
             },
           });
@@ -87,7 +175,7 @@ export async function GET(
     }
   }
 
-  // Fallback: return empty feed
+  // Last resort: return empty feed
   return NextResponse.json(
     {
       posts: [],
@@ -97,9 +185,7 @@ export async function GET(
     },
     {
       status: 200,
-      headers: {
-        "Cache-Control": "public, s-maxage=60",
-      },
+      headers: { "Cache-Control": "public, s-maxage=60" },
     }
   );
 }

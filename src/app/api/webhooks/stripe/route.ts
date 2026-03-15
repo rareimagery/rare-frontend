@@ -102,7 +102,7 @@ async function linkProfileToStore(profileId: string, storeId: string) {
 }
 
 /**
- * Create a $3/month recurring subscription for the store creator.
+ * Create a $6/month recurring subscription for the store creator.
  * Uses Stripe's built-in subscription billing.
  */
 async function createMonthlySubscription(customerId: string, storeSlug: string) {
@@ -110,7 +110,7 @@ async function createMonthlySubscription(customerId: string, storeSlug: string) 
 
   const price = await stripe.prices.create({
     currency: "usd",
-    unit_amount: 300, // $3.00/month
+    unit_amount: 600, // $6.00/month
     recurring: { interval: "month" },
     product_data: {
       name: "RareImagery Creator Store — Monthly",
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // 3. Create the $3/month recurring subscription (first month included in setup fee)
+        // 3. Create the $6/month recurring subscription (first month included in setup fee)
         if (session.customer) {
           await createMonthlySubscription(
             session.customer as string,
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
         }
 
         console.log(
-          `Store "${storeSlug}" created for @${xUsername}, $3/month subscription started`
+          `Store "${storeSlug}" created for @${xUsername}, $6/month subscription started`
         );
       } catch (err: any) {
         console.error("Webhook processing error:", err.message);

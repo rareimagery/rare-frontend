@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
+import { verifyStoreOwnership, isValidUUID, isSafeImageUrl } from "@/lib/ownership";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -21,6 +22,7 @@ async function uploadProductImage(
   productUuid: string,
   filename: string
 ): Promise<void> {
+  if (!isSafeImageUrl(imageUrl)) return;
   try {
     const imgRes = await fetch(imageUrl);
     if (!imgRes.ok) return;
@@ -47,8 +49,21 @@ async function uploadProductImage(
 }
 
 export async function POST(req: NextRequest) {
+  const token = await getToken({ req });
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { storeId, storeDrupalId } = await req.json();
+
+    if (!storeId || !isValidUUID(storeId)) {
+      return NextResponse.json({ error: "Valid storeId required" }, { status: 400 });
+    }
+
+    if (!(await verifyStoreOwnership(token, storeId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Get the per-store Printful API key from Drupal
     const printfulApiKey = await getStorePrintfulKey(storeId);

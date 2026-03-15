@@ -3,8 +3,12 @@ import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { getStripeClient } from "@/lib/stripe";
 import { LISTING_FEE_CENTS } from "@/lib/payments";
+import { verifyStoreOwnership, isValidUUID, isSafeImageUrl } from "@/lib/ownership";
+import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
+
+const productCreateLimit = createRateLimiter({ limit: 20, windowMs: 60 * 60 * 1000 }); // 20/hour
 
 // UI type → Drupal bundle
 const TYPE_MAP: Record<string, string> = {
@@ -20,6 +24,7 @@ async function attachProductImage(
   productBundle: string,
   filename: string
 ): Promise<void> {
+  if (!isSafeImageUrl(imageUrl)) return;
   try {
     const imgRes = await fetch(imageUrl);
     if (!imgRes.ok) return;
@@ -168,6 +173,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = (token.xId as string) || (token.sub as string) || "anon";
+  const rl = productCreateLimit(userId);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
+
   const {
     title,
     description,
@@ -188,11 +197,15 @@ export async function POST(req: NextRequest) {
     minTier?: string;
   };
 
-  if (!title || !price || !storeId) {
+  if (!title || !price || !storeId || !isValidUUID(storeId)) {
     return NextResponse.json(
       { error: "title, price, and storeId are required" },
       { status: 400 }
     );
+  }
+
+  if (!(await verifyStoreOwnership(token, storeId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Check product count — free under limit, $0.05 fee after
@@ -376,6 +389,7 @@ export async function PATCH(req: NextRequest) {
 
   const {
     productId,
+    storeId,
     productType = "default",
     variationId,
     title,
@@ -386,6 +400,7 @@ export async function PATCH(req: NextRequest) {
     minTier,
   } = (await req.json()) as {
     productId: string;
+    storeId: string;
     productType?: string;
     variationId?: string;
     title?: string;
@@ -396,8 +411,12 @@ export async function PATCH(req: NextRequest) {
     minTier?: string;
   };
 
-  if (!productId) {
-    return NextResponse.json({ error: "productId required" }, { status: 400 });
+  if (!productId || !storeId || !isValidUUID(storeId)) {
+    return NextResponse.json({ error: "productId and storeId required" }, { status: 400 });
+  }
+
+  if (!(await verifyStoreOwnership(token, storeId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const bundle = TYPE_MAP[productType] ?? productType;
@@ -470,12 +489,17 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { productId, productType = "default" } = (await req.json()) as {
+  const { productId, storeId, productType = "default" } = (await req.json()) as {
     productId: string;
+    storeId: string;
     productType?: string;
   };
-  if (!productId) {
-    return NextResponse.json({ error: "productId required" }, { status: 400 });
+  if (!productId || !storeId || !isValidUUID(storeId)) {
+    return NextResponse.json({ error: "productId and storeId required" }, { status: 400 });
+  }
+
+  if (!(await verifyStoreOwnership(token, storeId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const bundle = TYPE_MAP[productType] ?? productType;

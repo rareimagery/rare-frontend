@@ -29,9 +29,9 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: "Store Setup + First Month",
               description:
-                "$5 one-time setup fee + $3 first month for your RareImagery Creator Store",
+                "$5 one-time setup fee + $6 first month for your RareImagery Creator Store",
             },
-            unit_amount: 800, // $5 setup + $3 first month = $8
+            unit_amount: 1100, // $5 setup + $6 first month = $11
           },
           quantity: 1,
         },

@@ -5,34 +5,7 @@ import PrintfulManager from "@/components/PrintfulManager";
 import StoreApprovalButton from "@/components/StoreApprovalButton";
 import NotificationPreferences from "@/components/NotificationPreferences";
 
-import { drupalAuthHeaders } from "@/lib/drupal";
-
-const DRUPAL_API = process.env.DRUPAL_API_URL;
-
-async function getStore(id: string) {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/commerce_store/online/${id}`,
-    {
-      headers: { ...drupalAuthHeaders() },
-      next: { revalidate: 0 },
-    }
-  );
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function getProfileByStore(storeId: string) {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_linked_store.id]=${storeId}`,
-    {
-      headers: { ...drupalAuthHeaders() },
-      next: { revalidate: 0 },
-    }
-  );
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json.data?.[0] ?? null;
-}
+import { getStoreById, getProfileByStoreId } from "@/lib/drupal";
 
 export default async function StoreDetailPage({
   params,
@@ -40,11 +13,10 @@ export default async function StoreDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [data, xProfile] = await Promise.all([
-    getStore(id),
-    getProfileByStore(id),
+  const [store, xProfile] = await Promise.all([
+    getStoreById(id),
+    getProfileByStoreId(id),
   ]);
-  const store = data?.data;
   if (!store) return <div className="text-zinc-500">Store not found</div>;
 
   const slug = store.attributes.field_store_slug;

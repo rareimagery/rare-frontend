@@ -1,6 +1,6 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics, Product } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Metrics, Product, DRUPAL_API_URL } from "@/lib/drupal";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
 import MyPicks from "@/components/MyPicks";
@@ -15,7 +15,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
-const DRUPAL_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 // ---------------------------------------------------------------------------
 // Shared styles
@@ -342,7 +341,7 @@ export default function NeonTheme({ profile, products = [] }: NeonThemeProps) {
           {/* 7. STORE CTA */}
           {profile.linked_store_id && (
             <div style={{ textAlign: "center", marginBottom: 48 }}>
-              <a href={`${DRUPAL_URL}/store/${profile.linked_store_id}`} className="neon-cta"
+              <a href={`${DRUPAL_API_URL}/store/${profile.linked_store_id}`} className="neon-cta"
                 style={{ display: "inline-block", background: "linear-gradient(135deg, #a855f7, #7c3aed, #06b6d4)", color: "#ffffff", fontSize: 18, fontWeight: 700, padding: "16px 48px", borderRadius: 14, textDecoration: "none", letterSpacing: "0.02em", boxShadow: "0 0 30px rgba(168,85,247,0.4), 0 0 60px rgba(6,182,212,0.15)" }}>
                 Visit Store &rarr;
               </a>

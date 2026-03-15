@@ -3,6 +3,8 @@ import type { XImportData } from "./x-import";
 const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
 const XAI_API_KEY = process.env.XAI_API_KEY;
 
+const VALID_THEMES = ["xai3", "default", "minimal", "neon", "editorial", "myspace"];
+
 export interface GrokEnhancements {
   storeBio: string;
   suggestedProducts: Array<{
@@ -78,7 +80,7 @@ Raw content themes: ${xData.metrics.top_themes.join(", ") || "none detected"}
 Recent posts:
 ${postSummary || "(no posts available)"}
 
-Available store themes: "default" (clean white e-commerce), "minimal" (simple & elegant), "neon" (dark with neon accents), "editorial" (magazine-style), "myspace" (retro social page)
+Available store themes: "xai3" (dark premium X-inspired, default), "default" (clean white e-commerce), "minimal" (simple & elegant), "neon" (dark with neon accents), "editorial" (magazine-style), "myspace" (retro social page)
 
 Return a JSON object with exactly these fields:
 {
@@ -86,7 +88,7 @@ Return a JSON object with exactly these fields:
   "suggestedProducts": [
     {"name": "Product name", "description": "One sentence description", "category": "clothing|digital_download|crafts|printful"}
   ],
-  "recommendedTheme": "one of: default, minimal, neon, editorial, myspace",
+  "recommendedTheme": "one of: xai3, default, minimal, neon, editorial, myspace",
   "topThemes": ["theme1", "theme2", "theme3", "theme4", "theme5"],
   "audienceSentiment": "Very Positive|Positive|Neutral|Mixed"
 }
@@ -104,15 +106,9 @@ Provide 3-5 product suggestions that match what this creator would likely sell b
       suggestedProducts: Array.isArray(parsed.suggestedProducts)
         ? parsed.suggestedProducts.slice(0, 5)
         : [],
-      recommendedTheme: [
-        "default",
-        "minimal",
-        "neon",
-        "editorial",
-        "myspace",
-      ].includes(parsed.recommendedTheme)
+      recommendedTheme: VALID_THEMES.includes(parsed.recommendedTheme)
         ? parsed.recommendedTheme
-        : "default",
+        : "xai3",
       topThemes: Array.isArray(parsed.topThemes)
         ? parsed.topThemes.slice(0, 5)
         : xData.metrics.top_themes,
@@ -122,4 +118,25 @@ Provide 3-5 product suggestions that match what this creator would likely sell b
     console.error("Failed to parse Grok response:", err);
     return null;
   }
+}
+
+/**
+ * Enhance X data with Grok AI and merge results back into metrics.
+ * If Grok fails, returns the original data unchanged (graceful degradation).
+ */
+export async function enhanceAndMergeMetrics(
+  xData: XImportData
+): Promise<XImportData> {
+  const enhancements = await enhanceCreatorProfile(xData);
+  if (!enhancements) return xData;
+
+  return {
+    ...xData,
+    metrics: {
+      ...xData.metrics,
+      audience_sentiment: enhancements.audienceSentiment,
+      recommended_products: enhancements.suggestedProducts.map((p) => p.name),
+      top_themes: enhancements.topThemes,
+    },
+  };
 }

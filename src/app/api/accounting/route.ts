@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { verifyStoreOwnership } from "@/lib/ownership";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const PLATFORM_FEE_RATE = 0.029;
@@ -18,6 +19,10 @@ export async function GET(req: NextRequest) {
 
   if (!storeId) {
     return NextResponse.json({ error: "storeId required" }, { status: 400 });
+  }
+
+  if (!(await verifyStoreOwnership(token, storeId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

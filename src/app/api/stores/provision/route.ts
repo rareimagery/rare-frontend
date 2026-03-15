@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkXSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
-import { syncXDataToDrupal } from "@/lib/x-import";
+import { syncXDataToDrupal, fetchXData, patchProfile, findProfileByUsername } from "@/lib/x-import";
+import { generateCreatorSite } from "@/lib/ai/generate-site";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
@@ -123,6 +124,37 @@ export async function POST(req: NextRequest) {
         console.error(`[provision] X data sync failed for @${xUsername}:`, err)
       );
     }
+
+    // Auto-generate site via dual-AI pipeline (Grok → Haiku) — non-blocking
+    (async () => {
+      try {
+        const xData = await fetchXData(xAccessToken, xId);
+        const result = await generateCreatorSite(xData);
+
+        const profileNode = await findProfileByUsername(xUsername);
+        if (profileNode) {
+          // Apply Grok's theme recommendation and rewritten bio
+          await patchProfile(profileNode.uuid, {
+            field_store_theme: result.grokAnalysis.suggestedThemePreset || "xai3",
+            field_bio_description: {
+              value: result.grokAnalysis.rewrittenBio,
+              format: "basic_html",
+            },
+            field_metrics: JSON.stringify({
+              ai_site: {
+                version: 1,
+                generatedAt: result.generatedAt,
+                grokAnalysis: result.grokAnalysis,
+                components: result.components,
+              },
+            }),
+          });
+          console.log(`[provision] AI site generated for @${xUsername}`);
+        }
+      } catch (err) {
+        console.error(`[provision] AI site generation failed for @${xUsername}:`, err);
+      }
+    })();
 
     return NextResponse.json({
       success: true,

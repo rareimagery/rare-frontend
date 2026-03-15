@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkXSubscription } from "@/lib/x-subscription";
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal } from "@/lib/x-import";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -22,12 +22,13 @@ async function createProfile(
   username: string,
   xId: string
 ): Promise<{ id: string }> {
+  const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/node/creator_x_profile`,
     {
       method: "POST",
       headers: {
-        ...drupalAuthHeaders(),
+        ...writeHeaders,
         "Content-Type": "application/vnd.api+json",
       },
       body: JSON.stringify({

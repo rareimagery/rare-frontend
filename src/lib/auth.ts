@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
-import { drupalAuthHeaders } from "@/lib/drupal";
+import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal, findProfileByUsername } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
@@ -144,12 +144,13 @@ export const authOptions: NextAuthOptions = {
             const existing = await findProfileByUsername(xUser);
             if (!existing) {
               try {
+                const writeHeaders = await drupalWriteHeaders();
                 await fetch(
                   `${DRUPAL_API}/jsonapi/node/creator_x_profile`,
                   {
                     method: "POST",
                     headers: {
-                      ...drupalAuthHeaders(),
+                      ...writeHeaders,
                       "Content-Type": "application/vnd.api+json",
                     },
                     body: JSON.stringify({

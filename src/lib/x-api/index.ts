@@ -9,6 +9,7 @@ export { fetchXProfile, fetchUserById, fetchUsersBatch, fetchFollowers, fetchFol
 export { fetchUserTimeline } from "./timeline";
 export { fetchPost } from "./post";
 export { fetchApiUsage } from "./usage";
+export { subscribeCreatorToWebhook, unsubscribeCreator } from "./webhook-subscriptions";
 export type {
   XUser,
   XPost,
@@ -18,4 +19,7 @@ export type {
   XTimelineResponse,
   XPostResponse,
   XApiErrorObject,
+  XWebhookEvent,
+  XWebhookPost,
+  XWebhookUser,
 } from "./types";

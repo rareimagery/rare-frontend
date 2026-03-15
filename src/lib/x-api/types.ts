@@ -110,3 +110,46 @@ export interface XApiErrorObject {
   parameter?: string;
   value?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Webhook Types — Account Activity API (AAA) event payloads
+// ---------------------------------------------------------------------------
+
+export interface XWebhookEvent {
+  for_user_id: string;
+  tweet_create_events?: XWebhookPost[];
+  tweet_delete_events?: Array<{
+    status: { id: string; user_id: string };
+    timestamp_ms: string;
+  }>;
+  favorite_events?: Array<{
+    id: string;
+    created_at: string;
+    timestamp_ms: string;
+    favorited_status: XWebhookPost;
+    user: XWebhookUser;
+  }>;
+  user_event?: {
+    user_fields_update?: Partial<XUser>;
+  };
+}
+
+export interface XWebhookPost {
+  id_str: string;
+  text: string;
+  created_at: string;
+  user: XWebhookUser;
+  retweeted_status?: XWebhookPost;
+  in_reply_to_user_id_str?: string;
+  in_reply_to_status_id_str?: string;
+  extended_tweet?: { full_text: string };
+}
+
+export interface XWebhookUser {
+  id_str: string;
+  name: string;
+  screen_name: string;
+  profile_image_url_https: string;
+  followers_count: number;
+  verified: boolean;
+}

@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       followerCount: profile.follower_count,
       bio: profile.bio,
       profilePictureUrl: profile.profile_picture_url,
+      bannerUrl: profile.banner_url,
       metrics: profile.metrics,
       topPosts: profile.top_posts ?? [],
       topFollowers: profile.top_followers ?? [],

@@ -8,6 +8,7 @@ export interface XUser {
   username: string;
   description?: string;
   profile_image_url?: string;
+  profile_banner_url?: string;
   verified_type?: "blue" | "business" | "government" | "none";
   location?: string;
   created_at?: string;

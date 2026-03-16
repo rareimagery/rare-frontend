@@ -275,6 +275,22 @@ function parseJsonField<T>(value: string | null | undefined): T | null {
   }
 }
 
+function parseMultiJsonField<T>(raw: unknown): T[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (typeof item === "string") return parseJsonField<T>(item);
+      if (item && typeof item === "object") {
+        // Drupal sometimes returns text items as objects with a value key.
+        const value = (item as { value?: unknown }).value;
+        if (typeof value === "string") return parseJsonField<T>(value);
+      }
+      return null;
+    })
+    .filter(Boolean) as T[];
+}
+
 function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
   const attrs = node.attributes;
   const rels = node.relationships;
@@ -306,15 +322,14 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
   }
 
   // Parse multi-value JSON text fields
-  const topPostsRaw: string[] = attrs.field_top_posts ?? [];
-  const topPosts: TopPost[] = topPostsRaw
-    .map((v: string) => parseJsonField<TopPost>(v))
-    .filter(Boolean) as TopPost[];
+  const topPosts: TopPost[] = parseMultiJsonField<TopPost>(attrs.field_top_posts)
+    .sort((a, b) => {
+      const ta = a.date ? Date.parse(a.date) : 0;
+      const tb = b.date ? Date.parse(b.date) : 0;
+      return tb - ta;
+    });
 
-  const topFollowersRaw: string[] = attrs.field_top_followers ?? [];
-  const topFollowers: TopFollower[] = topFollowersRaw
-    .map((v: string) => parseJsonField<TopFollower>(v))
-    .filter(Boolean) as TopFollower[];
+  const topFollowers: TopFollower[] = parseMultiJsonField<TopFollower>(attrs.field_top_followers);
 
   const metrics = parseJsonField<Metrics>(attrs.field_metrics);
 

@@ -122,6 +122,12 @@ function estimatePostingFrequency(dates: string[]): string {
   return "Occasionally";
 }
 
+function normalizeBannerUrl(url?: string): string | null {
+  if (!url) return null;
+  // X returns banner base path; append a stable size variant for storefront use.
+  return /\/\d+x\d+$/.test(url) ? url : `${url}/1500x500`;
+}
+
 // ---------------------------------------------------------------------------
 // Main fetch function — raw X API v2 fetch per spec
 // ---------------------------------------------------------------------------
@@ -140,7 +146,7 @@ export async function fetchXData(
   const profileParams = new URLSearchParams({
     "user.fields": [
       "id", "name", "username", "description", "profile_image_url",
-      "public_metrics", "verified_type", "url", "entities", "location", "created_at",
+      "profile_banner_url", "public_metrics", "verified_type", "url", "entities", "location", "created_at",
     ].join(","),
   });
 
@@ -167,6 +173,7 @@ export async function fetchXData(
   const profileImageUrl: string | null = user.profile_image_url
     ? user.profile_image_url.replace("_normal", "_400x400")
     : null;
+  const bannerUrl: string | null = normalizeBannerUrl(user.profile_banner_url);
 
   // 2. Fetch recent tweets with media expansions (exclude replies/retweets for cleaner feed)
   let rawTweets: XPost[] = [];
@@ -221,7 +228,13 @@ export async function fetchXData(
     };
     if (imageUrl) post.image_url = imageUrl;
     return post;
-  });
+  })
+    .sort((a, b) => {
+      const ta = a.date ? Date.parse(a.date) : 0;
+      const tb = b.date ? Date.parse(b.date) : 0;
+      return tb - ta;
+    })
+    .slice(0, 10);
 
   // 3. Fetch top followers (get 20, sort by follower_count, take top 8)
   let rawFollowers: XUser[] = [];
@@ -294,7 +307,7 @@ export async function fetchXData(
     bio,
     followerCount,
     profileImageUrl,
-    bannerUrl: null,
+    bannerUrl,
     verified,
     verifiedType,
     topPosts,

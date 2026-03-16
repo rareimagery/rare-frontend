@@ -54,35 +54,27 @@ export default function StoreBuilderWizard({
   const [backgroundBannerUrl, setBackgroundBannerUrl] = useState(
     xImportData?.bannerUrl || ""
   );
-  const [topPosts, setTopPosts] = useState(
-    xImportData?.topPosts ? JSON.stringify(xImportData.topPosts) : ""
-  );
-  const [topFollowers, setTopFollowers] = useState(
-    xImportData?.topFollowers ? JSON.stringify(xImportData.topFollowers) : ""
-  );
-  const [metrics, setMetrics] = useState(
-    xImportData?.metrics
-      ? JSON.stringify({
-          ...xImportData.metrics,
-          ...(grokEnhancements
-            ? {
-                top_themes: grokEnhancements.topThemes,
-                audience_sentiment: grokEnhancements.audienceSentiment,
-                recommended_products: grokEnhancements.suggestedProducts,
-              }
-            : {}),
-        })
-      : ""
-  );
+  const topPosts = xImportData?.topPosts
+    ? JSON.stringify(xImportData.topPosts)
+    : "";
+  const topFollowers = xImportData?.topFollowers
+    ? JSON.stringify(xImportData.topFollowers)
+    : "";
+  const metrics = xImportData?.metrics
+    ? JSON.stringify({
+        ...xImportData.metrics,
+        ...(grokEnhancements
+          ? {
+              top_themes: grokEnhancements.topThemes,
+              audience_sentiment: grokEnhancements.audienceSentiment,
+              recommended_products: grokEnhancements.suggestedProducts,
+            }
+          : {}),
+      })
+    : "";
 
   // Grok recommended theme
   const recommendedTheme = grokEnhancements?.recommendedTheme || "default";
-
-  // MySpace-specific fields
-  const [myspaceAccentColor, setMyspaceAccentColor] = useState("#ff00ff");
-  const [myspaceGlitterColor, setMyspaceGlitterColor] = useState("#ffffff");
-  const [myspaceBackgroundUrl, setMyspaceBackgroundUrl] = useState("");
-  const [myspaceMusicUrl, setMyspaceMusicUrl] = useState("");
 
   // Legal agreement
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -132,10 +124,6 @@ export default function StoreBuilderWizard({
           topPosts,
           topFollowers,
           metrics,
-          myspaceAccentColor,
-          myspaceGlitterColor,
-          myspaceBackgroundUrl,
-          myspaceMusicUrl,
         }),
       });
 
@@ -379,128 +367,6 @@ export default function StoreBuilderWizard({
                 placeholder="1000"
                 className={inputClass}
               />
-            </div>
-
-            <div>
-              <label className={labelClass}>Top Posts (JSON)</label>
-              <textarea
-                value={topPosts}
-                onChange={(e) => setTopPosts(e.target.value)}
-                placeholder='[{"text": "My first post...", "likes": 100}]'
-                rows={3}
-                className={inputClass}
-              />
-              <p className="mt-1 text-xs text-zinc-600">
-                Paste your top posts as JSON array (optional)
-              </p>
-            </div>
-
-            <div>
-              <label className={labelClass}>Top Followers (JSON)</label>
-              <textarea
-                value={topFollowers}
-                onChange={(e) => setTopFollowers(e.target.value)}
-                placeholder='[{"username": "friend1", "name": "Friend"}]'
-                rows={2}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Metrics (JSON)</label>
-              <textarea
-                value={metrics}
-                onChange={(e) => setMetrics(e.target.value)}
-                placeholder='{"followers": 1000, "following": 500, "posts": 2000}'
-                rows={2}
-                className={inputClass}
-              />
-            </div>
-
-            {/* Grok AI Suggested Products */}
-            {grokEnhancements?.suggestedProducts && grokEnhancements.suggestedProducts.length > 0 && (
-              <div className="rounded-xl border border-indigo-800/50 bg-indigo-950/20 p-5">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-300">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
-                  Grok AI Product Suggestions
-                </h3>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {grokEnhancements.suggestedProducts.map((product, i) => (
-                    <div key={i} className="rounded-lg border border-indigo-800/30 bg-indigo-950/30 p-3">
-                      <p className="text-sm font-medium text-white">{product.name}</p>
-                      <p className="mt-0.5 text-xs text-zinc-400">{product.description}</p>
-                      <span className="mt-1 inline-block rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
-                        {product.category}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-zinc-600">
-                  You can add these as real products after your store is created.
-                </p>
-              </div>
-            )}
-
-            {/* MySpace-specific fields */}
-            <div className="mt-6 rounded-xl border border-purple-800/50 bg-purple-950/20 p-5">
-              <h3 className="mb-4 text-sm font-semibold text-purple-300">
-                MySpace Theme Options (optional)
-              </h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Accent Color</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={myspaceAccentColor}
-                      onChange={(e) => setMyspaceAccentColor(e.target.value)}
-                      className="h-9 w-12 cursor-pointer rounded border border-zinc-700 bg-zinc-800"
-                    />
-                    <input
-                      value={myspaceAccentColor}
-                      onChange={(e) => setMyspaceAccentColor(e.target.value)}
-                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white text-sm focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Glitter Color</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={myspaceGlitterColor}
-                      onChange={(e) => setMyspaceGlitterColor(e.target.value)}
-                      className="h-9 w-12 cursor-pointer rounded border border-zinc-700 bg-zinc-800"
-                    />
-                    <input
-                      value={myspaceGlitterColor}
-                      onChange={(e) => setMyspaceGlitterColor(e.target.value)}
-                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white text-sm focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Background Image URL</label>
-                  <input
-                    value={myspaceBackgroundUrl}
-                    onChange={(e) => setMyspaceBackgroundUrl(e.target.value)}
-                    placeholder="https://example.com/bg.gif"
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>Music URL</label>
-                  <input
-                    value={myspaceMusicUrl}
-                    onChange={(e) => setMyspaceMusicUrl(e.target.value)}
-                    placeholder="https://example.com/song.mp3"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Legal Agreement */}

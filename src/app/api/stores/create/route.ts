@@ -172,6 +172,15 @@ function isStorePermissionError(message: string): boolean {
   );
 }
 
+function isWritePermissionError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("forbidden") ||
+    normalized.includes("status\":\"403\"") ||
+    normalized.includes("failed: 403")
+  );
+}
+
 const storeCreateLimit = createRateLimiter({ limit: 3, windowMs: 60 * 60 * 1000 }); // 3/hour
 
 export async function POST(req: NextRequest) {
@@ -245,7 +254,33 @@ export async function POST(req: NextRequest) {
         ownerEmail,
         currency
       );
-      const profileData = await createXProfile(storeData.data.id, xProfileFields);
+      let profileData: any = null;
+      try {
+        profileData = await createXProfile(storeData.data.id, xProfileFields);
+      } catch (profileErr: any) {
+        const profileErrorMessage = String(
+          profileErr?.message || "X profile creation failed"
+        );
+
+        if (!isWritePermissionError(profileErrorMessage)) {
+          throw profileErr;
+        }
+
+        return NextResponse.json({
+          success: true,
+          partial: true,
+          warning:
+            "Your store was created, but profile creation is pending backend permissions. " +
+            "An admin must grant Drupal permission to create creator profiles.",
+          storeId: storeData.data.id,
+          storeDrupalId: String(
+            storeData.data.attributes?.drupal_internal__store_id ?? ""
+          ),
+          profileNodeId: null,
+          slug,
+          url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+        });
+      }
 
       // Notify admin of new store submission (fire-and-forget)
       notifyAdminNewStore(
@@ -274,20 +309,43 @@ export async function POST(req: NextRequest) {
 
       // Permission-gated fallback: create profile without linked commerce store,
       // so onboarding and theme setup can continue while Drupal perms are fixed.
-      const profileData = await createXProfile(null, xProfileFields);
+      try {
+        const profileData = await createXProfile(null, xProfileFields);
 
-      return NextResponse.json({
-        success: true,
-        partial: true,
-        warning:
-          "Your profile was created, but store creation is pending backend permissions. " +
-          "An admin must grant Drupal permission: create online commerce_store.",
-        storeId: null,
-        storeDrupalId: null,
-        profileNodeId: profileData.data.id,
-        slug,
-        url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
-      });
+        return NextResponse.json({
+          success: true,
+          partial: true,
+          warning:
+            "Your profile was created, but store creation is pending backend permissions. " +
+            "An admin must grant Drupal permission: create online commerce_store.",
+          storeId: null,
+          storeDrupalId: null,
+          profileNodeId: profileData.data.id,
+          slug,
+          url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+        });
+      } catch (profileErr: any) {
+        const profileErrorMessage = String(
+          profileErr?.message || "X profile creation failed"
+        );
+
+        if (!isWritePermissionError(profileErrorMessage)) {
+          throw profileErr;
+        }
+
+        return NextResponse.json({
+          success: true,
+          partial: true,
+          warning:
+            "Account setup started, but both store and profile creation are pending backend Drupal permissions. " +
+            "An admin must grant: create online commerce_store and creator profile create permission.",
+          storeId: null,
+          storeDrupalId: null,
+          profileNodeId: null,
+          slug,
+          url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+        });
+      }
     }
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

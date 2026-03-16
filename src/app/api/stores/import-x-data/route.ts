@@ -14,8 +14,9 @@ import {
 export async function POST(req: NextRequest) {
   // 1. Authenticate via NextAuth JWT
   const token = await getToken({ req });
+  const role = token?.role as string | undefined;
 
-  if (!token || token.role !== "creator") {
+  if (!token || (role !== "creator" && role !== "admin")) {
     return NextResponse.json(
       { error: "Sign in with X first" },
       { status: 401 }

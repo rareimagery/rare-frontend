@@ -16,7 +16,7 @@ const RESERVED_SUBDOMAINS = new Set([
   "",
 ]);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const hostnameWithoutPort = hostname.split(":")[0];
 

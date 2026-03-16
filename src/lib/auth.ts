@@ -6,6 +6,16 @@ import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal, findProfileByUsername } from "@/lib/x-import";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
+const X_OAUTH_CLIENT_ID =
+  process.env.X_CLIENT_ID || process.env.X_CONSUMER_KEY || "";
+const X_OAUTH_CLIENT_SECRET =
+  process.env.X_CLIENT_SECRET || process.env.X_CONSUMER_SECRET || "";
+
+if (!X_OAUTH_CLIENT_ID || !X_OAUTH_CLIENT_SECRET) {
+  console.warn(
+    "[auth] Missing X OAuth client credentials. Set X_CLIENT_ID/X_CLIENT_SECRET (or legacy X_CONSUMER_KEY/X_CONSUMER_SECRET)."
+  );
+}
 
 /** Authenticate a store owner against Drupal */
 async function authenticateDrupalUser(
@@ -68,8 +78,8 @@ async function authenticateDrupalUser(
 export const authOptions: NextAuthOptions = {
   providers: [
     TwitterProvider({
-      clientId: process.env.X_CLIENT_ID!,
-      clientSecret: process.env.X_CLIENT_SECRET!,
+      clientId: X_OAUTH_CLIENT_ID,
+      clientSecret: X_OAUTH_CLIENT_SECRET,
       version: "2.0",
       authorization: {
         params: {

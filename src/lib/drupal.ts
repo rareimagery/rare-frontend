@@ -10,6 +10,50 @@ let _sessionCache: {
   expiresAt: number;
 } | null = null;
 
+async function attemptDrupalLogin(
+  user: string,
+  pass: string
+): Promise<Response> {
+  const loginUrl = `${DRUPAL_API_URL}/user/login?_format=json`;
+
+  const jsonRes = await fetch(loginUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ name: user, pass }),
+  });
+
+  if (jsonRes.ok) {
+    return jsonRes;
+  }
+
+  const jsonBody = await jsonRes.text();
+  console.warn(
+    `[drupal] JSON login failed (${jsonRes.status}), retrying as form data: ${jsonBody.slice(0, 200)}`
+  );
+
+  const formRes = await fetch(loginUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({ name: user, pass }).toString(),
+  });
+
+  if (formRes.ok) {
+    return formRes;
+  }
+
+  const formBody = await formRes.text();
+  throw new Error(
+    `Drupal login failed: json=${jsonRes.status}, form=${formRes.status}. ` +
+      `Response: ${formBody.slice(0, 300)}`
+  );
+}
+
 async function getDrupalSession(): Promise<{
   cookie: string;
   csrfToken: string;
@@ -26,15 +70,7 @@ async function getDrupalSession(): Promise<{
   }
 
   // Login to get session cookie
-  const loginRes = await fetch(`${DRUPAL_API_URL}/user/login?_format=json`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: user, pass }),
-  });
-
-  if (!loginRes.ok) {
-    throw new Error(`Drupal login failed: ${loginRes.status}`);
-  }
+  const loginRes = await attemptDrupalLogin(user, pass);
 
   // Extract session cookie from Set-Cookie header
   const setCookies = loginRes.headers.getSetCookie?.() || [];

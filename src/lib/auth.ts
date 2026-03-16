@@ -16,6 +16,13 @@ if (!X_OAUTH_CLIENT_ID || !X_OAUTH_CLIENT_SECRET) {
     "[auth] Missing X OAuth client credentials. Set X_CLIENT_ID/X_CLIENT_SECRET (or legacy X_CONSUMER_KEY/X_CONSUMER_SECRET)."
   );
 }
+if (X_OAUTH_CLIENT_ID && X_OAUTH_CLIENT_ID === X_OAUTH_CLIENT_SECRET) {
+  console.error(
+    "[auth] MISCONFIGURATION: X_CLIENT_ID and X_CLIENT_SECRET are identical. " +
+    "Copy the OAuth 2.0 Client Secret (not the Client ID) from the X Developer Portal " +
+    "and set it as X_CLIENT_SECRET. OAuth login will fail until this is corrected."
+  );
+}
 
 /** Authenticate a store owner against Drupal */
 async function authenticateDrupalUser(

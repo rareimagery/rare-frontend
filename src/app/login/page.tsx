@@ -45,28 +45,72 @@ function LoginForm() {
         </p>
       </div>
 
-      {oauthError && (
-        <div className="rounded-lg border border-red-800 bg-red-900/30 p-3 text-sm text-red-300">
-          <p className="font-semibold">X Login Error: {oauthError}</p>
-          <div className="mt-1 space-y-1 text-xs text-red-400">
-            <p>
-              Check X Developer Portal: Callback URL must be exactly
-              https://rareimagery.net/api/auth/callback/twitter
-            </p>
-            <p>
-              This build uses X OAuth 2.0. `X_CLIENT_ID` and `X_CLIENT_SECRET`
-              must be the OAuth 2.0 client credentials, not the older consumer
-              key and secret.
-            </p>
-            <p>
-              `NEXTAUTH_URL` must be set to https://rareimagery.net in the live
-              environment.
-            </p>
-          </div>
+      {oauthError === "OAuthCallback" && (
+        <div className="rounded-lg border border-red-800 bg-red-900/30 p-4 text-sm">
+          <p className="font-semibold text-red-300 mb-2">
+            X Login Error — action required
+          </p>
+          <ol className="list-decimal list-inside space-y-1.5 text-xs text-red-400">
+            <li>
+              Open{" "}
+              <a
+                href="https://developer.x.com/en/portal/projects-and-apps"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-red-300"
+              >
+                X Developer Portal
+              </a>
+              {" "}→ your app → <strong>Keys and tokens</strong>
+            </li>
+            <li>
+              Under <strong>OAuth 2.0 Client ID and Client Secret</strong>, click{" "}
+              <strong>Regenerate</strong> to get a fresh Client Secret
+            </li>
+            <li>
+              Set callback URL to exactly:{" "}
+              <code className="bg-red-950/50 px-1 rounded">
+                https://rareimagery.net/api/auth/callback/twitter
+              </code>
+            </li>
+            <li>
+              Update{" "}
+              <code className="bg-red-950/50 px-1 rounded">X_CLIENT_ID</code>{" "}
+              and{" "}
+              <code className="bg-red-950/50 px-1 rounded">X_CLIENT_SECRET</code>{" "}
+              in Vercel with the new values, then redeploy
+            </li>
+          </ol>
+          <p className="mt-2 text-xs text-red-500">
+            Note: <code className="bg-red-950/50 px-1 rounded">X_CLIENT_SECRET</code>{" "}
+            must be a <strong>different</strong> value from{" "}
+            <code className="bg-red-950/50 px-1 rounded">X_CLIENT_ID</code>.
+          </p>
         </div>
       )}
 
-      {/* Admin login form */}
+      {oauthError && oauthError !== "OAuthCallback" && (
+        <div className="rounded-lg border border-amber-800 bg-amber-900/20 p-3 text-sm text-amber-300">
+          <p className="font-semibold">Sign-in error: {oauthError}</p>
+        </div>
+      )}
+
+      <button
+        onClick={() => signIn("twitter", { callbackUrl: "/console" })}
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 py-2.5 font-semibold text-white transition hover:border-zinc-600 hover:bg-zinc-800"
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+        Sign in with X
+      </button>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-zinc-800" />
+        <span className="text-xs text-zinc-600">or admin login</span>
+        <div className="h-px flex-1 bg-zinc-800" />
+      </div>
+
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-400">
@@ -105,26 +149,10 @@ function LoginForm() {
           disabled={loading}
           className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>
 
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-zinc-800" />
-        <span className="text-xs text-zinc-600">or</span>
-        <div className="h-px flex-1 bg-zinc-800" />
-      </div>
-
-      {/* Sign in with X */}
-      <button
-        onClick={() => signIn("twitter", { callbackUrl: "/console" })}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 py-2.5 font-semibold text-white transition hover:border-zinc-600 hover:bg-zinc-800"
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-        </svg>
-        Sign in with X
-      </button>
       <p className="text-center text-xs text-zinc-600">
         <Link href="/" className="text-zinc-500 hover:text-zinc-300">
           &larr; Back to marketplace

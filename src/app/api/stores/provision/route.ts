@@ -57,6 +57,16 @@ async function createProfile(
 const provisionLimit = createRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 }); // 5/hour
 
 export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const agreedToTerms = Boolean(body?.agreedToTerms);
+
+  if (!agreedToTerms) {
+    return NextResponse.json(
+      { error: "You must agree to the Terms of Service, EULA, and Privacy Policy" },
+      { status: 400 }
+    );
+  }
+
   const token = await getToken({ req });
 
   if (!token || token.role !== "creator") {

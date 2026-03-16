@@ -7,8 +7,15 @@ export default function ProvisionButton() {
   >("idle");
   const [message, setMessage] = useState("");
   const [pageUrl, setPageUrl] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const provision = async () => {
+    if (!agreedToTerms) {
+      setStatus("error");
+      setMessage("You must agree to the Terms of Service, EULA, and Privacy Policy.");
+      return;
+    }
+
     setStatus("loading");
     setMessage("");
 
@@ -16,6 +23,7 @@ export default function ProvisionButton() {
       const res = await fetch("/api/stores/provision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agreedToTerms: true }),
       });
 
       const data = await res.json();
@@ -94,9 +102,32 @@ export default function ProvisionButton() {
 
   return (
     <div className="space-y-3">
+      <label className="flex items-start gap-3 cursor-pointer group max-w-xl">
+        <input
+          type="checkbox"
+          checked={agreedToTerms}
+          onChange={(e) => setAgreedToTerms(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+        />
+        <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
+          I agree to the{" "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+            Terms of Service
+          </a>
+          ,{" "}
+          <a href="/eula" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+            End User License Agreement
+          </a>
+          , and{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+            Privacy Policy
+          </a>
+          .
+        </span>
+      </label>
       <button
         onClick={provision}
-        disabled={status === "loading"}
+        disabled={status === "loading" || !agreedToTerms}
         className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:opacity-50"
       >
         {status === "loading" ? "Setting up..." : "Get My Free Page"}

@@ -128,11 +128,23 @@ export function drupalAuthHeaders(): Record<string, string> {
 
 /** Get auth headers for write operations (POST/PATCH/DELETE) using cookie auth */
 export async function drupalWriteHeaders(): Promise<Record<string, string>> {
-  const session = await getDrupalSession();
-  return {
-    Cookie: session.cookie,
-    "X-CSRF-Token": session.csrfToken,
-  };
+  try {
+    const session = await getDrupalSession();
+    return {
+      Cookie: session.cookie,
+      "X-CSRF-Token": session.csrfToken,
+    };
+  } catch (error) {
+    const fallbackHeaders = drupalAuthHeaders();
+    if (Object.keys(fallbackHeaders).length > 0) {
+      console.warn(
+        `[drupal] Falling back to Basic/Bearer auth for write request because session login failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return fallbackHeaders;
+    }
+
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------

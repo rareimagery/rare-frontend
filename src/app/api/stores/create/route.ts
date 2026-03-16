@@ -82,7 +82,7 @@ interface XProfileFields {
   myspaceMusicUrl?: string;
 }
 
-async function createXProfile(storeId: string, fields: XProfileFields) {
+async function createXProfile(storeId: string | null, fields: XProfileFields) {
   const attributes: Record<string, unknown> = {
     title: `${fields.xUsername} X Profile`,
     field_x_username: fields.xUsername,
@@ -142,11 +142,15 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
       data: {
         type: "node--creator_x_profile",
         attributes,
-        relationships: {
-          field_linked_store: {
-            data: { type: "commerce_store--online", id: storeId },
-          },
-        },
+        ...(storeId
+          ? {
+              relationships: {
+                field_linked_store: {
+                  data: { type: "commerce_store--online", id: storeId },
+                },
+              },
+            }
+          : {}),
       },
     }),
   });
@@ -157,6 +161,15 @@ async function createXProfile(storeId: string, fields: XProfileFields) {
     );
   }
   return res.json();
+}
+
+function isStorePermissionError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("create online commerce_store") ||
+    normalized.includes("create commerce_store") ||
+    normalized.includes("administer commerce_store")
+  );
 }
 
 const storeCreateLimit = createRateLimiter({ limit: 3, windowMs: 60 * 60 * 1000 }); // 3/hour
@@ -212,13 +225,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const storeData = await createDrupalStore(
-      slug,
-      storeName,
-      ownerEmail,
-      currency
-    );
-    const profileData = await createXProfile(storeData.data.id, {
+    const xProfileFields: XProfileFields = {
       xUsername,
       bioDescription,
       followerCount,
@@ -229,26 +236,59 @@ export async function POST(req: NextRequest) {
       myspaceGlitterColor,
       myspaceBackgroundUrl,
       myspaceMusicUrl,
-    });
+    };
 
-    // Notify admin of new store submission (fire-and-forget)
-    notifyAdminNewStore(
-      storeName,
-      slug,
-      xUsername || slug,
-      ownerEmail || session.user?.email || ""
-    ).catch((err) => console.error("Admin notification failed:", err));
+    try {
+      const storeData = await createDrupalStore(
+        slug,
+        storeName,
+        ownerEmail,
+        currency
+      );
+      const profileData = await createXProfile(storeData.data.id, xProfileFields);
 
-    return NextResponse.json({
-      success: true,
-      storeId: storeData.data.id,
-      storeDrupalId: String(
-        storeData.data.attributes?.drupal_internal__store_id ?? ""
-      ),
-      profileNodeId: profileData.data.id,
-      slug,
-      url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
-    });
+      // Notify admin of new store submission (fire-and-forget)
+      notifyAdminNewStore(
+        storeName,
+        slug,
+        xUsername || slug,
+        ownerEmail || session.user?.email || ""
+      ).catch((err) => console.error("Admin notification failed:", err));
+
+      return NextResponse.json({
+        success: true,
+        storeId: storeData.data.id,
+        storeDrupalId: String(
+          storeData.data.attributes?.drupal_internal__store_id ?? ""
+        ),
+        profileNodeId: profileData.data.id,
+        slug,
+        url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+      });
+    } catch (storeErr: any) {
+      const storeErrorMessage = String(storeErr?.message || "Store creation failed");
+
+      if (!isStorePermissionError(storeErrorMessage)) {
+        throw storeErr;
+      }
+
+      // Permission-gated fallback: create profile without linked commerce store,
+      // so onboarding and theme setup can continue while Drupal perms are fixed.
+      const profileData = await createXProfile(null, xProfileFields);
+
+      return NextResponse.json({
+        success: true,
+        partial: true,
+        warning:
+          "Your profile was created, but store creation is pending backend permissions. " +
+          "An admin must grant Drupal permission: create online commerce_store.",
+        storeId: null,
+        storeDrupalId: null,
+        profileNodeId: profileData.data.id,
+        slug,
+        url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+      });
+    }
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -135,6 +135,10 @@ export default function StoreBuilderWizard({
         return;
       }
 
+      if (data.partial && data.warning) {
+        setError(data.warning);
+      }
+
       setStoreId(data.storeId);
       setStoreDrupalId(data.storeDrupalId || "");
       setProfileNodeId(data.profileNodeId || "");

@@ -2,19 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { verifyStoreOwnership, isValidUUID, isSafeImageUrl } from "@/lib/ownership";
+import {
+  getStorePrintfulKey,
+  listSyncProducts,
+  getSyncProduct,
+  printfulFetch,
+} from "@/lib/printful";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
-
-/** Retrieve the per-store Printful API key from Drupal */
-async function getStorePrintfulKey(storeUuid: string): Promise<string | null> {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/commerce_store/online/${storeUuid}`,
-    { headers: { ...drupalAuthHeaders() } }
-  );
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json.data?.attributes?.field_printful_api_key || null;
-}
 
 /** Download an image and upload it as a Drupal file entity on a product */
 async function uploadProductImage(

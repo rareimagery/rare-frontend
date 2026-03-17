@@ -21,7 +21,7 @@ export default function SetupPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Create Your Store</h1>
-      <BuildPageClient xUsername={xUsername || ""} />
+      <BuildPageClient xUsername={xUsername || ""} skipXImport={!xUsername} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getConsoleProfile } from "@/lib/drupal";
+import { getConsoleProfile, getConsoleProfileByEmail } from "@/lib/drupal";
 import {
   ConsoleContextProvider,
   ConsoleContextValue,
@@ -21,7 +21,10 @@ export default async function ConsoleLayout({
   const xUsername =
     (session as any).xUsername || (session as any).storeSlug || null;
 
-  const storeData = xUsername ? await getConsoleProfile(xUsername) : null;
+  let storeData = xUsername ? await getConsoleProfile(xUsername) : null;
+  if (!storeData && session.user?.email) {
+    storeData = await getConsoleProfileByEmail(session.user.email);
+  }
 
   const contextValue: ConsoleContextValue = {
     role,

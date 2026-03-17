@@ -107,7 +107,7 @@ function LoginForm() {
 
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-zinc-800" />
-        <span className="text-xs text-zinc-600">or admin login</span>
+        <span className="text-xs text-zinc-600">or sign in with email</span>
         <div className="h-px flex-1 bg-zinc-800" />
       </div>
 
@@ -152,6 +152,13 @@ function LoginForm() {
           {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>
+
+      <p className="text-center text-xs text-zinc-600">
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="text-indigo-400 hover:text-indigo-300">
+          Sign up
+        </Link>
+      </p>
 
       <p className="text-center text-xs text-zinc-600">
         <Link href="/" className="text-zinc-500 hover:text-zinc-300">

@@ -961,6 +961,40 @@ export async function getConsoleProfile(xUsername: string): Promise<ConsoleStore
   }
 }
 
+/** Fetch console context data for a user by email (for non-X users). */
+export async function getConsoleProfileByEmail(email: string): Promise<ConsoleStoreData | null> {
+  try {
+    const res = await fetch(
+      `${DRUPAL_API_URL}/jsonapi/commerce_store/online?filter[mail]=${encodeURIComponent(email)}&include=field_linked_x_profile`,
+      { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.data || data.data.length === 0) return null;
+
+    const store = data.data[0];
+    const included = data.included || [];
+
+    const profileRef = store.relationships?.field_linked_x_profile?.data;
+    const profile = profileRef
+      ? included.find((inc: any) => inc.id === profileRef.id)
+      : null;
+
+    return {
+      profileNodeId: profile?.id || null,
+      storeName: store.attributes?.name || null,
+      storeSlug: store.attributes?.field_store_slug || "",
+      storeId: store.id,
+      storeDrupalId: String(store.attributes?.drupal_internal__store_id),
+      storeStatus: store.attributes?.field_store_status || null,
+      currentTheme: profile?.attributes?.field_store_theme || "xai3",
+      xSubscriptionTier: profile?.attributes?.field_x_subscription_tier || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch all stores sorted by creation date, with linked X profiles. */
 export async function getAllStoresForAdmin(): Promise<{ data: any[]; included: any[] }> {
   const res = await fetch(

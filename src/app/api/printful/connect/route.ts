@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { drupalWriteHeaders } from "@/lib/drupal";
+import { getStoreInfo, PrintfulApiError } from "@/lib/printful";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -16,20 +17,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the API key with Printful
-    const printfulRes = await fetch("https://api.printful.com/store", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    if (!printfulRes.ok) {
-      return NextResponse.json(
-        { error: "Invalid Printful API key" },
-        { status: 401 }
-      );
+    let storeInfo: any;
+    try {
+      storeInfo = await getStoreInfo(apiKey);
+    } catch (err) {
+      if (err instanceof PrintfulApiError) {
+        return NextResponse.json(
+          { error: "Invalid Printful API key" },
+          { status: 401 }
+        );
+      }
+      throw err;
     }
 
-    const printfulData = await printfulRes.json();
-    const printfulStoreName = printfulData.result?.name || "Printful Store";
-    const printfulStoreId = String(printfulData.result?.id || "");
+    const printfulStoreName = storeInfo?.name || "Printful Store";
+    const printfulStoreId = String(storeInfo?.id || "");
 
     // Persist the API key and Printful store ID to the Drupal commerce_store
     if (DRUPAL_API && storeId) {

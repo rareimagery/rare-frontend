@@ -9,16 +9,19 @@ type Phase = "importing" | "enhancing" | "ready" | "error";
 
 export default function BuildPageClient({
   xUsername,
+  skipXImport,
 }: {
   xUsername: string;
+  skipXImport?: boolean;
 }) {
-  const [phase, setPhase] = useState<Phase>("importing");
+  const [phase, setPhase] = useState<Phase>(skipXImport ? "ready" : "importing");
   const [xData, setXData] = useState<XImportData | null>(null);
   const [grokEnhancements, setGrokEnhancements] =
     useState<GrokEnhancements | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (skipXImport) return;
     let cancelled = false;
 
     async function loadProfile() {
@@ -58,7 +61,7 @@ export default function BuildPageClient({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [skipXImport]);
 
   if (phase === "importing" || phase === "enhancing") {
     return (

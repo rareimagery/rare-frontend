@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:printful": "node scripts/printful-test.mjs",
+    "test:printful:cleanup": "node scripts/printful-test.mjs --cleanup-only"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

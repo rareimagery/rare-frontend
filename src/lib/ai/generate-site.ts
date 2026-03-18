@@ -145,7 +145,7 @@ ${postSummary || "(no posts available)"}`,
 }
 
 // ---------------------------------------------------------------------------
-// Claude Haiku Site Generation (AI #2)
+// Claude Sonnet Site Generation (AI #2)
 // ---------------------------------------------------------------------------
 
 const THEME_STYLE_HINTS: Record<string, string> = {
@@ -171,8 +171,8 @@ export async function generateSiteComponents(
   const styleHint = THEME_STYLE_HINTS[theme] || THEME_STYLE_HINTS.xai3;
 
   const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
@@ -213,7 +213,7 @@ Return JSON only (no markdown fences, no preamble):
 
   const textBlock = message.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude Haiku");
+    throw new Error("No text response from Claude Sonnet");
   }
 
   // Parse, stripping any accidental markdown fences

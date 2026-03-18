@@ -5,9 +5,7 @@ import { enhanceCreatorProfile } from "@/lib/grok";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
-  const role = token?.role as string | undefined;
-
-  if (!token || (role !== "creator" && role !== "admin")) {
+  if (!token || !token.xUsername) {
     return NextResponse.json(
       { error: "Sign in with X first" },
       { status: 401 }

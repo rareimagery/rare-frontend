@@ -23,11 +23,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const role = token.role as string;
-  if (role !== "creator" && role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const userId = (token.xId as string) || (token.sub as string) || "anon";
   const rl = generateLimit(userId);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);

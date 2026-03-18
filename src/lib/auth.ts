@@ -209,6 +209,12 @@ export const authOptions: NextAuthOptions = {
         token.storeSlug = (user as any).storeSlug || null;
         token.xUsername = (user as any).storeSlug || null;
       }
+
+      // Keep auth simple for X users: if X identity exists, default to creator role.
+      if (token.xUsername && !token.role) {
+        token.role = "creator";
+      }
+
       return token;
     },
     async session({ session, token }) {

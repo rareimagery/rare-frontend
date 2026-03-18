@@ -427,6 +427,15 @@ suites["2.11-cron"] = {
         assert(result.status !== 404, "Site-generate cron endpoint should exist");
       },
     },
+    {
+      name: "2.11.4 Drupal/API path cron agent available",
+      run: async () => {
+        const result = await request("GET", "/api/cron/drupal-api-path-agent", {
+          headers: { Authorization: "Bearer " + (process.env.CRON_SECRET || "test") },
+        });
+        assert(result.status !== 404, "Drupal/API path cron endpoint should exist");
+      },
+    },
   ],
 };
 

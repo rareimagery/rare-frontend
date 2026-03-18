@@ -320,6 +320,9 @@ if (fileExists(path.join(ROOT, "src/app/api/cron/api-agent/route.ts"))) {
 if (fileExists(path.join(ROOT, "src/app/api/cron/site-generate-agent/route.ts"))) {
   pass("Site generate agent", "5-hour intervals");
 }
+if (fileExists(path.join(ROOT, "src/app/api/cron/drupal-api-path-agent/route.ts"))) {
+  pass("Drupal/API path agent", "5-hour intervals");
+}
 if (fileExists(path.join(ROOT, "vercel.json"))) {
   const vercelJson = readFile(path.join(ROOT, "vercel.json"));
   if (vercelJson.includes("crons")) {

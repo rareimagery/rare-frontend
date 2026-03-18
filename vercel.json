@@ -9,6 +9,10 @@
       "schedule": "0 */5 * * *"
     },
     {
+      "path": "/api/cron/drupal-api-path-agent",
+      "schedule": "0 */5 * * *"
+    },
+    {
       "path": "/api/cron/api-agent",
       "schedule": "0 */6 * * *"
     }

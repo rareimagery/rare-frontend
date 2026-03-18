@@ -244,6 +244,16 @@ const HANDLERS = [
     ],
   },
 
+  {
+    name: "Drupal/API Path Cron Agent",
+    path: "src/app/api/cron/drupal-api-path-agent/route.ts",
+    checks: [
+      ["GET method", (c) => c.includes("export async function GET")],
+      ["CRON_SECRET validation", (c) => c.includes("CRON_SECRET")],
+      ["Path health report", (c) => c.includes("runDrupalApiPathAgent")],
+    ],
+  },
+
   // Config
   {
     name: "Configuration",

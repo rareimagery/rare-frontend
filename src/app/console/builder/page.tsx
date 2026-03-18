@@ -5,6 +5,40 @@ import { useConsole } from "@/components/ConsoleContext";
 import BuildLibrary from "@/components/builder/BuildLibrary";
 import LivePreview from "@/components/builder/LivePreview";
 
+const BUILD_GUIDE = [
+  "Start with one section at a time: hero, product grid, about block, or announcement bar.",
+  "Name the internet era and mood clearly so the model has a visual direction.",
+  "Mention layout rules like full-width hero, two-column grid, marquee text, or stacked cards.",
+  "Ask for a complete storefront section, not a whole app shell, so the output stays usable.",
+];
+
+const EXAMPLE_BUILDS = [
+  {
+    title: "Modern Store",
+    era: "2020s clean commerce",
+    prompt:
+      "Build a modern storefront landing section for my creator store. Use a clean luxury layout with a full-width hero, strong typography, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel premium and current, not generic SaaS.",
+  },
+  {
+    title: "MySpace 08",
+    era: "2008 profile culture",
+    prompt:
+      "Build a chaotic MySpace 2008 style storefront section with glitter accents, custom profile energy, loud gradients, badges, stickers, marquee text, and stacked content boxes. Keep it usable on mobile but let it feel nostalgic, messy, and intentionally overdesigned.",
+  },
+  {
+    title: "Tumblr 2012",
+    era: "early moodboard internet",
+    prompt:
+      "Create a Tumblr 2012 inspired storefront section with moody editorial typography, image-first storytelling, quote-style blocks, soft spacing, and an artsy indie internet feel. Prioritize atmosphere and visual identity over pure ecommerce utility.",
+  },
+  {
+    title: "Web 1.0 / Y2K",
+    era: "late 90s to early 2000s",
+    prompt:
+      "Generate a Web 1.0 inspired store section with retro badges, chrome buttons, pixel borders, portal-style panels, novelty web graphics, and playful internet nostalgia. It should feel like an old-school personal site that also sells products.",
+  },
+];
+
 export default function ConsoleBuilderPage() {
   const { hasStore, currentTheme, storeSlug } = useConsole();
   const theme = currentTheme || "xai3";
@@ -120,6 +154,46 @@ export default function ConsoleBuilderPage() {
             Open on live store
           </a>
         )}
+      </div>
+
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-white">Builder Guide</h2>
+          <div className="space-y-2 text-sm text-zinc-400">
+            {BUILD_GUIDE.map((tip) => (
+              <p key={tip}>{tip}</p>
+            ))}
+          </div>
+          <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-500">
+            Best results come from prompts like: era + mood + layout + what the section must sell.
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Example Builds</h2>
+              <p className="text-xs text-zinc-500">One-click starters for different eras of the internet.</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {EXAMPLE_BUILDS.map((example) => (
+              <button
+                key={example.title}
+                type="button"
+                onClick={() => setPrompt(example.prompt)}
+                className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-white">{example.title}</h3>
+                  <span className="text-[11px] uppercase tracking-wide text-zinc-500">{example.era}</span>
+                </div>
+                <p className="mt-2 line-clamp-4 text-xs text-zinc-400">{example.prompt}</p>
+                <p className="mt-3 text-xs font-medium text-indigo-400">Use this prompt</p>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Two-column layout: Generate + Preview */}

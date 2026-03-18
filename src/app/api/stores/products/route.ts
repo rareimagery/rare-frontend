@@ -17,6 +17,52 @@ const TYPE_MAP: Record<string, string> = {
   physical_custom: "crafts",
 };
 
+type ProductPayload = {
+  title?: string;
+  description?: string;
+  price?: string;
+  storeId?: string;
+  productType?: string;
+  imageUrl?: string;
+  imageFile?: File;
+  subscriberOnly?: boolean;
+  minTier?: string;
+  productId?: string;
+  variationId?: string;
+};
+
+function parseBool(value: FormDataEntryValue | null, fallback = false): boolean {
+  if (typeof value !== "string") return fallback;
+  return value === "true" || value === "1";
+}
+
+async function readProductPayload(req: NextRequest): Promise<ProductPayload> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const maybeFile = form.get("imageFile");
+    const imageFile =
+      maybeFile instanceof File && maybeFile.size > 0 ? maybeFile : undefined;
+
+    return {
+      title: (form.get("title") as string) || undefined,
+      description: (form.get("description") as string) || undefined,
+      price: (form.get("price") as string) || undefined,
+      storeId: (form.get("storeId") as string) || undefined,
+      productType: (form.get("productType") as string) || undefined,
+      imageUrl: (form.get("imageUrl") as string) || undefined,
+      imageFile,
+      subscriberOnly: parseBool(form.get("subscriberOnly"), false),
+      minTier: (form.get("minTier") as string) || undefined,
+      productId: (form.get("productId") as string) || undefined,
+      variationId: (form.get("variationId") as string) || undefined,
+    };
+  }
+
+  return (await req.json()) as ProductPayload;
+}
+
 /** Download an image URL and attach it to a product via JSON:API file upload */
 async function attachProductImage(
   imageUrl: string,
@@ -40,6 +86,36 @@ async function attachProductImage(
           ...writeHeaders,
           "Content-Type": "application/octet-stream",
           "Content-Disposition": `file; filename="${filename}.${ext}"`,
+        },
+        body: buffer,
+      }
+    );
+  } catch {
+    // Non-critical — product exists without image
+  }
+}
+
+/** Attach uploaded image bytes to a product via JSON:API file upload */
+async function attachProductImageFile(
+  imageFile: File,
+  productUuid: string,
+  productBundle: string,
+  filename: string
+): Promise<void> {
+  try {
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    const contentType = imageFile.type || "image/jpeg";
+    const safeName = filename.replace(/[^a-zA-Z0-9-_]/g, "-");
+    const writeHeaders = await drupalWriteHeaders();
+
+    await fetch(
+      `${DRUPAL_API}/jsonapi/commerce_product/${productBundle}/${productUuid}/field_images`,
+      {
+        method: "POST",
+        headers: {
+          ...writeHeaders,
+          "Content-Type": contentType,
+          "Content-Disposition": `file; filename="${safeName}"`,
         },
         body: buffer,
       }
@@ -184,18 +260,10 @@ export async function POST(req: NextRequest) {
     storeId,
     productType = "default",
     imageUrl,
+    imageFile,
     subscriberOnly = false,
     minTier,
-  } = (await req.json()) as {
-    title: string;
-    description?: string;
-    price: string;
-    storeId: string;
-    productType?: string;
-    imageUrl?: string;
-    subscriberOnly?: boolean;
-    minTier?: string;
-  };
+  } = await readProductPayload(req);
 
   if (!title || !price || !storeId || !isValidUUID(storeId)) {
     return NextResponse.json(
@@ -256,7 +324,15 @@ export async function POST(req: NextRequest) {
 
   // Under limit — create directly (no fee)
   return createProductDirect({
-    title, description, price, storeId, productType, imageUrl, subscriberOnly, minTier,
+    title,
+    description,
+    price,
+    storeId,
+    productType,
+    imageUrl,
+    imageFile,
+    subscriberOnly,
+    minTier,
   });
 }
 
@@ -268,10 +344,21 @@ async function createProductDirect(opts: {
   storeId: string;
   productType: string;
   imageUrl?: string;
+  imageFile?: File;
   subscriberOnly: boolean;
   minTier?: string;
 }) {
-  const { title, description, price, storeId, productType, imageUrl, subscriberOnly, minTier } = opts;
+  const {
+    title,
+    description,
+    price,
+    storeId,
+    productType,
+    imageUrl,
+    imageFile,
+    subscriberOnly,
+    minTier,
+  } = opts;
   const bundle = TYPE_MAP[productType] ?? "default";
   const sku = `${storeId}-${Date.now()}`;
   const writeHeaders = await drupalWriteHeaders();
@@ -350,6 +437,9 @@ async function createProductDirect(opts: {
   const productId = (await productRes.json()).data.id as string;
 
   // 3. Attach image fire-and-forget
+  if (imageFile) {
+    void attachProductImageFile(imageFile, productId, bundle, `${sku}-${imageFile.name}`);
+  }
   if (imageUrl) attachProductImage(imageUrl, productId, bundle, sku);
 
   return NextResponse.json({ id: productId, title, price, sku, product_type: bundle });
@@ -367,6 +457,7 @@ export async function createProductFromMetadata(metadata: Record<string, string>
     storeId: metadata.store_id,
     productType: metadata.product_type || "default",
     imageUrl: metadata.image_url || undefined,
+    imageFile: undefined,
     subscriberOnly: metadata.subscriber_only === "true",
     minTier: metadata.min_tier || undefined,
   });
@@ -396,20 +487,10 @@ export async function PATCH(req: NextRequest) {
     description,
     price,
     imageUrl,
+    imageFile,
     subscriberOnly,
     minTier,
-  } = (await req.json()) as {
-    productId: string;
-    storeId: string;
-    productType?: string;
-    variationId?: string;
-    title?: string;
-    description?: string;
-    price?: string;
-    imageUrl?: string;
-    subscriberOnly?: boolean;
-    minTier?: string;
-  };
+  } = await readProductPayload(req);
 
   if (!productId || !storeId || !isValidUUID(storeId)) {
     return NextResponse.json({ error: "productId and storeId required" }, { status: 400 });
@@ -476,6 +557,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Attach new image fire-and-forget
+  if (imageFile) {
+    void attachProductImageFile(imageFile, productId, bundle, `img-${Date.now()}-${imageFile.name}`);
+  }
   if (imageUrl) attachProductImage(imageUrl, productId, bundle, `img-${Date.now()}`);
 
   return NextResponse.json({ updated: true });

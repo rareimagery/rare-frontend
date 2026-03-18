@@ -138,6 +138,8 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   // Quick-add
   const [quickAdd, setQuickAdd] = useState(false);
@@ -170,6 +172,8 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
   const openNewForm = () => {
     setEditingProduct(null);
     setForm({ ...EMPTY_FORM });
+    setImageFile(null);
+    setImagePreviewUrl(null);
     setShowForm(true);
     setError("");
   };
@@ -189,6 +193,8 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
       subscriberOnly: product.subscriber_only,
       minTier: product.min_tier ?? "",
     });
+    setImageFile(null);
+    setImagePreviewUrl(product.image_url ?? null);
     setShowForm(true);
     setError("");
   };
@@ -202,23 +208,31 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
     try {
       if (editingProduct) {
         // PATCH
+        const fd = new FormData();
+        fd.append("productId", editingProduct.id);
+        fd.append("storeId", storeId);
+        fd.append(
+          "productType",
+          editingProduct.product_type === "crafts"
+            ? "physical_custom"
+            : editingProduct.product_type
+        );
+        if (editingProduct.variation_id) {
+          fd.append("variationId", editingProduct.variation_id);
+        }
+        fd.append("title", form.title);
+        fd.append("description", form.description);
+        fd.append("price", form.price);
+        fd.append("subscriberOnly", String(form.subscriberOnly));
+        fd.append("minTier", form.minTier || "");
+        fd.append("imageUrl", form.imageUrl || "");
+        if (imageFile) {
+          fd.append("imageFile", imageFile);
+        }
+
         const res = await fetch("/api/stores/products", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: editingProduct.id,
-            productType:
-              editingProduct.product_type === "crafts"
-                ? "physical_custom"
-                : editingProduct.product_type,
-            variationId: editingProduct.variation_id ?? undefined,
-            title: form.title,
-            description: form.description,
-            price: form.price,
-            imageUrl: form.imageUrl || undefined,
-            subscriberOnly: form.subscriberOnly,
-            minTier: form.minTier || undefined,
-          }),
+          body: fd,
         });
         if (!res.ok) {
           const d = await res.json();
@@ -226,19 +240,22 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
         }
       } else {
         // POST
+        const fd = new FormData();
+        fd.append("title", form.title);
+        fd.append("description", form.description);
+        fd.append("price", form.price);
+        fd.append("storeId", storeId);
+        fd.append("productType", form.productType);
+        fd.append("subscriberOnly", String(form.subscriberOnly));
+        fd.append("minTier", form.minTier || "");
+        fd.append("imageUrl", form.imageUrl || "");
+        if (imageFile) {
+          fd.append("imageFile", imageFile);
+        }
+
         const res = await fetch("/api/stores/products", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: form.title,
-            description: form.description,
-            price: form.price,
-            storeId,
-            productType: form.productType,
-            imageUrl: form.imageUrl || undefined,
-            subscriberOnly: form.subscriberOnly,
-            minTier: form.minTier || undefined,
-          }),
+          body: fd,
         });
         if (!res.ok) {
           const d = await res.json();
@@ -249,6 +266,8 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
       setShowForm(false);
       setEditingProduct(null);
       setForm({ ...EMPTY_FORM });
+      setImageFile(null);
+      setImagePreviewUrl(null);
       await fetchProducts();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error");
@@ -495,19 +514,54 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
               <input
                 type="url"
                 value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, imageUrl: e.target.value });
+                  if (e.target.value) {
+                    setImageFile(null);
+                    setImagePreviewUrl(e.target.value);
+                  }
+                }}
                 placeholder="https://..."
                 className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
               />
-              {form.imageUrl && (
+              {(imagePreviewUrl || form.imageUrl) && (
                 <img
-                  src={form.imageUrl}
+                  src={imagePreviewUrl || form.imageUrl}
                   alt="preview"
                   className="h-9 w-9 rounded object-cover"
                   onError={(e) => (e.currentTarget.style.display = "none")}
                 />
               )}
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setImageFile(file);
+                  if (file) {
+                    setForm({ ...form, imageUrl: "" });
+                    setImagePreviewUrl(URL.createObjectURL(file));
+                  }
+                }}
+                className="block w-full text-xs text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:file:bg-indigo-500"
+              />
+              {(imageFile || imagePreviewUrl) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreviewUrl(null);
+                    setForm({ ...form, imageUrl: "" });
+                  }}
+                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:text-white"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">Upload an image file or paste an image URL.</p>
           </div>
 
           {/* Subscriber-only gating */}
@@ -566,7 +620,7 @@ export default function ProductManager({ storeId, storeDrupalId }: ProductManage
       {confirmDelete && (
         <div className="mb-4 flex items-center justify-between rounded-xl border border-red-800/50 bg-red-950/20 px-4 py-3">
           <p className="text-sm text-zinc-300">
-            Delete <span className="font-medium text-white">"{confirmDelete.title}"</span>?
+            Delete <span className="font-medium text-white">&quot;{confirmDelete.title}&quot;</span>?
           </p>
           <div className="flex gap-2">
             <button

@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConsole } from "@/components/ConsoleContext";
 import BuildLibrary from "@/components/builder/BuildLibrary";
 import LivePreview from "@/components/builder/LivePreview";
+
+interface InsightsVisualData {
+  profilePictureUrl: string | null;
+  bannerUrl: string | null;
+  topPosts: Array<{ image_url?: string }>;
+}
 
 const BUILD_GUIDE = [
   "Start with one section at a time: hero, product grid, about block, or announcement bar.",
@@ -96,6 +102,36 @@ export default function ConsoleBuilderPage() {
   const [saveLabel, setSaveLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
+  const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadVisuals() {
+      try {
+        const res = await fetch("/api/console/insights", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+
+        setVisuals({
+          profilePictureUrl: data.profilePictureUrl ?? null,
+          bannerUrl: data.bannerUrl ?? null,
+          topPosts: Array.isArray(data.topPosts) ? data.topPosts : [],
+        });
+      } catch {
+        // non-critical: examples still render without user imagery
+      }
+    }
+
+    if (hasStore) {
+      void loadVisuals();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [hasStore]);
 
   async function handleGenerate() {
     if (!prompt.trim()) return;
@@ -202,7 +238,7 @@ export default function ConsoleBuilderPage() {
         )}
       </div>
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_2fr]">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
           <h2 className="mb-3 text-sm font-semibold text-white">Builder Guide</h2>
           <div className="space-y-2 text-sm text-zinc-400">
@@ -211,7 +247,7 @@ export default function ConsoleBuilderPage() {
             ))}
           </div>
           <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-500">
-            Best results come from prompts like: era + mood + layout + what the section must sell.
+            Era + mood + layout + what to sell.
           </div>
         </div>
 
@@ -230,18 +266,49 @@ export default function ConsoleBuilderPage() {
                 onClick={() => setPrompt(example.prompt)}
                 className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
               >
-                <div className={`mb-4 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}>
+                <div
+                  className={`mb-4 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}
+                  style={{
+                    backgroundImage: visuals?.bannerUrl
+                      ? `linear-gradient(to top, rgba(9,9,11,0.8), rgba(9,9,11,0.2)), url(${visuals.bannerUrl})`
+                      : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                >
                   <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-white/70">
                     {example.era}
                   </div>
                   <div className="space-y-3 p-3">
-                    <div className={`h-16 rounded-lg ${example.accentClassName} opacity-90`} />
+                    <div className={`h-16 rounded-lg ${example.accentClassName} opacity-90`}>
+                      {visuals?.profilePictureUrl ? (
+                        <div className="flex h-full items-center px-3">
+                          <div
+                            className="h-10 w-10 rounded-full border border-white/40"
+                            style={{
+                              backgroundImage: `url(${visuals.profilePictureUrl})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-2 space-y-2">
                         <div className={`h-2.5 w-5/6 rounded-full bg-white/70 ${example.textClassName.includes("stone") ? "bg-black/70" : "bg-white/70"}`} />
                         <div className={`h-2.5 w-2/3 rounded-full ${example.textClassName.includes("stone") ? "bg-black/45" : "bg-white/45"}`} />
                       </div>
-                      <div className={`rounded-md ${example.accentClassName} opacity-80`} />
+                      <div
+                        className={`rounded-md ${example.accentClassName} opacity-80`}
+                        style={{
+                          backgroundImage: visuals?.topPosts?.[0]?.image_url
+                            ? `url(${visuals.topPosts[0].image_url})`
+                            : undefined,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="h-10 rounded-md bg-white/10" />
@@ -252,11 +319,10 @@ export default function ConsoleBuilderPage() {
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-white">{example.title}</h3>
-                  <span className="text-[11px] uppercase tracking-wide text-zinc-500">{example.era}</span>
+                  <span className="text-[11px] uppercase tracking-wide text-zinc-500">Preset</span>
                 </div>
                 <p className="mt-2 text-xs font-medium text-zinc-300">{example.eyebrow}</p>
-                <p className="mt-2 line-clamp-4 text-xs text-zinc-400">{example.prompt}</p>
-                <p className="mt-3 text-xs font-medium text-indigo-400">Use this prompt</p>
+                <p className="mt-3 text-xs font-medium text-indigo-400">Load prompt</p>
               </button>
             ))}
           </div>

@@ -103,6 +103,7 @@ export default function ConsoleBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
+  const [includeXImages, setIncludeXImages] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -133,6 +134,26 @@ export default function ConsoleBuilderPage() {
     };
   }, [hasStore]);
 
+  function buildPromptWithXImages(basePrompt: string): string {
+    if (!includeXImages || !visuals) return basePrompt;
+
+    const postImageUrls = visuals.topPosts
+      .map((p) => p.image_url)
+      .filter((url): url is string => !!url)
+      .slice(0, 4);
+
+    const imageContext = [
+      "",
+      "Use these creator X images as visual references when generating this section:",
+      `- Profile image: ${visuals.profilePictureUrl || "not available"}`,
+      `- Banner image: ${visuals.bannerUrl || "not available"}`,
+      `- Top post images: ${postImageUrls.length > 0 ? postImageUrls.join(", ") : "not available"}`,
+      "If an image URL is unavailable, continue without it.",
+    ].join("\n");
+
+    return `${basePrompt}${imageContext}`;
+  }
+
   async function handleGenerate() {
     if (!prompt.trim()) return;
     setLoading(true);
@@ -140,10 +161,11 @@ export default function ConsoleBuilderPage() {
     setResult("");
 
     try {
+      const message = buildPromptWithXImages(prompt);
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt, theme }),
+        body: JSON.stringify({ message, theme }),
       });
 
       if (res.status === 429) {
@@ -345,6 +367,56 @@ export default function ConsoleBuilderPage() {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerate();
             }}
           />
+
+          <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <label className="flex items-center justify-between gap-3 text-xs text-zinc-300">
+              <span>Use images from my X profile</span>
+              <input
+                type="checkbox"
+                checked={includeXImages}
+                onChange={(e) => setIncludeXImages(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-500 focus:ring-indigo-500"
+              />
+            </label>
+
+            <div className="mt-3 flex items-center gap-2">
+              {visuals?.profilePictureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={visuals.profilePictureUrl}
+                  alt="X profile"
+                  className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full border border-zinc-700 bg-zinc-800" />
+              )}
+
+              {visuals?.bannerUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={visuals.bannerUrl}
+                  alt="X banner"
+                  className="h-8 w-16 rounded border border-zinc-700 object-cover"
+                />
+              ) : (
+                <div className="h-8 w-16 rounded border border-zinc-700 bg-zinc-800" />
+              )}
+
+              {visuals?.topPosts
+                ?.map((p) => p.image_url)
+                .filter((url): url is string => !!url)
+                .slice(0, 2)
+                .map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={url}
+                    src={url}
+                    alt="X post"
+                    className="h-8 w-8 rounded border border-zinc-700 object-cover"
+                  />
+                ))}
+            </div>
+          </div>
 
           <button
             onClick={handleGenerate}

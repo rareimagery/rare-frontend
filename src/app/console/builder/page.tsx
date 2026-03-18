@@ -14,26 +14,72 @@ const BUILD_GUIDE = [
 
 const EXAMPLE_BUILDS = [
   {
-    title: "Modern Store",
-    era: "2020s clean commerce",
+    title: "Modern Luxury",
+    era: "2020s premium commerce",
+    previewClassName: "bg-[radial-gradient(circle_at_top,rgba(244,244,245,0.18),transparent_45%),linear-gradient(135deg,#111827,#09090b)]",
+    accentClassName: "bg-amber-300/90",
+    textClassName: "text-zinc-100",
+    eyebrow: "Clean. Expensive. Current.",
     prompt:
-      "Build a modern storefront landing section for my creator store. Use a clean luxury layout with a full-width hero, strong typography, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel premium and current, not generic SaaS.",
+      "Build a modern luxury storefront landing section for my creator store. Use a cinematic hero, premium typography, disciplined spacing, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel expensive and editorial, not generic SaaS.",
+  },
+  {
+    title: "Minimal Fashion",
+    era: "modern minimalist retail",
+    previewClassName: "bg-[linear-gradient(180deg,#fafaf9,#e7e5e4)]",
+    accentClassName: "bg-black",
+    textClassName: "text-stone-900",
+    eyebrow: "Whitespace and sharp hierarchy.",
+    prompt:
+      "Create a modern minimal fashion storefront section with oversized type, neutral tones, crisp spacing, restrained product cards, and a strong grid. It should feel like a contemporary boutique brand launch page.",
+  },
+  {
+    title: "Streetwear Drop",
+    era: "modern campaign launch",
+    previewClassName: "bg-[linear-gradient(135deg,#18181b,#111827_50%,#1d4ed8)]",
+    accentClassName: "bg-lime-300",
+    textClassName: "text-white",
+    eyebrow: "Bold release energy.",
+    prompt:
+      "Build a modern streetwear drop section with aggressive typography, countdown energy, limited-release product cards, campaign-style callouts, and high-contrast layout. It should feel like a live drop, not a normal shop page.",
+  },
+  {
+    title: "Editorial Campaign",
+    era: "high-end story commerce",
+    previewClassName: "bg-[linear-gradient(135deg,#f5f5f4,#d6d3d1)]",
+    accentClassName: "bg-rose-900",
+    textClassName: "text-stone-900",
+    eyebrow: "Magazine-style storytelling.",
+    prompt:
+      "Design an editorial storefront section that feels like a luxury campaign spread. Use serif-forward typography, asymmetric layout, immersive storytelling blocks, and product placement that feels curated instead of crowded.",
   },
   {
     title: "MySpace 08",
     era: "2008 profile culture",
+    previewClassName: "bg-[linear-gradient(135deg,#ec4899,#60a5fa_45%,#22d3ee)]",
+    accentClassName: "bg-yellow-300",
+    textClassName: "text-white",
+    eyebrow: "Glitter, chaos, personality.",
     prompt:
       "Build a chaotic MySpace 2008 style storefront section with glitter accents, custom profile energy, loud gradients, badges, stickers, marquee text, and stacked content boxes. Keep it usable on mobile but let it feel nostalgic, messy, and intentionally overdesigned.",
   },
   {
     title: "Tumblr 2012",
     era: "early moodboard internet",
+    previewClassName: "bg-[linear-gradient(180deg,#1f2937,#111827)]",
+    accentClassName: "bg-fuchsia-300",
+    textClassName: "text-zinc-100",
+    eyebrow: "Moody and image-first.",
     prompt:
       "Create a Tumblr 2012 inspired storefront section with moody editorial typography, image-first storytelling, quote-style blocks, soft spacing, and an artsy indie internet feel. Prioritize atmosphere and visual identity over pure ecommerce utility.",
   },
   {
     title: "Web 1.0 / Y2K",
     era: "late 90s to early 2000s",
+    previewClassName: "bg-[linear-gradient(135deg,#0f172a,#1d4ed8_60%,#06b6d4)]",
+    accentClassName: "bg-cyan-300",
+    textClassName: "text-white",
+    eyebrow: "Portal web nostalgia.",
     prompt:
       "Generate a Web 1.0 inspired store section with retro badges, chrome buttons, pixel borders, portal-style panels, novelty web graphics, and playful internet nostalgia. It should feel like an old-school personal site that also sells products.",
   },
@@ -172,11 +218,11 @@ export default function ConsoleBuilderPage() {
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-white">Example Builds</h2>
-              <p className="text-xs text-zinc-500">One-click starters for different eras of the internet.</p>
+              <h2 className="text-sm font-semibold text-white">Visual Examples</h2>
+              <p className="text-xs text-zinc-500">Styled starter directions for modern stores and internet-era builds.</p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {EXAMPLE_BUILDS.map((example) => (
               <button
                 key={example.title}
@@ -184,10 +230,31 @@ export default function ConsoleBuilderPage() {
                 onClick={() => setPrompt(example.prompt)}
                 className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
               >
+                <div className={`mb-4 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}>
+                  <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-white/70">
+                    {example.era}
+                  </div>
+                  <div className="space-y-3 p-3">
+                    <div className={`h-16 rounded-lg ${example.accentClassName} opacity-90`} />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2 space-y-2">
+                        <div className={`h-2.5 w-5/6 rounded-full bg-white/70 ${example.textClassName.includes("stone") ? "bg-black/70" : "bg-white/70"}`} />
+                        <div className={`h-2.5 w-2/3 rounded-full ${example.textClassName.includes("stone") ? "bg-black/45" : "bg-white/45"}`} />
+                      </div>
+                      <div className={`rounded-md ${example.accentClassName} opacity-80`} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="h-10 rounded-md bg-white/10" />
+                      <div className="h-10 rounded-md bg-white/10" />
+                      <div className="h-10 rounded-md bg-white/10" />
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-white">{example.title}</h3>
                   <span className="text-[11px] uppercase tracking-wide text-zinc-500">{example.era}</span>
                 </div>
+                <p className="mt-2 text-xs font-medium text-zinc-300">{example.eyebrow}</p>
                 <p className="mt-2 line-clamp-4 text-xs text-zinc-400">{example.prompt}</p>
                 <p className="mt-3 text-xs font-medium text-indigo-400">Use this prompt</p>
               </button>

@@ -105,6 +105,11 @@ export default function ConsoleBuilderPage() {
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
   const [includeXImages, setIncludeXImages] = useState(true);
 
+  const topImageUrls = visuals?.topPosts
+    ?.map((p) => p.image_url)
+    .filter((url): url is string => !!url)
+    .slice(0, 6) ?? [];
+
   useEffect(() => {
     let active = true;
 
@@ -152,6 +157,15 @@ export default function ConsoleBuilderPage() {
     ].join("\n");
 
     return `${basePrompt}${imageContext}`;
+  }
+
+  function addImageToPrompt(url: string) {
+    setPrompt((prev) => {
+      const trimmed = prev.trim();
+      const line = `Use this image URL as a primary visual asset: ${url}`;
+      if (!trimmed) return line;
+      return `${trimmed}\n${line}`;
+    });
   }
 
   async function handleGenerate() {
@@ -260,93 +274,145 @@ export default function ConsoleBuilderPage() {
         )}
       </div>
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_2fr]">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div className="mb-8 space-y-6">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <h2 className="mb-3 text-sm font-semibold text-white">Builder Guide</h2>
-          <div className="space-y-2 text-sm text-zinc-400">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {BUILD_GUIDE.map((tip) => (
-              <p key={tip}>{tip}</p>
+              <div key={tip} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-400">
+                {tip}
+              </div>
             ))}
-          </div>
-          <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-500">
-            Era + mood + layout + what to sell.
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-white">Visual Examples</h2>
-              <p className="text-xs text-zinc-500">Styled starter directions for modern stores and internet-era builds.</p>
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-white">Your X Visual Library</h2>
+              <span className="text-[11px] text-zinc-500">{topImageUrls.length} post images</span>
             </div>
+
+            <div
+              className="relative mb-3 overflow-hidden rounded-xl border border-zinc-700/80 bg-zinc-950"
+              style={{
+                minHeight: 168,
+                backgroundImage: visuals?.bannerUrl
+                  ? `linear-gradient(to top, rgba(9,9,11,0.7), rgba(9,9,11,0.15)), url(${visuals.bannerUrl})`
+                  : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-zinc-950/90 to-transparent p-3">
+                <div className="flex items-center gap-2">
+                  {visuals?.profilePictureUrl ? (
+                    <div
+                      className="h-10 w-10 rounded-full border border-white/40"
+                      style={{
+                        backgroundImage: `url(${visuals.profilePictureUrl})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full border border-zinc-700 bg-zinc-800" />
+                  )}
+                  <span className="text-xs text-zinc-300">Profile + banner loaded</span>
+                </div>
+                {visuals?.bannerUrl && (
+                  <button
+                    type="button"
+                    onClick={() => addImageToPrompt(visuals.bannerUrl as string)}
+                    className="rounded-md border border-zinc-600 px-2 py-1 text-[11px] text-zinc-200 hover:border-zinc-400"
+                  >
+                    Use banner
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {topImageUrls.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {topImageUrls.map((url) => (
+                  <button
+                    type="button"
+                    key={url}
+                    onClick={() => addImageToPrompt(url)}
+                    className="group relative h-20 overflow-hidden rounded-lg border border-zinc-800"
+                  >
+                    <div
+                      className="h-full w-full bg-zinc-800 bg-cover bg-center transition duration-200 group-hover:scale-105"
+                      style={{ backgroundImage: `url(${url})` }}
+                    />
+                    <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/30" />
+                    <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-100 opacity-0 transition group-hover:opacity-100">
+                      Add
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-4 text-xs text-zinc-500">
+                No post images found yet. Import more X content to populate this library.
+              </div>
+            )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {EXAMPLE_BUILDS.map((example) => (
-              <button
-                key={example.title}
-                type="button"
-                onClick={() => setPrompt(example.prompt)}
-                className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
-              >
-                <div
-                  className={`mb-4 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}
-                  style={{
-                    backgroundImage: visuals?.bannerUrl
-                      ? `linear-gradient(to top, rgba(9,9,11,0.8), rgba(9,9,11,0.2)), url(${visuals.bannerUrl})`
-                      : undefined,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                >
-                  <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-white/70">
-                    {example.era}
-                  </div>
-                  <div className="space-y-3 p-3">
-                    <div className={`h-16 rounded-lg ${example.accentClassName} opacity-90`}>
-                      {visuals?.profilePictureUrl ? (
-                        <div className="flex h-full items-center px-3">
-                          <div
-                            className="h-10 w-10 rounded-full border border-white/40"
-                            style={{
-                              backgroundImage: `url(${visuals.profilePictureUrl})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                            }}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2 space-y-2">
-                        <div className={`h-2.5 w-5/6 rounded-full bg-white/70 ${example.textClassName.includes("stone") ? "bg-black/70" : "bg-white/70"}`} />
-                        <div className={`h-2.5 w-2/3 rounded-full ${example.textClassName.includes("stone") ? "bg-black/45" : "bg-white/45"}`} />
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Visual Style Presets</h2>
+                <p className="text-xs text-zinc-500">Modern + internet-era layouts with your X images composited in.</p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {EXAMPLE_BUILDS.map((example, index) => {
+                const cardImage = topImageUrls.length > 0 ? topImageUrls[index % topImageUrls.length] : null;
+                return (
+                  <button
+                    key={example.title}
+                    type="button"
+                    onClick={() => setPrompt(example.prompt)}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+                  >
+                    <div
+                      className={`mb-3 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}
+                      style={{
+                        backgroundImage: visuals?.bannerUrl
+                          ? `linear-gradient(to top, rgba(9,9,11,0.75), rgba(9,9,11,0.12)), url(${visuals.bannerUrl})`
+                          : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      <div className="border-b border-white/10 px-2.5 py-2 text-[10px] uppercase tracking-[0.2em] text-white/75">
+                        {example.era}
                       </div>
-                      <div
-                        className={`rounded-md ${example.accentClassName} opacity-80`}
-                        style={{
-                          backgroundImage: visuals?.topPosts?.[0]?.image_url
-                            ? `url(${visuals.topPosts[0].image_url})`
-                            : undefined,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      />
+                      <div className="grid grid-cols-[1.1fr_1fr] gap-2 p-2.5">
+                        <div className="space-y-2">
+                          <div className={`h-9 rounded ${example.accentClassName} opacity-85`} />
+                          <div className="h-6 rounded bg-white/15" />
+                        </div>
+                        <div
+                          className="rounded bg-white/10"
+                          style={{
+                            backgroundImage: cardImage ? `url(${cardImage})` : undefined,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="h-10 rounded-md bg-white/10" />
-                      <div className="h-10 rounded-md bg-white/10" />
-                      <div className="h-10 rounded-md bg-white/10" />
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-white">{example.title}</h3>
+                      <span className="text-[11px] text-zinc-500">Load</span>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-white">{example.title}</h3>
-                  <span className="text-[11px] uppercase tracking-wide text-zinc-500">Preset</span>
-                </div>
-                <p className="mt-2 text-xs font-medium text-zinc-300">{example.eyebrow}</p>
-                <p className="mt-3 text-xs font-medium text-indigo-400">Load prompt</p>
-              </button>
-            ))}
+                    <p className="mt-1.5 text-xs text-zinc-300">{example.eyebrow}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

@@ -43,7 +43,7 @@ export default function EulaPage() {
               <li><strong className="text-zinc-300">&quot;Store&quot;</strong> — A Creator&apos;s storefront hosted on the Platform.</li>
               <li><strong className="text-zinc-300">&quot;Content&quot;</strong> — All text, images, designs, products, product listings, profile information, shoutouts, picks, and other materials uploaded or displayed.</li>
               <li><strong className="text-zinc-300">&quot;AI-Generated Content&quot;</strong> — Components, code, or design assets created by the AI Page Builder tool.</li>
-              <li><strong className="text-zinc-300">&quot;Third-Party Services&quot;</strong> — External services including X (Twitter), Stripe, Printful, Anthropic, and xAI/Grok.</li>
+              <li><strong className="text-zinc-300">&quot;Third-Party Services&quot;</strong> — External services including X (Twitter), Stripe, Printful, and xAI/Grok.</li>
             </ul>
           </Section>
 
@@ -70,7 +70,7 @@ export default function EulaPage() {
           </Section>
 
           <Section title="6. AI Page Builder">
-            <p>The Page Builder generates React/Tailwind CSS components using third-party AI models (Anthropic Claude). AI-generated components are provided &quot;as-is&quot; — you are responsible for reviewing and testing them. Usage is limited to 10 requests/hour and 20 saved builds per Store. You may not use it to generate prohibited content or exploit platform security.</p>
+            <p>The Page Builder generates React/Tailwind CSS components using xAI/Grok. AI-generated components are provided &quot;as-is&quot; — you are responsible for reviewing and testing them. Usage is limited to 10 requests/hour and 20 saved builds per Store. You may not use it to generate prohibited content or exploit platform security.</p>
           </Section>
 
           <Section title="7. Intellectual Property">
@@ -86,7 +86,7 @@ export default function EulaPage() {
           </Section>
 
           <Section title="10. Privacy and Data">
-            <p>Data collection follows our <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300 underline">Privacy Policy</Link>. X profile data is stored and displayed publicly. Payment data is handled by Stripe. AI prompts are transmitted to Anthropic and not stored beyond the session. Creators may export saved builds via the Page Builder.</p>
+            <p>Data collection follows our <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300 underline">Privacy Policy</Link>. X profile data is stored and displayed publicly. Payment data is handled by Stripe. AI prompts are transmitted to xAI/Grok and not stored beyond the session. Creators may export saved builds via the Page Builder.</p>
           </Section>
 
           <Section title="11. Disclaimers and Limitation of Liability">

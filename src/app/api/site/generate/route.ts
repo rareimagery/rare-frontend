@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // POST /api/site/generate — Dual-AI site generation orchestrator
-// Grok (profile analysis) → Claude Haiku (component generation)
+// Grok (profile analysis) → Grok (component generation)
 // ---------------------------------------------------------------------------
 
 import { NextRequest, NextResponse } from "next/server";
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         // Prepend AI builds, keeping existing ones
         const merged = [...newBuilds, ...existingBuilds];
         await saveBuilds(xUsername, merged.slice(0, 20));
-      } catch (err) {
+      } catch {
         // Commerce store may not exist yet — that's fine
         console.log(
           `[site-gen] Could not save builds for @${xUsername} (no commerce store yet)`
@@ -111,10 +111,11 @@ export async function POST(req: NextRequest) {
         themeOverrides: result.components.themeOverrides,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[site-gen] Failed for @${xUsername}:`, err);
+    const message = err instanceof Error ? err.message : "Site generation failed";
     return NextResponse.json(
-      { error: err.message || "Site generation failed" },
+      { error: message },
       { status: 500 }
     );
   }

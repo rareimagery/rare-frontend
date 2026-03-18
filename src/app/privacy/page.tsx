@@ -69,7 +69,7 @@ export default function PrivacyPage() {
               <li>To display your public storefront and profile</li>
               <li>To process transactions and facilitate payments via Stripe</li>
               <li>To operate social features (follows, shoutouts, picks)</li>
-              <li>To power the AI Page Builder (prompts are sent to Anthropic for processing)</li>
+              <li>To power the AI Page Builder (prompts are sent to xAI/Grok for processing)</li>
               <li>To send notifications about your Store, orders, and account</li>
               <li>To enforce our Terms of Service and EULA</li>
               <li>To improve the Service and develop new features</li>
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
             <p>We do not sell your personal information. We share information only in these circumstances:</p>
             <ul className="ml-4 list-disc space-y-1 text-zinc-400">
               <li><strong className="text-zinc-300">Public Display:</strong> Your store name, X username, profile picture, bio, products, shoutouts, and picks are publicly visible</li>
-              <li><strong className="text-zinc-300">Service Providers:</strong> X (authentication), Stripe (payments), Printful (fulfillment), Anthropic (AI), xAI (profile enhancement), Vercel (hosting)</li>
+              <li><strong className="text-zinc-300">Service Providers:</strong> X (authentication), Stripe (payments), Printful (fulfillment), xAI/Grok (AI), Vercel (hosting)</li>
               <li><strong className="text-zinc-300">Legal Requirements:</strong> When required by law, court order, or governmental authority</li>
               <li><strong className="text-zinc-300">Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets</li>
               <li><strong className="text-zinc-300">With Your Consent:</strong> When you explicitly authorize sharing</li>

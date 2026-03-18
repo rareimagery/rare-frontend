@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getToken } from "next-auth/jwt";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
 
 const rateLimitMap = new Map<string, { count: number; reset: number }>();
 const RATE_LIMIT = 10;
@@ -123,37 +122,49 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = getSystemPrompt(theme || "xai3");
 
-  // Stream the response for faster perceived speed
-  const stream = client.messages.stream({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4000,
-    system: [
-      {
-        type: "text" as const,
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" as const },
-      },
-    ],
-    messages: [{ role: "user", content: message }],
-  });
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "XAI_API_KEY not configured" }, { status: 500 });
+  }
 
-  // Create a ReadableStream that forwards text deltas
+  let generated = "";
+  try {
+    const aiRes = await fetch(XAI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message },
+        ],
+        temperature: 0.6,
+        max_tokens: 4000,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!aiRes.ok) {
+      const text = await aiRes.text();
+      console.error("[chat] xAI error:", aiRes.status, text.slice(0, 400));
+      return NextResponse.json({ error: "Grok request failed" }, { status: 502 });
+    }
+
+    const json = await aiRes.json();
+    generated = json.choices?.[0]?.message?.content ?? "";
+  } catch (err) {
+    console.error("[chat] xAI request failed:", err);
+    return NextResponse.json({ error: "Grok request failed" }, { status: 502 });
+  }
+
   const readableStream = new ReadableStream({
-    async start(controller) {
-      try {
-        const encoder = new TextEncoder();
-        for await (const event of stream) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            controller.enqueue(encoder.encode(event.delta.text));
-          }
-        }
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
+    start(controller) {
+      const encoder = new TextEncoder();
+      controller.enqueue(encoder.encode(generated));
+      controller.close();
     },
   });
 

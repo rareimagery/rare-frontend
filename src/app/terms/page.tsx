@@ -89,7 +89,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="10. Third-Party Services">
-            <p>The Service integrates with X, Stripe, Printful, Anthropic, and xAI. Use of these integrations is subject to their respective terms. We are not responsible for third-party availability or performance.</p>
+            <p>The Service integrates with X, Stripe, Printful, and xAI/Grok. Use of these integrations is subject to their respective terms. We are not responsible for third-party availability or performance.</p>
           </Section>
 
           <Section title="11. Privacy">

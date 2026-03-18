@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import Anthropic from "@anthropic-ai/sdk";
-const client = new Anthropic();
+const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
 
 // Top-rated creation insights the bot can learn from (from docs/best_creations.json)
 const BEST_CREATION_INSIGHTS = [
@@ -243,16 +242,38 @@ export async function POST(req: NextRequest) {
 
   const userMessage = buildUserMessage(quizAnswers, preset, xProfileData);
 
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "XAI_API_KEY not configured" }, { status: 500 });
+  }
+
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+    const response = await fetch(XAI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3",
+        max_tokens: 4096,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+      }),
+      signal: AbortSignal.timeout(45000),
     });
 
-    const rawText =
-      message.content[0].type === "text" ? message.content[0].text : "";
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Grok API error: ${response.status} ${text.slice(0, 400)}`);
+    }
+
+    const json = await response.json();
+    const rawText = json.choices?.[0]?.message?.content ?? "";
 
     // Strip any accidental markdown code fences
     const jsonText = rawText

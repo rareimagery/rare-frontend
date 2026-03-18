@@ -1,12 +1,10 @@
 // ---------------------------------------------------------------------------
 // Dual-AI Site Generation Pipeline
-// Grok (profile intelligence) → Claude Haiku (component generation)
+// Grok (profile intelligence) → Grok (component generation)
 // Per rareimagery-dual-ai-architecture.md
 // ---------------------------------------------------------------------------
 
-import Anthropic from "@anthropic-ai/sdk";
 import type { XImportData } from "@/lib/x-import";
-import type { GrokEnhancements } from "@/lib/grok";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,7 +143,7 @@ ${postSummary || "(no posts available)"}`,
 }
 
 // ---------------------------------------------------------------------------
-// Claude Sonnet Site Generation (AI #2)
+// Grok Site Generation (AI #2)
 // ---------------------------------------------------------------------------
 
 const THEME_STYLE_HINTS: Record<string, string> = {
@@ -161,22 +159,33 @@ export async function generateSiteComponents(
   xData: XImportData,
   grokAnalysis: GrokSiteAnalysis
 ): Promise<GeneratedSiteComponents> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY not configured");
+    throw new Error("XAI_API_KEY not configured");
   }
 
-  const anthropic = new Anthropic({ apiKey });
   const theme = resolveTheme(grokAnalysis.suggestedThemePreset);
   const styleHint = THEME_STYLE_HINTS[theme] || THEME_STYLE_HINTS.xai3;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 8192,
-    messages: [
-      {
-        role: "user",
-        content: `Generate Next.js/Tailwind storefront components for a creator.
+  const res = await fetch(XAI_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "grok-3",
+      max_tokens: 8192,
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a senior frontend engineer building premium Next.js/Tailwind storefront components. Output valid JSON only.",
+        },
+        {
+          role: "user",
+          content: `Generate Next.js/Tailwind storefront components for a creator.
 
 CREATOR DATA:
 - Name: ${xData.displayName}
@@ -207,17 +216,25 @@ Return JSON only (no markdown fences, no preamble):
   "customCSS": "any additional CSS custom properties or @keyframes needed",
   "themeOverrides": { "primaryColor": "hex", "accentColor": "hex", "fontFamily": "font stack" }
 }`,
-      },
-    ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(30000),
   });
 
-  const textBlock = message.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude Sonnet");
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Grok API error: ${res.status} ${text.slice(0, 240)}`);
+  }
+
+  const json = await res.json();
+  const rawText = json.choices?.[0]?.message?.content;
+  if (!rawText || typeof rawText !== "string") {
+    throw new Error("No text response from Grok");
   }
 
   // Parse, stripping any accidental markdown fences
-  let raw = textBlock.text.trim();
+  let raw = rawText.trim();
   if (raw.startsWith("```")) {
     raw = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }
@@ -242,7 +259,7 @@ export async function generateCreatorSite(
     audienceType: "creative",
   };
 
-  // Step 2: Claude Haiku generates site components
+  // Step 2: Grok generates site components
   const components = await generateSiteComponents(xData, grokAnalysis);
 
   return {

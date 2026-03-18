@@ -234,6 +234,16 @@ const HANDLERS = [
     ],
   },
 
+  {
+    name: "Site Generate Cron Agent",
+    path: "src/app/api/cron/site-generate-agent/route.ts",
+    checks: [
+      ["GET method", (c) => c.includes("export async function GET")],
+      ["CRON_SECRET validation", (c) => c.includes("CRON_SECRET")],
+      ["Site generate probe", (c) => c.includes("/api/site/generate")],
+    ],
+  },
+
   // Config
   {
     name: "Configuration",

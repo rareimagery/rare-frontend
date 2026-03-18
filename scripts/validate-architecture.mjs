@@ -317,6 +317,9 @@ if (fileExists(path.join(ROOT, "src/app/api/cron/frontend-agent/route.ts"))) {
 if (fileExists(path.join(ROOT, "src/app/api/cron/api-agent/route.ts"))) {
   pass("API health agent", "6-hour intervals");
 }
+if (fileExists(path.join(ROOT, "src/app/api/cron/site-generate-agent/route.ts"))) {
+  pass("Site generate agent", "5-hour intervals");
+}
 if (fileExists(path.join(ROOT, "vercel.json"))) {
   const vercelJson = readFile(path.join(ROOT, "vercel.json"));
   if (vercelJson.includes("crons")) {

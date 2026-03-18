@@ -418,6 +418,15 @@ suites["2.11-cron"] = {
         assert(result.status !== 404, "API cron endpoint should exist");
       },
     },
+    {
+      name: "2.11.3 Site-generate cron agent available",
+      run: async () => {
+        const result = await request("GET", "/api/cron/site-generate-agent", {
+          headers: { Authorization: "Bearer " + (process.env.CRON_SECRET || "test") },
+        });
+        assert(result.status !== 404, "Site-generate cron endpoint should exist");
+      },
+    },
   ],
 };
 

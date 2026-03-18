@@ -11,83 +11,42 @@ interface InsightsVisualData {
   topPosts: Array<{ image_url?: string }>;
 }
 
-const BUILD_GUIDE = [
-  "Start with one section at a time: hero, product grid, about block, or announcement bar.",
-  "Name the internet era and mood clearly so the model has a visual direction.",
-  "Mention layout rules like full-width hero, two-column grid, marquee text, or stacked cards.",
-  "Ask for a complete storefront section, not a whole app shell, so the output stays usable.",
-];
-
-const EXAMPLE_BUILDS = [
+const STYLE_OPTIONS = [
   {
-    title: "Modern Luxury",
-    era: "2020s premium commerce",
+    title: "Luxury Pulse",
     previewClassName: "bg-[radial-gradient(circle_at_top,rgba(244,244,245,0.18),transparent_45%),linear-gradient(135deg,#111827,#09090b)]",
-    accentClassName: "bg-amber-300/90",
-    textClassName: "text-zinc-100",
-    eyebrow: "Clean. Expensive. Current.",
     prompt:
       "Build a modern luxury storefront landing section for my creator store. Use a cinematic hero, premium typography, disciplined spacing, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel expensive and editorial, not generic SaaS.",
   },
   {
-    title: "Minimal Fashion",
-    era: "modern minimalist retail",
+    title: "Minimal Frame",
     previewClassName: "bg-[linear-gradient(180deg,#fafaf9,#e7e5e4)]",
-    accentClassName: "bg-black",
-    textClassName: "text-stone-900",
-    eyebrow: "Whitespace and sharp hierarchy.",
     prompt:
       "Create a modern minimal fashion storefront section with oversized type, neutral tones, crisp spacing, restrained product cards, and a strong grid. It should feel like a contemporary boutique brand launch page.",
   },
   {
-    title: "Streetwear Drop",
-    era: "modern campaign launch",
+    title: "Drop Zone",
     previewClassName: "bg-[linear-gradient(135deg,#18181b,#111827_50%,#1d4ed8)]",
-    accentClassName: "bg-lime-300",
-    textClassName: "text-white",
-    eyebrow: "Bold release energy.",
     prompt:
       "Build a modern streetwear drop section with aggressive typography, countdown energy, limited-release product cards, campaign-style callouts, and high-contrast layout. It should feel like a live drop, not a normal shop page.",
   },
   {
-    title: "Editorial Campaign",
-    era: "high-end story commerce",
+    title: "Editorial Drift",
     previewClassName: "bg-[linear-gradient(135deg,#f5f5f4,#d6d3d1)]",
-    accentClassName: "bg-rose-900",
-    textClassName: "text-stone-900",
-    eyebrow: "Magazine-style storytelling.",
     prompt:
       "Design an editorial storefront section that feels like a luxury campaign spread. Use serif-forward typography, asymmetric layout, immersive storytelling blocks, and product placement that feels curated instead of crowded.",
   },
   {
-    title: "MySpace 08",
-    era: "2008 profile culture",
+    title: "MySpace Flash",
     previewClassName: "bg-[linear-gradient(135deg,#ec4899,#60a5fa_45%,#22d3ee)]",
-    accentClassName: "bg-yellow-300",
-    textClassName: "text-white",
-    eyebrow: "Glitter, chaos, personality.",
     prompt:
       "Build a chaotic MySpace 2008 style storefront section with glitter accents, custom profile energy, loud gradients, badges, stickers, marquee text, and stacked content boxes. Keep it usable on mobile but let it feel nostalgic, messy, and intentionally overdesigned.",
   },
   {
-    title: "Tumblr 2012",
-    era: "early moodboard internet",
+    title: "Moodboard Night",
     previewClassName: "bg-[linear-gradient(180deg,#1f2937,#111827)]",
-    accentClassName: "bg-fuchsia-300",
-    textClassName: "text-zinc-100",
-    eyebrow: "Moody and image-first.",
     prompt:
       "Create a Tumblr 2012 inspired storefront section with moody editorial typography, image-first storytelling, quote-style blocks, soft spacing, and an artsy indie internet feel. Prioritize atmosphere and visual identity over pure ecommerce utility.",
-  },
-  {
-    title: "Web 1.0 / Y2K",
-    era: "late 90s to early 2000s",
-    previewClassName: "bg-[linear-gradient(135deg,#0f172a,#1d4ed8_60%,#06b6d4)]",
-    accentClassName: "bg-cyan-300",
-    textClassName: "text-white",
-    eyebrow: "Portal web nostalgia.",
-    prompt:
-      "Generate a Web 1.0 inspired store section with retro badges, chrome buttons, pixel borders, portal-style panels, novelty web graphics, and playful internet nostalgia. It should feel like an old-school personal site that also sells products.",
   },
 ];
 
@@ -105,10 +64,21 @@ export default function ConsoleBuilderPage() {
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
   const [includeXImages, setIncludeXImages] = useState(true);
 
-  const topImageUrls = visuals?.topPosts
-    ?.map((p) => p.image_url)
-    .filter((url): url is string => !!url)
-    .slice(0, 6) ?? [];
+  const dynamicOptions = STYLE_OPTIONS.map((option) => {
+    const promptContext = [
+      option.prompt,
+      `Keep the generated section aligned with the ${theme} visual system.`,
+      visuals?.profilePictureUrl ? "Use the creator profile image as an identity anchor in the layout." : "",
+      visuals?.bannerUrl ? "Use the creator banner image as the dominant background mood." : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return {
+      ...option,
+      prompt: promptContext,
+    };
+  });
 
   useEffect(() => {
     let active = true;
@@ -157,15 +127,6 @@ export default function ConsoleBuilderPage() {
     ].join("\n");
 
     return `${basePrompt}${imageContext}`;
-  }
-
-  function addImageToPrompt(url: string) {
-    setPrompt((prev) => {
-      const trimmed = prev.trim();
-      const line = `Use this image URL as a primary visual asset: ${url}`;
-      if (!trimmed) return line;
-      return `${trimmed}\n${line}`;
-    });
   }
 
   async function handleGenerate() {
@@ -254,10 +215,7 @@ export default function ConsoleBuilderPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Page Builder</h1>
-          <p className="text-zinc-400 text-sm">
-            Generate custom components for your storefront using AI.
-            Theme: <span className="text-indigo-400">{theme}</span>
-          </p>
+          <p className="text-zinc-400 text-sm">Theme: <span className="text-indigo-400">{theme}</span></p>
         </div>
         {storeSlug && (
           <a
@@ -274,145 +232,50 @@ export default function ConsoleBuilderPage() {
         )}
       </div>
 
-      <div className="mb-8 space-y-6">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-white">Builder Guide</h2>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {BUILD_GUIDE.map((tip) => (
-              <div key={tip} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-400">
-                {tip}
-              </div>
-            ))}
+      <div className="mb-8">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-white">Pick a direction</h2>
+            <span className="text-xs text-zinc-500">6 options</span>
           </div>
-        </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-white">Your X Visual Library</h2>
-              <span className="text-[11px] text-zinc-500">{topImageUrls.length} post images</span>
-            </div>
-
-            <div
-              className="relative mb-3 overflow-hidden rounded-xl border border-zinc-700/80 bg-zinc-950"
-              style={{
-                minHeight: 168,
-                backgroundImage: visuals?.bannerUrl
-                  ? `linear-gradient(to top, rgba(9,9,11,0.7), rgba(9,9,11,0.15)), url(${visuals.bannerUrl})`
-                  : undefined,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            >
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-zinc-950/90 to-transparent p-3">
-                <div className="flex items-center gap-2">
-                  {visuals?.profilePictureUrl ? (
-                    <div
-                      className="h-10 w-10 rounded-full border border-white/40"
-                      style={{
-                        backgroundImage: `url(${visuals.profilePictureUrl})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full border border-zinc-700 bg-zinc-800" />
-                  )}
-                  <span className="text-xs text-zinc-300">Profile + banner loaded</span>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {dynamicOptions.map((option) => (
+              <button
+                key={option.title}
+                type="button"
+                onClick={() => setPrompt(option.prompt)}
+                className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-2 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+              >
+                <div
+                  className={`relative h-28 overflow-hidden rounded-lg border border-white/10 ${option.previewClassName}`}
+                  style={{
+                    backgroundImage: visuals?.bannerUrl
+                      ? `linear-gradient(to top, rgba(9,9,11,0.8), rgba(9,9,11,0.1)), url(${visuals.bannerUrl})`
+                      : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                >
+                  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-2 left-2 flex items-center gap-2">
+                    {visuals?.profilePictureUrl ? (
+                      <div
+                        className="h-8 w-8 rounded-full border border-white/60"
+                        style={{
+                          backgroundImage: `url(${visuals.profilePictureUrl})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full border border-zinc-700 bg-zinc-800" />
+                    )}
+                    <span className="text-xs font-medium text-white/95">{option.title}</span>
+                  </div>
                 </div>
-                {visuals?.bannerUrl && (
-                  <button
-                    type="button"
-                    onClick={() => addImageToPrompt(visuals.bannerUrl as string)}
-                    className="rounded-md border border-zinc-600 px-2 py-1 text-[11px] text-zinc-200 hover:border-zinc-400"
-                  >
-                    Use banner
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {topImageUrls.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {topImageUrls.map((url) => (
-                  <button
-                    type="button"
-                    key={url}
-                    onClick={() => addImageToPrompt(url)}
-                    className="group relative h-20 overflow-hidden rounded-lg border border-zinc-800"
-                  >
-                    <div
-                      className="h-full w-full bg-zinc-800 bg-cover bg-center transition duration-200 group-hover:scale-105"
-                      style={{ backgroundImage: `url(${url})` }}
-                    />
-                    <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/30" />
-                    <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-100 opacity-0 transition group-hover:opacity-100">
-                      Add
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-4 text-xs text-zinc-500">
-                No post images found yet. Import more X content to populate this library.
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-white">Visual Style Presets</h2>
-                <p className="text-xs text-zinc-500">Modern + internet-era layouts with your X images composited in.</p>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {EXAMPLE_BUILDS.map((example, index) => {
-                const cardImage = topImageUrls.length > 0 ? topImageUrls[index % topImageUrls.length] : null;
-                return (
-                  <button
-                    key={example.title}
-                    type="button"
-                    onClick={() => setPrompt(example.prompt)}
-                    className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
-                  >
-                    <div
-                      className={`mb-3 overflow-hidden rounded-lg border border-white/10 ${example.previewClassName}`}
-                      style={{
-                        backgroundImage: visuals?.bannerUrl
-                          ? `linear-gradient(to top, rgba(9,9,11,0.75), rgba(9,9,11,0.12)), url(${visuals.bannerUrl})`
-                          : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      <div className="border-b border-white/10 px-2.5 py-2 text-[10px] uppercase tracking-[0.2em] text-white/75">
-                        {example.era}
-                      </div>
-                      <div className="grid grid-cols-[1.1fr_1fr] gap-2 p-2.5">
-                        <div className="space-y-2">
-                          <div className={`h-9 rounded ${example.accentClassName} opacity-85`} />
-                          <div className="h-6 rounded bg-white/15" />
-                        </div>
-                        <div
-                          className="rounded bg-white/10"
-                          style={{
-                            backgroundImage: cardImage ? `url(${cardImage})` : undefined,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-white">{example.title}</h3>
-                      <span className="text-[11px] text-zinc-500">Load</span>
-                    </div>
-                    <p className="mt-1.5 text-xs text-zinc-300">{example.eyebrow}</p>
-                  </button>
-                );
-              })}
-            </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -444,44 +307,6 @@ export default function ConsoleBuilderPage() {
                 className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-500 focus:ring-indigo-500"
               />
             </label>
-
-            <div className="mt-3 flex items-center gap-2">
-              {visuals?.profilePictureUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={visuals.profilePictureUrl}
-                  alt="X profile"
-                  className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full border border-zinc-700 bg-zinc-800" />
-              )}
-
-              {visuals?.bannerUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={visuals.bannerUrl}
-                  alt="X banner"
-                  className="h-8 w-16 rounded border border-zinc-700 object-cover"
-                />
-              ) : (
-                <div className="h-8 w-16 rounded border border-zinc-700 bg-zinc-800" />
-              )}
-
-              {visuals?.topPosts
-                ?.map((p) => p.image_url)
-                .filter((url): url is string => !!url)
-                .slice(0, 2)
-                .map((url) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={url}
-                    src={url}
-                    alt="X post"
-                    className="h-8 w-8 rounded border border-zinc-700 object-cover"
-                  />
-                ))}
-            </div>
           </div>
 
           <button

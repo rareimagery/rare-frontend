@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useConsole } from "@/components/ConsoleContext";
 import VideoUploader from "@/components/VideoUploader";
 import TemplatePicker from "@/components/TemplatePicker";
+import CostTracker from "@/components/CostTracker";
 
 export default function ConsoleDashboard() {
   const {
@@ -127,6 +128,10 @@ export default function ConsoleDashboard() {
 
       {xUsername && (
         <TemplatePicker current={currentTheme || "xai3"} sellerHandle={xUsername} />
+      )}
+
+      {xUsername && (
+        <CostTracker sellerHandle={xUsername} />
       )}
 
       {isAdmin && (

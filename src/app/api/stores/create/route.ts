@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isValidSlug } from "@/lib/slugs";
 import { notifyAdminNewStore } from "@/lib/notifications";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
+import { ensureStoreSubdomainDns } from "@/lib/cloudflare";
 
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
@@ -183,6 +184,17 @@ function isWritePermissionError(message: string): boolean {
 
 const storeCreateLimit = createRateLimiter({ limit: 3, windowMs: 60 * 60 * 1000 }); // 3/hour
 
+async function provisionStoreDns(slug: string) {
+  try {
+    const dns = await ensureStoreSubdomainDns(slug);
+    if (!dns.configured) {
+      console.log(`[cloudflare] DNS automation skipped for ${dns.hostname}`);
+    }
+  } catch (error) {
+    console.error(`[cloudflare] DNS automation failed for ${slug}:`, error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -277,6 +289,7 @@ export async function POST(req: NextRequest) {
       let profileData: any = null;
       try {
         profileData = await createXProfile(storeData.data.id, xProfileFields);
+        await provisionStoreDns(slug);
       } catch (profileErr: any) {
         const profileErrorMessage = String(
           profileErr?.message || "X profile creation failed"
@@ -331,6 +344,7 @@ export async function POST(req: NextRequest) {
       // so onboarding and theme setup can continue while Drupal perms are fixed.
       try {
         const profileData = await createXProfile(null, xProfileFields);
+        await provisionStoreDns(slug);
 
         return NextResponse.json({
           success: true,

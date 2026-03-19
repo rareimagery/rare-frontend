@@ -5,6 +5,7 @@ import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal, fetchXData, patchProfile, findProfileByUsername } from "@/lib/x-import";
 import { generateCreatorSite } from "@/lib/ai/generate-site";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
+import { ensureStoreSubdomainDns } from "@/lib/cloudflare";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -56,6 +57,17 @@ async function createProfile(
 
 const provisionLimit = createRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 }); // 5/hour
 
+async function provisionStoreDns(slug: string) {
+  try {
+    const dns = await ensureStoreSubdomainDns(slug);
+    if (!dns.configured) {
+      console.log(`[cloudflare] DNS automation skipped for ${dns.hostname}`);
+    }
+  } catch (error) {
+    console.error(`[cloudflare] DNS automation failed for ${slug}:`, error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const agreedToTerms = Boolean(body?.agreedToTerms);
@@ -93,6 +105,7 @@ export async function POST(req: NextRequest) {
   // Check if profile already exists
   const existingId = await profileExists(xUsername);
   if (existingId) {
+    await provisionStoreDns(xUsername);
     return NextResponse.json({
       success: true,
       profileId: existingId,
@@ -126,6 +139,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const profile = await createProfile(xUsername, xId);
+    await provisionStoreDns(xUsername);
 
     // Auto-sync X data to the newly created profile
     if (xAccessToken) {

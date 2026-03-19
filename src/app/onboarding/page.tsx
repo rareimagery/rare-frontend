@@ -103,6 +103,8 @@ export default function OnboardingWizard() {
             <TemplatePicker
               current={selectedTemplate}
               sellerHandle={profile.handle}
+              xAvatar={session?.user?.image ?? undefined}
+              xBio={profile.bio}
               onChange={setSelectedTemplate}
             />
             <button

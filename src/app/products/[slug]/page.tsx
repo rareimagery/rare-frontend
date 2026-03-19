@@ -11,6 +11,7 @@ import {
 import ProductGallery from "@/components/ProductGallery";
 import ProductTabs from "@/components/ProductTabs";
 import AddToCartBlock from "@/components/AddToCartBlock";
+import PayWithXMoneyButton from "@/components/PayWithXMoneyButton";
 
 export const revalidate = 60;
 
@@ -404,6 +405,12 @@ export default async function ProductPage({
 
             {/* Add to Cart / Buy Block */}
             <AddToCartBlock product={product} />
+
+            <PayWithXMoneyButton
+              productId={product.id}
+              price={parseFloat(product.price)}
+              sellerHandle={product.store_slug || product.store_name}
+            />
 
             {/* Trust Badges */}
             <TrustBadges product={product} />

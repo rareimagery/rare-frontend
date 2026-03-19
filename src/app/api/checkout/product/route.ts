@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getPaymentProvider, type CheckoutItem } from "@/lib/payments";
+import type { CheckoutItem } from "@/lib/payments";
+import { createPaymentIntent } from "@/app/actions/payment";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -9,10 +10,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { items, storeId, sellerXId } = (await req.json()) as {
+    const { items, storeId, sellerXId, sellerHandle, provider } = (await req.json()) as {
       items: CheckoutItem[];
       storeId: string;
       sellerXId: string;
+      sellerHandle?: string;
+      provider?: "stripe" | "xmoney";
     };
 
     if (!items?.length || !storeId) {
@@ -22,27 +25,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const provider = getPaymentProvider();
-    const baseUrl = process.env.NEXTAUTH_URL || "https://rareimagery.net";
+    const firstItem = items[0];
+    const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const targetProvider = provider ?? "xmoney";
 
-    const intent = await provider.createCheckout({
-      items,
-      storeId,
-      buyerXId: (token.xId as string) || null,
-      sellerXId: sellerXId || null,
-      successUrl: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${baseUrl}/stores/${sellerXId || storeId}`,
-    });
+    const intent = await createPaymentIntent(
+      {
+        productId: firstItem.productId,
+        price: totalPrice,
+        sellerHandle: sellerHandle || sellerXId || storeId,
+      },
+      targetProvider
+    );
+
+    if (!intent.success) {
+      return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+    }
 
     return NextResponse.json({
-      checkoutUrl: intent.checkoutUrl,
-      paymentId: intent.id,
+      checkoutUrl: intent.paymentLink,
+      paymentId: `${targetProvider}-${Date.now()}`,
       provider: intent.provider,
+      message: intent.message,
     });
-  } catch (err: any) {
-    console.error("Product checkout error:", err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Checkout failed";
+    console.error("Product checkout error:", message);
     return NextResponse.json(
-      { error: err.message || "Checkout failed" },
+      { error: message },
       { status: 500 }
     );
   }

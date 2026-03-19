@@ -189,6 +189,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const sessionMeta = session as typeof session & {
+    xUsername?: string | null;
+    xId?: string | null;
+  };
+
+  // Policy: only X-authenticated sessions can create accounts/stores.
+  if (!sessionMeta.xUsername || !sessionMeta.xId) {
+    return NextResponse.json(
+      { error: "Store creation requires X authentication. Sign in with X to continue." },
+      { status: 403 }
+    );
+  }
+
   const userId = session.user?.email || "anon";
   const rl = storeCreateLimit(userId);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
@@ -211,6 +224,13 @@ export async function POST(req: NextRequest) {
     myspaceBackgroundUrl,
     myspaceMusicUrl,
   } = body;
+
+  if (!xUsername || String(xUsername).toLowerCase() !== String(sessionMeta.xUsername).toLowerCase()) {
+    return NextResponse.json(
+      { error: "xUsername must match your authenticated X account." },
+      { status: 403 }
+    );
+  }
 
   if (!agreedToTerms) {
     return NextResponse.json(

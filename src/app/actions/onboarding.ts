@@ -21,9 +21,22 @@ export async function createCreatorSite(
     throw new Error('Unauthorized');
   }
 
+  const sessionMeta = session as typeof session & {
+    xUsername?: string | null;
+    xId?: string | null;
+  };
+
+  if (!sessionMeta.xUsername || !sessionMeta.xId) {
+    throw new Error('Store creation requires X authentication. Sign in with X to continue.');
+  }
+
   const handle = profile.handle.trim().replace(/^@/, '').toLowerCase();
   if (!handle) {
     throw new Error('X handle is required');
+  }
+
+  if (handle !== String(sessionMeta.xUsername).toLowerCase()) {
+    throw new Error('Profile handle must match your authenticated X account.');
   }
 
   const baseUrl =

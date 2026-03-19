@@ -141,6 +141,7 @@ export const authOptions: NextAuthOptions = {
           (profile as any).screen_name ??
           (profile as any).data?.username ??
           "";
+        token.handle = token.xUsername;
         token.xId =
           (profile as any).id_str ??
           (profile as any).data?.id ??
@@ -151,6 +152,16 @@ export const authOptions: NextAuthOptions = {
           token.picture;
         token.xBannerUrl =
           (profile as any).profile_banner_url ?? null;
+        token.xVerified =
+          (profile as any).verified ??
+          (profile as any).data?.verified ??
+          false;
+        token.verified = token.xVerified;
+        token.xBio =
+          (profile as any).description ??
+          (profile as any).data?.description ??
+          "";
+        token.bio = token.xBio;
         token.xAccessToken = account.access_token ?? account.oauth_token ?? null;
         token.xAccessTokenSecret = account.oauth_token_secret ?? null;
 
@@ -219,12 +230,29 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       (session as any).xUsername = token.xUsername ?? null;
+      (session as any).handle = token.handle ?? token.xUsername ?? null;
       (session as any).xId = token.xId ?? null;
       (session as any).xAccessToken = token.xAccessToken ?? null;
       (session as any).xBannerUrl = token.xBannerUrl ?? null;
+      (session as any).xBio = token.xBio ?? token.bio ?? null;
+      (session as any).bio = token.bio ?? token.xBio ?? null;
+      (session as any).xVerified = token.xVerified ?? token.verified ?? false;
+      (session as any).verified = token.verified ?? token.xVerified ?? false;
       (session as any).role = token.role ?? "creator";
       (session as any).shopName = token.shopName ?? null;
       (session as any).storeSlug = token.storeSlug ?? null;
+      if (session.user) {
+        (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).handle =
+          (token.handle as string | undefined) ??
+          (token.xUsername as string | undefined) ??
+          undefined;
+        (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).bio =
+          (token.bio as string | undefined) ??
+          (token.xBio as string | undefined) ??
+          undefined;
+        (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).verified =
+          Boolean(token.verified ?? token.xVerified ?? false);
+      }
       return session;
     },
   },

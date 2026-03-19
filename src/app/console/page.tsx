@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useConsole } from "@/components/ConsoleContext";
+import VideoUploader from "@/components/VideoUploader";
+import TemplatePicker from "@/components/TemplatePicker";
 
 export default function ConsoleDashboard() {
   const {
@@ -118,6 +120,14 @@ export default function ConsoleDashboard() {
           <p className="mt-1 text-xs text-zinc-500">Connect and manage print-on-demand fulfillment</p>
         </Link>
       </div>
+
+      {xUsername && (
+        <VideoUploader sellerHandle={xUsername} />
+      )}
+
+      {xUsername && (
+        <TemplatePicker current={currentTheme || "xai3"} sellerHandle={xUsername} />
+      )}
 
       {isAdmin && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">

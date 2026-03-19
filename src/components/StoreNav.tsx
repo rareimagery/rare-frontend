@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
+import SubscribeOnXButton from "@/components/SubscribeOnXButton";
 
 export default function StoreNav({ creator }: { creator: string }) {
   const { data: session, status } = useSession();
@@ -23,6 +24,7 @@ export default function StoreNav({ creator }: { creator: string }) {
         </div>
 
         <div className="flex items-center gap-3">
+          <SubscribeOnXButton creatorHandle={creator} size="sm" />
           {status === "loading" ? (
             <div className="h-8 w-16 animate-pulse rounded-lg bg-zinc-800" />
           ) : session ? (

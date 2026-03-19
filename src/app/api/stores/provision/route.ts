@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { checkXSubscription } from "@/lib/x-subscription";
+import { checkRequiredPaidSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal, fetchXData, patchProfile, findProfileByUsername } from "@/lib/x-import";
 import { generateCreatorSite } from "@/lib/ai/generate-site";
@@ -114,23 +114,16 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Verify X subscription (follows @rareimagery) — require access token
-  if (!xAccessToken) {
-    return NextResponse.json(
-      { error: "X access token required — please sign in with X again" },
-      { status: 401 }
-    );
-  }
-
   {
-    const { subscribed, error } = await checkXSubscription(xAccessToken, xId);
+    const { subscribed, error } = await checkRequiredPaidSubscription({
+      buyerXId: xId,
+      buyerUsername: xUsername,
+    });
     if (!subscribed) {
       return NextResponse.json(
         {
-          error:
-            error ||
-            "You need to follow @rareimagery on X to get your free page. Subscribe at https://x.com/rareimagery",
-          requiresSubscription: true,
+          error: error || "An active paid X subscription is required to create your RareImagery account.",
+          requiresPaidSubscription: true,
         },
         { status: 403 }
       );

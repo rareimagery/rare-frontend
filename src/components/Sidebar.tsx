@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import SubscribeOnXButton from "@/components/SubscribeOnXButton";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -198,6 +199,8 @@ export default function Sidebar({
 
       {/* Post button + profile at bottom */}
       <div className="mt-auto space-y-3">
+        <SubscribeOnXButton creatorHandle={handle} size="sm" className="w-full justify-center" />
+
         <button className="w-full py-3 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-bold text-lg rounded-full transition">
           Post
         </button>

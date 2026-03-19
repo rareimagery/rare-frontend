@@ -1,9 +1,14 @@
 "use client";
 
+import { Suspense } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
-export default function SignupPage() {
+function SignupContent() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8">
@@ -17,6 +22,18 @@ export default function SignupPage() {
             Create your account with X
           </p>
         </div>
+
+        {error === "PaidSubscriptionRequired" && (
+          <p className="rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-center text-xs text-amber-300">
+            To create a RareImagery account, you need an active paid subscription to @RareImagery on X, then try signing up again.
+          </p>
+        )}
+
+        {error === "MissingXProfile" && (
+          <p className="rounded-lg border border-red-700 bg-red-950/30 p-3 text-center text-xs text-red-300">
+            We could not read your X profile. Please try signing in again.
+          </p>
+        )}
 
         <button
           onClick={() => signIn("twitter", { callbackUrl: "/console/setup" })}
@@ -40,5 +57,13 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="text-zinc-500">Loading...</div>}>
+      <SignupContent />
+    </Suspense>
   );
 }

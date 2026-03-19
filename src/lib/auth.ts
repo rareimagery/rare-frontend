@@ -4,6 +4,7 @@ import TwitterProvider from "next-auth/providers/twitter";
 
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { syncXDataToDrupal, findProfileByUsername } from "@/lib/x-import";
+import { checkRequiredPaidSubscription } from "@/lib/x-subscription";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 const X_OAUTH_CLIENT_ID =
@@ -135,6 +136,40 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider !== "twitter") {
+        return true;
+      }
+
+      const xUsername =
+        (profile as any)?.screen_name ??
+        (profile as any)?.data?.username ??
+        "";
+
+      if (!xUsername) {
+        return "/signup?error=MissingXProfile";
+      }
+
+      const existing = await findProfileByUsername(xUsername);
+      if (existing) {
+        return true;
+      }
+
+      const xUserId = account.providerAccountId;
+      if (!xUserId) {
+        return "/signup?error=MissingXProfile";
+      }
+
+      const check = await checkRequiredPaidSubscription({
+        buyerXId: xUserId,
+        buyerUsername: xUsername,
+      });
+      if (!check.subscribed) {
+        return "/signup?error=PaidSubscriptionRequired";
+      }
+
+      return true;
+    },
     async jwt({ token, account, profile, user }) {
       if (account?.provider === "twitter" && profile) {
         token.xUsername =

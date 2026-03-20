@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useConsole } from "@/components/ConsoleContext";
 import BuildLibrary from "@/components/builder/BuildLibrary";
 import LivePreview from "@/components/builder/LivePreview";
+import OpenPreviewWindowButton from "@/components/builder/OpenPreviewWindowButton";
+import AICreatorAssistant from "@/components/builder/AICreatorAssistant";
 
 interface InsightsVisualData {
   profilePictureUrl: string | null;
@@ -362,8 +364,9 @@ export default function ConsoleBuilderPage() {
 
         {/* Right: Preview */}
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-zinc-800">
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-zinc-800">
             <h2 className="text-sm font-semibold text-white">Preview</h2>
+            <OpenPreviewWindowButton code={result} />
           </div>
           <div className="bg-zinc-950">
             <LivePreview code={result} />
@@ -380,6 +383,12 @@ export default function ConsoleBuilderPage() {
           <BuildLibrary onLoad={handleLoad} />
         </div>
       </div>
+
+      <AICreatorAssistant
+        theme={theme}
+        contextPrompt={prompt}
+        onApplySuggestion={(suggestion) => setPrompt(suggestion)}
+      />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { buildPreviewDocument } from "@/components/builder/previewDocument";
 
+let activePreviewUrl: string | null = null;
+
 export default function OpenPreviewWindowButton({ code }: { code: string }) {
   const openPreviewWindow = () => {
     if (!code.trim()) return;
@@ -12,9 +14,16 @@ export default function OpenPreviewWindowButton({ code }: { code: string }) {
       return;
     }
 
-    popup.document.open();
-    popup.document.write(buildPreviewDocument(code));
-    popup.document.close();
+    const previewHtml = buildPreviewDocument(code);
+    const previewBlob = new Blob([previewHtml], { type: "text/html" });
+    const previewUrl = URL.createObjectURL(previewBlob);
+
+    if (activePreviewUrl) {
+      URL.revokeObjectURL(activePreviewUrl);
+    }
+
+    activePreviewUrl = previewUrl;
+    popup.location.replace(previewUrl);
     popup.focus();
   };
 

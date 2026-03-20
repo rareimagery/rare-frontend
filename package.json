@@ -31,6 +31,8 @@
     "test:printful:cleanup": "node scripts/printful-test.mjs --cleanup-only"
   },
   "dependencies": {
+    "@measured/puck": "^0.20.2",
+    "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",

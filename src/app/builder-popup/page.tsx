@@ -1,358 +1,393 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import LivePreview from "@/components/builder/LivePreview";
+import { Puck } from "@measured/puck";
+import type { Data } from "@measured/puck";
+import type { Config } from "@measured/puck";
+import { MessageCircle, Send, X } from "lucide-react";
+import "@measured/puck/puck.css";
 
-interface InsightsVisualData {
-  profilePictureUrl: string | null;
-  bannerUrl: string | null;
-  topPosts: Array<{ image_url?: string }>;
+type ChatMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+const puckConfig: Config = {
+  components: {
+    Hero: {
+      fields: {
+        title: { type: "text" },
+        subtitle: { type: "text" },
+        ctaLabel: { type: "text" },
+      },
+      defaultProps: {
+        title: "Creator Store",
+        subtitle: "Products + X Money Donations",
+        ctaLabel: "Shop New Drop",
+      },
+      render: (props: unknown) => {
+        const { title, subtitle, ctaLabel } = (props || {}) as {
+          title?: string;
+          subtitle?: string;
+          ctaLabel?: string;
+        };
+
+        return (
+      <div className="flex h-96 items-center justify-center bg-gradient-to-br from-indigo-700 via-violet-600 to-zinc-900 px-6 text-white">
+        <div className="text-center max-w-3xl">
+            <h1 className="text-5xl font-bold sm:text-6xl">{title || "Creator Store"}</h1>
+            <p className="mt-4 text-xl sm:text-2xl">{subtitle || "Products + X Money Donations"}</p>
+            <button className="mt-8 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black hover:bg-zinc-100">
+              {ctaLabel || "Shop New Drop"}
+            </button>
+        </div>
+      </div>
+        );
+      },
+    },
+    ProductGrid: {
+      fields: {
+        heading: { type: "text" },
+        subheading: { type: "text" },
+      },
+      defaultProps: {
+        heading: "Featured Collection",
+        subheading: "Ready to wear, signed drops, and exclusive edits.",
+      },
+      render: (props: unknown) => {
+        const { heading, subheading } = (props || {}) as {
+          heading?: string;
+          subheading?: string;
+        };
+
+        return (
+      <section className="bg-zinc-900 p-8">
+        <h2 className="text-2xl font-semibold text-white">{heading || "Featured Collection"}</h2>
+        <p className="mt-2 text-sm text-zinc-400">{subheading || "Ready to wear, signed drops, and exclusive edits."}</p>
+        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {["Drop Tee", "Poster Pack", "Limited Print"].map((name) => (
+            <article key={name} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
+              <div className="h-40 rounded-lg bg-zinc-700" />
+              <p className="mt-4 text-sm font-medium text-zinc-100">{name}</p>
+              <p className="text-xs text-zinc-400">$49.00</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+      },
+    },
+    DonationBar: {
+      fields: {
+        title: { type: "text" },
+        progressText: { type: "text" },
+      },
+      defaultProps: {
+        title: "Support with X Money",
+        progressText: "62% to monthly goal",
+      },
+      render: (props: unknown) => {
+        const { title, progressText } = (props || {}) as {
+          title?: string;
+          progressText?: string;
+        };
+
+        return (
+      <section className="bg-emerald-600 p-8 text-white">
+        <div className="mx-auto max-w-4xl">
+          <p className="text-2xl font-bold">{title || "Support with X Money"}</p>
+          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-emerald-900/50">
+            <div className="h-full w-[62%] bg-white" />
+          </div>
+          <p className="mt-2 text-sm text-emerald-100">{progressText || "62% to monthly goal"}</p>
+        </div>
+      </section>
+    );
+      },
+    },
+  },
+};
+
+function isPuckData(value: unknown): value is Data {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "content" in (value as Record<string, unknown>) &&
+      Array.isArray((value as { content: unknown[] }).content)
+  );
+}
+
+async function streamThemeChat(message: string, theme: string, onChunk: (value: string) => void) {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, theme }),
+  });
+
+  if (response.status === 429) {
+    throw new Error("Rate limit reached. Try again in an hour.");
+  }
+
+  if (!response.ok || !response.body) {
+    throw new Error("Chat request failed.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    fullText += decoder.decode(value, { stream: true });
+    onChunk(fullText);
+  }
+
+  return fullText;
 }
 
 function BuilderPopupInner() {
   const searchParams = useSearchParams();
-
-  const initialTemplate = searchParams.get("template") || "Template";
   const initialTheme = searchParams.get("theme") || "xai3";
+  const initialTemplate = searchParams.get("template") || "Template";
   const initialPrompt = searchParams.get("prompt") || "";
   const storeSlug = searchParams.get("store") || "";
+  const handleParam = searchParams.get("handle") || (storeSlug ? `@${storeSlug}` : "@rareimagery");
+  const handle = handleParam.startsWith("@") ? handleParam : `@${handleParam}`;
+  const pfp = searchParams.get("pfp") || "https://picsum.photos/id/64/80/80";
+  const banner = searchParams.get("banner") || "https://picsum.photos/id/1015/1920/400";
 
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [includeXImages, setIncludeXImages] = useState(true);
-  const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
-
-  const [editRequest, setEditRequest] = useState("");
-  const [aiSuggestion, setAiSuggestion] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-
+  const [data, setData] = useState<Data>({
+    content: [
+      { type: "Hero", props: { title: `${handle} Store`, subtitle: "Products + X Money Donations", ctaLabel: "Shop New Drop" } },
+      { type: "ProductGrid", props: { heading: "Featured Collection", subheading: "Ready to wear, signed drops, and exclusive edits." } },
+      { type: "DonationBar", props: { title: "Support with X Money", progressText: "62% to monthly goal" } },
+    ],
+    root: { props: {} },
+  });
+  const [chatOpen, setChatOpen] = useState(true);
+  const [message, setMessage] = useState(initialPrompt);
+  const [sending, setSending] = useState(false);
   const [saveLabel, setSaveLabel] = useState(`${initialTemplate} Draft`);
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
+  const [status, setStatus] = useState("");
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "Hi. I am your Tailwind + Next.js builder bot. Ask for changes like: Add a floating X Money donate button and make the hero full-bleed with my PFP on the left.",
+    },
+  ]);
 
-  const autoGenerated = useRef(false);
+  const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
 
-  const postImageSummary = useMemo(() => {
-    if (!visuals) return "not available";
-    const urls = visuals.topPosts
-      .map((post) => post.image_url)
-      .filter((url): url is string => !!url)
-      .slice(0, 4);
-    return urls.length > 0 ? urls.join(", ") : "not available";
-  }, [visuals]);
+  async function sendToAssistant() {
+    if (!message.trim() || sending) return;
 
-  useEffect(() => {
-    let active = true;
+    const userMessage: ChatMessage = { role: "user", content: message.trim() };
+    const nextHistory = [...chatHistory, userMessage];
+    setChatHistory(nextHistory);
+    setMessage("");
+    setSending(true);
+    setStatus("");
 
-    async function loadVisuals() {
-      try {
-        const res = await fetch("/api/console/insights", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!active) return;
+    setChatHistory((prev) => [...prev, { role: "assistant", content: "" }]);
 
-        setVisuals({
-          profilePictureUrl: data.profilePictureUrl ?? null,
-          bannerUrl: data.bannerUrl ?? null,
-          topPosts: Array.isArray(data.topPosts) ? data.topPosts : [],
+    const systemPrompt = [
+      "You are an expert Tailwind + Next.js storefront builder for X creators.",
+      "Return either strict JSON for Puck data updates or concise code suggestions.",
+      `Current store handle: ${handle}.`,
+      "If returning JSON, include at minimum a top-level content array.",
+    ].join(" ");
+
+    const stitchedMessage = `${systemPrompt}\n\nConversation:\n${nextHistory
+      .map((entry) => `${entry.role}: ${entry.content}`)
+      .join("\n")}`;
+
+    try {
+      const reply = await streamThemeChat(stitchedMessage, initialTheme, (chunk) => {
+        setChatHistory((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: chunk };
+          return updated;
         });
-      } catch {
-        // Non-critical enhancement only.
-      }
-    }
-
-    void loadVisuals();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const buildPromptWithImages = useCallback((basePrompt: string) => {
-    if (!includeXImages || !visuals) return basePrompt;
-
-    return [
-      basePrompt,
-      "",
-      "Use these creator X images as visual references when generating this section:",
-      `- Profile image: ${visuals.profilePictureUrl || "not available"}`,
-      `- Banner image: ${visuals.bannerUrl || "not available"}`,
-      `- Top post images: ${postImageSummary}`,
-      "If an image URL is unavailable, continue without it.",
-    ].join("\n");
-  }, [includeXImages, postImageSummary, visuals]);
-
-  const streamChat = useCallback(async (message: string, onChunk: (text: string) => void) => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, theme: initialTheme }),
-    });
-
-    if (res.status === 429) {
-      throw new Error("Rate limit reached. Try again in an hour.");
-    }
-
-    if (!res.ok || !res.body) {
-      throw new Error("Request failed.");
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulated = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      accumulated += decoder.decode(value, { stream: true });
-      onChunk(accumulated);
-    }
-  }, [initialTheme]);
-
-  const generateFromPrompt = useCallback(async (currentPrompt: string) => {
-    if (!currentPrompt.trim()) return;
-
-    setLoading(true);
-    setError("");
-    setResult("");
-
-    try {
-      const message = buildPromptWithImages(currentPrompt);
-      await streamChat(message, setResult);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not generate component.");
-    } finally {
-      setLoading(false);
-    }
-  }, [buildPromptWithImages, streamChat]);
-
-  async function generatePromptSuggestion() {
-    if (!editRequest.trim()) return;
-
-    setAiLoading(true);
-    setAiSuggestion("");
-
-    const coachPrompt = [
-      "You rewrite storefront section prompts for RareImagery creators.",
-      `Current theme: ${initialTheme}.`,
-      "Return only an improved prompt with no markdown formatting.",
-      `Current prompt: ${prompt || "none"}`,
-      `Requested edits: ${editRequest}`,
-    ].join("\n\n");
-
-    try {
-      await streamChat(coachPrompt, setAiSuggestion);
-    } catch (err) {
-      setAiSuggestion(err instanceof Error ? err.message : "Could not generate suggestion.");
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  async function applySuggestionAndRegenerate() {
-    const nextPrompt = aiSuggestion.trim();
-    if (!nextPrompt) return;
-
-    setPrompt(nextPrompt);
-    await generateFromPrompt(nextPrompt);
-  }
-
-  async function handleSave() {
-    if (!result.trim() || !saveLabel.trim()) return;
-
-    setSaving(true);
-    setSavedMsg("");
-
-    try {
-      const res = await fetch("/api/builds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: saveLabel.trim(), code: result }),
       });
 
-      if (res.ok) {
-        setSavedMsg("Build saved successfully.");
-        if (window.opener && !window.opener.closed) {
-          window.opener.postMessage(
-            {
-              type: "ri-builder-build-saved",
-              label: saveLabel.trim(),
-            },
-            window.location.origin
-          );
+      try {
+        const parsed = JSON.parse(reply);
+        if (isPuckData(parsed)) {
+          setData(parsed);
+          setStatus("Applied AI JSON update to canvas.");
         }
-        setTimeout(() => setSavedMsg(""), 2500);
-      } else {
-        setSavedMsg("Could not save build.");
+      } catch {
+        // Non-JSON responses are treated as guidance text.
       }
+    } catch (err) {
+      setChatHistory((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: err instanceof Error ? err.message : "Could not reach assistant.",
+        };
+        return updated;
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function applyStore() {
+    if (!saveLabel.trim()) return;
+
+    setSaving(true);
+    setStatus("");
+
+    try {
+      const code = JSON.stringify(
+        {
+          type: "puck",
+          version: 1,
+          theme: initialTheme,
+          handle,
+          store: storeSlug || null,
+          data,
+        },
+        null,
+        2
+      );
+
+      const response = await fetch("/api/builds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: saveLabel.trim(),
+          code,
+        }),
+      });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json?.error || "Could not save builder state.");
+      }
+
+      setStatus(`Store build saved for ${handle}.`);
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          {
+            type: "ri-builder-build-saved",
+            label: saveLabel.trim(),
+          },
+          window.location.origin
+        );
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Apply failed.");
     } finally {
       setSaving(false);
     }
   }
 
-  useEffect(() => {
-    setPrompt(initialPrompt);
-    setSaveLabel(`${initialTemplate} Draft`);
-    autoGenerated.current = false;
-  }, [initialPrompt, initialTemplate]);
-
-  useEffect(() => {
-    if (!initialPrompt.trim()) return;
-    if (autoGenerated.current) return;
-
-    autoGenerated.current = true;
-    void generateFromPrompt(initialPrompt);
-  }, [generateFromPrompt, initialPrompt]);
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-[1500px] p-4 md:p-6">
-        <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Template Workspace</p>
-              <h1 className="text-xl font-semibold">{initialTemplate}</h1>
-              <p className="text-xs text-zinc-400">Theme: <span className="text-indigo-300">{initialTheme}</span></p>
-            </div>
-            <div className="flex items-center gap-2">
-              {storeSlug && (
-                <a
-                  href={`/stores/${storeSlug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white"
-                >
-                  Open Live Store
-                </a>
-              )}
-              <button
-                onClick={() => window.close()}
-                className="inline-flex min-h-10 items-center rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
+    <div className="flex h-screen bg-zinc-950 text-white">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-6">
+          <div className="flex items-center gap-4">
+            <Image src={pfp} alt="Profile" width={32} height={32} unoptimized className="h-8 w-8 rounded-full" />
+            <div className="text-xl font-bold">{handle} Store Builder</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              value={saveLabel}
+              onChange={(event) => setSaveLabel(event.target.value)}
+              className="h-9 rounded-full border border-zinc-700 bg-zinc-800 px-4 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none"
+              placeholder="Build name"
+            />
+            <button
+              onClick={() => void applyStore()}
+              disabled={saving || !saveLabel.trim()}
+              className="rounded-full bg-white px-6 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Apply & Create My Store"}
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1.35fr]">
-          <section className="space-y-4">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">Prompt</h2>
-                <button
-                  onClick={() => void generateFromPrompt(prompt)}
-                  disabled={loading || !prompt.trim()}
-                  className="min-h-9 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
-                >
-                  {loading ? "Generating..." : "Generate"}
-                </button>
-              </div>
-
-              <textarea
-                className="h-36 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 p-3 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the storefront section..."
-              />
-
-              <label className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-300">
-                <span>Use images from my X profile</span>
-                <input
-                  type="checkbox"
-                  checked={includeXImages}
-                  onChange={(e) => setIncludeXImages(e.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-500"
-                />
-              </label>
-
-              {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-              <h2 className="mb-3 text-sm font-semibold">AI Edit Box</h2>
-              <textarea
-                className="h-24 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 p-3 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                value={editRequest}
-                onChange={(e) => setEditRequest(e.target.value)}
-                placeholder="Tell AI what to change: tone, sections, copy, hierarchy..."
-              />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => void generatePromptSuggestion()}
-                  disabled={aiLoading || !editRequest.trim()}
-                  className="min-h-9 rounded-md bg-zinc-700 px-3 py-1.5 text-xs text-white transition hover:bg-zinc-600 disabled:opacity-50"
-                >
-                  {aiLoading ? "Thinking..." : "Suggest Prompt Update"}
-                </button>
-                <button
-                  onClick={() => void applySuggestionAndRegenerate()}
-                  disabled={!aiSuggestion.trim() || aiLoading}
-                  className="min-h-9 rounded-md border border-indigo-500/60 px-3 py-1.5 text-xs text-indigo-200 transition hover:border-indigo-400 hover:text-indigo-100 disabled:opacity-40"
-                >
-                  Apply + Regenerate
-                </button>
-              </div>
-
-              {aiSuggestion && (
-                <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300">
-                  {aiSuggestion}
-                </pre>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-              <h2 className="mb-3 text-sm font-semibold">Save Build</h2>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={saveLabel}
-                  onChange={(e) => setSaveLabel(e.target.value)}
-                  placeholder="Name this build"
-                  className="min-h-10 flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                />
-                <button
-                  onClick={() => void handleSave()}
-                  disabled={saving || !result.trim() || !saveLabel.trim()}
-                  className="min-h-10 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </div>
-              {savedMsg && <p className="mt-2 text-xs text-green-400">{savedMsg}</p>}
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50">
-              <div className="border-b border-zinc-800 px-4 py-2.5">
-                <h2 className="text-sm font-semibold">Live Preview</h2>
-              </div>
-              <div className="bg-zinc-950">
-                <LivePreview code={result} />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Generated Code</h2>
-                <button
-                  onClick={() => navigator.clipboard.writeText(result)}
-                  disabled={!result}
-                  className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:opacity-40"
-                >
-                  Copy
-                </button>
-              </div>
-              <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300">
-                {result || "Generate a section to see code here."}
-              </pre>
-            </div>
-          </section>
+        <div className="relative flex-1 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 opacity-20" style={activeBanner} />
+          <div className="relative z-10 h-full puck-root overflow-auto bg-zinc-950/80 p-3">
+            <Puck config={puckConfig} data={data} onChange={setData} />
+          </div>
         </div>
       </div>
+
+      {chatOpen ? (
+        <div className="fixed bottom-8 right-8 z-50 flex h-[500px] w-96 flex-col rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+          <div className="flex items-center justify-between rounded-t-3xl bg-zinc-800 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-xs font-semibold">
+                G
+              </div>
+              <div>
+                <div className="font-semibold">Grok Store Builder</div>
+                <div className="text-xs text-emerald-400">Live Tailwind editor</div>
+              </div>
+            </div>
+            <button onClick={() => setChatOpen(false)} className="text-zinc-300 hover:text-white" aria-label="Close chat">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-6 text-sm">
+            {chatHistory.map((entry, index) => (
+              <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
+                <div
+                  className={`inline-block max-w-[80%] rounded-2xl px-4 py-3 ${
+                    entry.role === "user" ? "bg-blue-600" : "bg-zinc-800"
+                  }`}
+                >
+                  {entry.content || (sending && index === chatHistory.length - 1 ? "Thinking..." : "")}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 border-t border-zinc-700 p-4">
+            <input
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void sendToAssistant();
+              }}
+              placeholder="Make the donation bar glow emerald..."
+              className="flex-1 rounded-full bg-zinc-800 px-6 py-3 text-sm focus:outline-none"
+            />
+            <button
+              onClick={() => void sendToAssistant()}
+              disabled={sending || !message.trim()}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black hover:bg-emerald-400 disabled:opacity-40"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-500"
+          aria-label="Open chat"
+        >
+          <MessageCircle size={20} />
+        </button>
+      )}
+
+      {status && (
+        <div className="fixed left-6 bottom-6 z-50 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2 text-xs text-zinc-200">
+          {status}
+        </div>
+      )}
     </div>
   );
 }

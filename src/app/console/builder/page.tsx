@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useConsole } from "@/components/ConsoleContext";
-import BuildLibrary from "@/components/builder/BuildLibrary";
-import LivePreview from "@/components/builder/LivePreview";
-import OpenPreviewWindowButton from "@/components/builder/OpenPreviewWindowButton";
-import AICreatorAssistant from "@/components/builder/AICreatorAssistant";
 
 interface InsightsVisualData {
   profilePictureUrl: string | null;
@@ -56,15 +52,9 @@ export default function ConsoleBuilderPage() {
   const { hasStore, currentTheme, storeSlug } = useConsole();
   const theme = currentTheme || "xai3";
 
-  const [prompt, setPrompt] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [saveLabel, setSaveLabel] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
-  const [includeXImages, setIncludeXImages] = useState(true);
+  const [launchingTitle, setLaunchingTitle] = useState<string | null>(null);
+  const [lastSavedBuild, setLastSavedBuild] = useState<{ label: string; at: number } | null>(null);
 
   const dynamicOptions = STYLE_OPTIONS.map((option) => {
     const promptContext = [
@@ -111,96 +101,44 @@ export default function ConsoleBuilderPage() {
     };
   }, [hasStore]);
 
-  function buildPromptWithXImages(basePrompt: string): string {
-    if (!includeXImages || !visuals) return basePrompt;
+  useEffect(() => {
+    function onPopupMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (!event.data || typeof event.data !== "object") return;
 
-    const postImageUrls = visuals.topPosts
-      .map((p) => p.image_url)
-      .filter((url): url is string => !!url)
-      .slice(0, 4);
+      const payload = event.data as { type?: string; label?: string };
+      if (payload.type !== "ri-builder-build-saved") return;
 
-    const imageContext = [
-      "",
-      "Use these creator X images as visual references when generating this section:",
-      `- Profile image: ${visuals.profilePictureUrl || "not available"}`,
-      `- Banner image: ${visuals.bannerUrl || "not available"}`,
-      `- Top post images: ${postImageUrls.length > 0 ? postImageUrls.join(", ") : "not available"}`,
-      "If an image URL is unavailable, continue without it.",
-    ].join("\n");
-
-    return `${basePrompt}${imageContext}`;
-  }
-
-  async function handleGenerate() {
-    if (!prompt.trim()) return;
-    setLoading(true);
-    setError("");
-    setResult("");
-
-    try {
-      const message = buildPromptWithXImages(prompt);
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, theme }),
+      setLastSavedBuild({
+        label: payload.label || "Untitled Build",
+        at: Date.now(),
       });
-
-      if (res.status === 429) {
-        setError("Rate limit reached. Try again in an hour.");
-        setLoading(false);
-        return;
-      }
-      if (!res.ok) {
-        setError("Something went wrong.");
-        setLoading(false);
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        setError("No response stream.");
-        setLoading(false);
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let accumulated = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setResult(accumulated);
-      }
-    } catch {
-      setError("Request failed. Check your connection.");
-    } finally {
-      setLoading(false);
     }
-  }
 
-  async function handleSave() {
-    if (!result || !saveLabel.trim()) return;
-    setSaving(true);
-    setSavedMsg("");
-    try {
-      const res = await fetch("/api/builds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: saveLabel.trim(), code: result }),
-      });
-      if (res.ok) {
-        setSavedMsg("Build saved!");
-        setSaveLabel("");
-        setTimeout(() => setSavedMsg(""), 3000);
-      }
-    } finally {
-      setSaving(false);
+    window.addEventListener("message", onPopupMessage);
+    return () => window.removeEventListener("message", onPopupMessage);
+  }, []);
+
+  function launchWorkspace(title: string, prompt: string) {
+    setLaunchingTitle(title);
+    const params = new URLSearchParams({
+      template: title,
+      prompt,
+      theme,
+    });
+    if (storeSlug) {
+      params.set("store", storeSlug);
     }
-  }
 
-  function handleLoad(code: string) {
-    setResult(code);
+    const popup = window.open(`/builder-popup?${params.toString()}`, "ri-builder-workspace", "width=1360,height=900");
+    if (!popup) {
+      setLaunchingTitle(null);
+      window.alert("Builder popup was blocked. Allow pop-ups for RareImagery and try again.");
+      return;
+    }
+
+    popup.focus();
+    setTimeout(() => setLaunchingTitle(null), 200);
   }
 
   if (!hasStore) {
@@ -235,22 +173,25 @@ export default function ConsoleBuilderPage() {
       </div>
 
       <div className="mb-8">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-white">Pick a direction</h2>
-            <span className="text-xs text-zinc-500">6 options</span>
+            <div>
+              <h2 className="text-base font-semibold text-white">Pick a template to start in popup</h2>
+              <p className="text-xs text-zinc-500">Click any large preview to open the AI editing workspace.</p>
+            </div>
+            <span className="text-xs text-zinc-500">{dynamicOptions.length} templates</span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {dynamicOptions.map((option) => (
               <button
                 key={option.title}
                 type="button"
-                onClick={() => setPrompt(option.prompt)}
-                className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-2 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+                onClick={() => launchWorkspace(option.title, option.prompt)}
+                className="group rounded-2xl border border-zinc-800 bg-zinc-950/70 p-2 text-left transition hover:-translate-y-0.5 hover:border-zinc-600 hover:bg-zinc-900"
               >
                 <div
-                  className={`relative h-28 overflow-hidden rounded-lg border border-white/10 ${option.previewClassName}`}
+                  className={`relative h-52 overflow-hidden rounded-xl border border-white/10 ${option.previewClassName}`}
                   style={{
                     backgroundImage: visuals?.bannerUrl
                       ? `linear-gradient(to top, rgba(9,9,11,0.8), rgba(9,9,11,0.1)), url(${visuals.bannerUrl})`
@@ -259,11 +200,14 @@ export default function ConsoleBuilderPage() {
                     backgroundPosition: "center",
                   }}
                 >
-                  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-2 left-2 flex items-center gap-2">
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
+                  <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-200">
+                    Launch
+                  </div>
+                  <div className="absolute bottom-3 left-3 flex items-center gap-2">
                     {visuals?.profilePictureUrl ? (
                       <div
-                        className="h-8 w-8 rounded-full border border-white/60"
+                        className="h-9 w-9 rounded-full border border-white/60"
                         style={{
                           backgroundImage: `url(${visuals.profilePictureUrl})`,
                           backgroundSize: "cover",
@@ -273,8 +217,12 @@ export default function ConsoleBuilderPage() {
                     ) : (
                       <div className="h-8 w-8 rounded-full border border-zinc-700 bg-zinc-800" />
                     )}
-                    <span className="text-xs font-medium text-white/95">{option.title}</span>
+                    <span className="text-sm font-semibold text-white/95">{option.title}</span>
                   </div>
+                </div>
+                <div className="flex items-center justify-between px-1 pt-2 pb-1">
+                  <span className="text-xs text-zinc-400">Open AI popup workspace</span>
+                  <span className="text-xs font-medium text-zinc-200 transition group-hover:text-white">Select</span>
                 </div>
               </button>
             ))}
@@ -282,113 +230,20 @@ export default function ConsoleBuilderPage() {
         </div>
       </div>
 
-      {/* Two-column layout: Generate + Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Left: Generate */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <h2 className="text-sm font-semibold text-white mb-3">Generate</h2>
-
-          <textarea
-            className="w-full h-32 p-3 rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-white
-                       placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            placeholder="Describe the component or section you need..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerate();
-            }}
-          />
-
-          <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
-            <label className="flex items-center justify-between gap-3 text-xs text-zinc-300">
-              <span>Use images from my X profile</span>
-              <input
-                type="checkbox"
-                checked={includeXImages}
-                onChange={(e) => setIncludeXImages(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-indigo-500 focus:ring-indigo-500"
-              />
-            </label>
-          </div>
-
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !prompt.trim()}
-            className="mt-3 w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium
-                       rounded-lg disabled:opacity-50 transition-colors"
-          >
-            {loading ? "Generating..." : "Generate Component"}
-          </button>
-
-          {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
-
-          {/* Code output */}
-          {result && (
-            <div className="relative mt-4">
-              <pre className="p-3 bg-zinc-950 text-zinc-300 text-xs rounded-lg overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto border border-zinc-800">
-                {result}
-              </pre>
-              <button
-                onClick={() => navigator.clipboard.writeText(result)}
-                className="absolute top-2 right-2 px-2 py-1 text-xs bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700 hover:text-white transition-colors"
-              >
-                Copy
-              </button>
-            </div>
-          )}
-
-          {/* Save */}
-          {result && !loading && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <input
-                className="flex-1 px-3 py-2 rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-white
-                           placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Name this build..."
-                value={saveLabel}
-                onChange={(e) => setSaveLabel(e.target.value)}
-              />
-              <button
-                onClick={handleSave}
-                disabled={saving || !saveLabel.trim()}
-                className="min-h-10 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg
-                           disabled:opacity-50 transition-colors"
-              >
-                {saving ? "..." : "Save"}
-              </button>
-            </div>
-          )}
-          {savedMsg && (
-            <p className="text-xs text-green-400 mt-1">{savedMsg}</p>
-          )}
-        </div>
-
-        {/* Right: Preview */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-zinc-800">
-            <h2 className="text-sm font-semibold text-white">Preview</h2>
-            <OpenPreviewWindowButton code={result} />
-          </div>
-          <div className="bg-zinc-950">
-            <LivePreview code={result} />
-          </div>
-        </div>
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 text-sm text-zinc-300">
+        <p className="font-medium text-zinc-100">New flow</p>
+        <p className="mt-1 text-xs text-zinc-400">
+          Pick a template above to launch the full popup workspace. Prompt edits, AI refinement, generation, preview, and save actions now happen in the popup window.
+        </p>
+        {launchingTitle && (
+          <p className="mt-2 text-xs text-indigo-300">Opening {launchingTitle} workspace...</p>
+        )}
+        {lastSavedBuild && (
+          <p className="mt-2 text-xs text-emerald-300">
+            Last popup save: {lastSavedBuild.label} at {new Date(lastSavedBuild.at).toLocaleTimeString()}.
+          </p>
+        )}
       </div>
-
-      {/* Saved Builds */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50">
-        <div className="px-5 py-3 border-b border-zinc-800">
-          <h2 className="text-sm font-semibold text-white">Saved Builds</h2>
-        </div>
-        <div className="[&_p]:text-zinc-400 [&_button]:cursor-pointer [&_.text-gray-800]:text-white [&_.text-gray-400]:text-zinc-500 [&_.text-gray-500]:text-zinc-500 [&_.bg-gray-100]:bg-zinc-800 [&_.bg-purple-700]:bg-indigo-600 [&_.divide-gray-100]:divide-zinc-800">
-          <BuildLibrary onLoad={handleLoad} />
-        </div>
-      </div>
-
-      <AICreatorAssistant
-        theme={theme}
-        contextPrompt={prompt}
-        onApplySuggestion={(suggestion) => setPrompt(suggestion)}
-      />
     </div>
   );
 }

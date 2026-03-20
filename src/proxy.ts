@@ -7,6 +7,16 @@ const DRUPAL_API_USER = process.env.DRUPAL_API_USER;
 const DRUPAL_API_PASS = process.env.DRUPAL_API_PASS;
 const MAINTENANCE_MODE = (process.env.MAINTENANCE_MODE || "false").toLowerCase() === "true";
 
+function playgroundAllowlist(): Set<string> {
+  const raw = process.env.PLAYGROUND_ALLOWLIST || "";
+  return new Set(
+    raw
+      .split(",")
+      .map((entry) => entry.trim().replace(/^@+/, "").toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 const RESERVED_SUBDOMAINS = new Set([
   "console",
   "www",
@@ -45,6 +55,11 @@ function buildAuthHeader(): string | null {
 async function enforcePlaygroundAccess(request: NextRequest, pathname: string): Promise<NextResponse | null> {
   const handle = pathname.split("/playground/")[1]?.split("/")[0];
   if (!handle || !DRUPAL_API_URL) return null;
+
+  const normalizedHandle = handle.trim().replace(/^@+/, "").toLowerCase();
+  if (playgroundAllowlist().has(normalizedHandle)) {
+    return null;
+  }
 
   const authHeader = buildAuthHeader();
   const url = `${DRUPAL_API_URL}/jsonapi/user/user?` +

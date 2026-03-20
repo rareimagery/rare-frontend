@@ -203,7 +203,7 @@ export default function ConsoleBuilderPage() {
 
   if (!hasStore) {
     return (
-      <div className="p-8">
+      <div>
         <h1 className="text-2xl font-bold text-white mb-2">Page Builder</h1>
         <p className="text-zinc-400">Create your store first to use the Page Builder.</p>
       </div>
@@ -211,8 +211,8 @@ export default function ConsoleBuilderPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-6xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Page Builder</h1>
           <p className="text-zinc-400 text-sm">Theme: <span className="text-indigo-400">{theme}</span></p>
@@ -222,7 +222,7 @@ export default function ConsoleBuilderPage() {
             href={`/stores/${storeSlug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+            className="inline-flex min-h-10 items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -234,7 +234,7 @@ export default function ConsoleBuilderPage() {
 
       <div className="mb-8">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-white">Pick a direction</h2>
             <span className="text-xs text-zinc-500">6 options</span>
           </div>
@@ -337,7 +337,7 @@ export default function ConsoleBuilderPage() {
 
           {/* Save */}
           {result && !loading && (
-            <div className="flex gap-2 mt-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <input
                 className="flex-1 px-3 py-2 rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-white
                            placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -348,7 +348,7 @@ export default function ConsoleBuilderPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !saveLabel.trim()}
-                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg
+                className="min-h-10 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg
                            disabled:opacity-50 transition-colors"
               >
                 {saving ? "..." : "Save"}

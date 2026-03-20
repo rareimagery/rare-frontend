@@ -118,25 +118,27 @@ export default function AccountingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Accounting</h1>
           <p className="mt-1 text-sm text-zinc-500">Revenue and earnings overview</p>
         </div>
-        <div className="flex gap-1 rounded-lg bg-zinc-900 p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                period === p.value
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto rounded-lg bg-zinc-900 p-1">
+          <div className="flex min-w-max gap-1">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setPeriod(p.value)}
+                className={`min-h-10 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                  period === p.value
+                    ? "bg-zinc-700 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -147,7 +149,7 @@ export default function AccountingPage() {
       ) : data ? (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Net Revenue"
               value={formatCurrency(data.netRevenue, data.currency)}
@@ -173,7 +175,7 @@ export default function AccountingPage() {
 
           {/* Revenue chart */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">Daily Revenue</h2>
               <p className="text-sm text-zinc-500">Last {data.period} days</p>
             </div>
@@ -192,20 +194,20 @@ export default function AccountingPage() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <h2 className="mb-4 font-semibold">Fee Breakdown</h2>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <span className="text-zinc-400">Gross Revenue</span>
                 <span className="font-medium text-white">
                   {formatCurrency(data.grossRevenue, data.currency)}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <span className="text-zinc-400">Platform Fees (2.9% + $0.30/order)</span>
                 <span className="font-medium text-red-400">
                   − {formatCurrency(data.platformFees, data.currency)}
                 </span>
               </div>
               <div className="my-2 border-t border-zinc-800" />
-              <div className="flex justify-between font-semibold">
+              <div className="flex flex-wrap justify-between gap-2 font-semibold">
                 <span className="text-white">Net Revenue</span>
                 <span className="text-indigo-400">
                   {formatCurrency(data.netRevenue, data.currency)}
@@ -217,7 +219,7 @@ export default function AccountingPage() {
           {/* Recent transactions */}
           {data.recentOrders.length > 0 && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900">
-              <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-5 py-4">
                 <h2 className="font-semibold">Recent Transactions</h2>
                 <Link href="/console/orders" className="text-sm text-indigo-400 hover:text-indigo-300">
                   View all →
@@ -225,7 +227,7 @@ export default function AccountingPage() {
               </div>
               <div className="divide-y divide-zinc-800">
                 {data.recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between px-5 py-3">
+                  <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
                     <div>
                       <p className="font-mono text-sm text-zinc-300">
                         #{order.orderNumber}

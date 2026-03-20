@@ -6,7 +6,7 @@ import {
   ConsoleContextProvider,
   ConsoleContextValue,
 } from "@/components/ConsoleContext";
-import ConsoleSidebar from "@/components/ConsoleSidebar";
+import ConsoleShell from "@/components/ConsoleShell";
 
 export default async function ConsoleLayout({
   children,
@@ -42,12 +42,7 @@ export default async function ConsoleLayout({
 
   return (
     <ConsoleContextProvider value={contextValue}>
-      <div className="flex min-h-screen bg-zinc-950 text-white">
-        <ConsoleSidebar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-5xl px-8 py-8">{children}</div>
-        </main>
-      </div>
+      <ConsoleShell>{children}</ConsoleShell>
     </ConsoleContextProvider>
   );
 }

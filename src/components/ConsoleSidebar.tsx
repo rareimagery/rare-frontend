@@ -17,7 +17,12 @@ const adminLinks = [
   { href: "/console/admin/subscribers", label: "X Subscribers", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" },
 ];
 
-export default function ConsoleSidebar() {
+interface ConsoleSidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export default function ConsoleSidebar({ className = "", onNavigate }: ConsoleSidebarProps) {
   const pathname = usePathname();
   const { role, hasStore, xUsername, storeSlug, xSubscriptionTier } = useConsole();
   const isAdmin = role === "admin";
@@ -28,10 +33,10 @@ export default function ConsoleSidebar() {
   };
 
   return (
-    <aside className="flex w-64 flex-col border-r border-zinc-800 bg-zinc-900/80">
+    <aside className={`flex h-full w-64 flex-col border-r border-zinc-800 bg-zinc-900/95 ${className}`}>
       {/* Branding */}
       <div className="border-b border-zinc-800 px-5 py-5">
-        <Link href="/console" className="block">
+        <Link href="/console" className="block" onClick={onNavigate}>
           <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-lg font-bold text-transparent">
             RareImagery
           </span>
@@ -50,6 +55,7 @@ export default function ConsoleSidebar() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   isActive(link.href)
                     ? "bg-indigo-600/20 text-indigo-400"
@@ -70,6 +76,7 @@ export default function ConsoleSidebar() {
             </p>
             <Link
               href="/console/setup"
+              onClick={onNavigate}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive("/console/setup")
                   ? "bg-indigo-600/20 text-indigo-400"
@@ -95,6 +102,7 @@ export default function ConsoleSidebar() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   isActive(link.href)
                     ? "bg-indigo-600/20 text-indigo-400"
@@ -118,6 +126,7 @@ export default function ConsoleSidebar() {
             href={`https://${storeSlug}.rareimagery.net`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={onNavigate}
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -143,7 +152,7 @@ export default function ConsoleSidebar() {
             )}
           </div>
         </div>
-        <ConsoleUserMenu />
+        <ConsoleUserMenu onAction={onNavigate} />
       </div>
     </aside>
   );

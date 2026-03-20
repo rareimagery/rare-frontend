@@ -24,7 +24,7 @@ export default async function AdminSubscribersPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">X Subscribers ({subscribers.length})</h1>
           <p className="mt-1 text-sm text-zinc-400">
@@ -42,7 +42,8 @@ export default async function AdminSubscribersPage() {
       {/* Active Subscribers */}
       {subscribers.length > 0 && (
         <div className="mb-8 overflow-hidden rounded-xl border border-zinc-800">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-[680px] w-full text-left text-sm">
             <thead className="border-b border-zinc-800 bg-zinc-900/60">
               <tr>
                 <th className="px-4 py-3 font-medium text-zinc-400">Creator</th>
@@ -83,6 +84,7 @@ export default async function AdminSubscribersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -93,7 +95,8 @@ export default async function AdminSubscribersPage() {
           Set or change subscription tier for any creator.
         </p>
         <div className="overflow-hidden rounded-lg border border-zinc-800">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-[700px] w-full text-left text-sm">
             <thead className="border-b border-zinc-800 bg-zinc-900/60">
               <tr>
                 <th className="px-4 py-2 font-medium text-zinc-400">Creator</th>
@@ -120,6 +123,7 @@ export default async function AdminSubscribersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

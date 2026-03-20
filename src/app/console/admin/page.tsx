@@ -20,7 +20,7 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">
             All Stores ({stores.length})
@@ -34,7 +34,7 @@ export default async function AdminPage() {
         </div>
         <Link
           href="/console/stores/new"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+          className="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
         >
           + Create New Store
         </Link>
@@ -44,7 +44,8 @@ export default async function AdminPage() {
         <p className="text-zinc-500">No stores yet.</p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-zinc-800">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-[820px] w-full text-left text-sm">
             <thead className="border-b border-zinc-800 bg-zinc-900/60">
               <tr>
                 <th className="px-4 py-3 font-medium text-zinc-400">Store Name</th>
@@ -106,6 +107,7 @@ export default async function AdminPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

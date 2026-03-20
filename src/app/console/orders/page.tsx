@@ -92,7 +92,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">Orders</h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -102,20 +102,22 @@ export default function OrdersPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 rounded-lg bg-zinc-900 p-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => { setFilter(f.value); setPage(0); }}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${
-              filter === f.value
-                ? "bg-zinc-700 text-white"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto rounded-lg bg-zinc-900 p-1">
+        <div className="flex min-w-max gap-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => { setFilter(f.value); setPage(0); }}
+              className={`min-h-10 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                filter === f.value
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -127,7 +129,8 @@ export default function OrdersPage() {
         ) : orders.length === 0 ? (
           <div className="py-16 text-center text-zinc-500">No orders found.</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-[860px] w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-800">
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -193,12 +196,13 @@ export default function OrdersPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {/* Pagination */}
       {total > 20 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-zinc-500">
             Showing {page * 20 + 1}–{Math.min((page + 1) * 20, total)} of {total}
           </p>
@@ -206,14 +210,14 @@ export default function OrdersPage() {
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
+              className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={(page + 1) * 20 >= total}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
+              className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >
               Next
             </button>

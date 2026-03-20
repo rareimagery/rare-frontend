@@ -51,7 +51,7 @@ export default function ConsoleSocialPage() {
 
   if (!hasStore) {
     return (
-      <div className="p-8">
+      <div>
         <h1 className="text-2xl font-bold text-white mb-2">Social</h1>
         <p className="text-zinc-400">Create your store first to access social features.</p>
       </div>
@@ -61,7 +61,7 @@ export default function ConsoleSocialPage() {
   const mutualCount = followers.filter((f) => f.isMutual).length;
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-3xl">
       <h1 className="text-2xl font-bold text-white mb-1">Social</h1>
       <p className="text-zinc-400 text-sm mb-6">
         Manage your follower network and discover creators.
@@ -70,7 +70,7 @@ export default function ConsoleSocialPage() {
       <RareProjectConversations />
 
       {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 text-center">
           <p className="text-2xl font-bold text-white">{followers.length}</p>
           <p className="text-xs text-zinc-500">Followers</p>
@@ -99,27 +99,29 @@ export default function ConsoleSocialPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-zinc-800 mb-4">
-        <button
-          onClick={() => setTab("followers")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === "followers"
-              ? "border-indigo-500 text-white"
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Followers ({followers.length})
-        </button>
-        <button
-          onClick={() => setTab("following")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === "following"
-              ? "border-indigo-500 text-white"
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Following ({following.length})
-        </button>
+      <div className="mb-4 overflow-x-auto border-b border-zinc-800">
+        <div className="flex min-w-max gap-1">
+          <button
+            onClick={() => setTab("followers")}
+            className={`min-h-10 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+              tab === "followers"
+                ? "border-indigo-500 text-white"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Followers ({followers.length})
+          </button>
+          <button
+            onClick={() => setTab("following")}
+            className={`min-h-10 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+              tab === "following"
+                ? "border-indigo-500 text-white"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Following ({following.length})
+          </button>
+        </div>
       </div>
 
       {/* List */}

@@ -24,8 +24,8 @@ export default async function StoreDetailPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">{store.attributes.name}</h1>
           <StoreApprovalButton
             storeId={store.id}
@@ -36,7 +36,7 @@ export default async function StoreDetailPage({
           href={`https://${slug}.${base}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+          className="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
         >
           Open Live Store
         </a>
@@ -48,11 +48,11 @@ export default async function StoreDetailPage({
             Store Details
           </h2>
           <dl className="space-y-3 text-sm">
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-2">
               <dt className="text-zinc-500">Slug</dt>
               <dd className="text-white">{slug}</dd>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-2">
               <dt className="text-zinc-500">URL</dt>
               <dd>
                 <a
@@ -63,11 +63,11 @@ export default async function StoreDetailPage({
                 </a>
               </dd>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-2">
               <dt className="text-zinc-500">Email</dt>
               <dd className="text-white">{store.attributes.mail}</dd>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-2">
               <dt className="text-zinc-500">Currency</dt>
               <dd className="text-white">
                 {store.attributes.default_currency}
@@ -82,13 +82,13 @@ export default async function StoreDetailPage({
           </h2>
           {xProfile ? (
             <dl className="space-y-3 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <dt className="text-zinc-500">Username</dt>
                 <dd className="text-white">
                   {xProfile.attributes.field_x_username}
                 </dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <dt className="text-zinc-500">Followers</dt>
                 <dd className="text-white">
                   {xProfile.attributes.field_follower_count?.toLocaleString() ??
@@ -142,7 +142,7 @@ export default async function StoreDetailPage({
         />
       </section>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Link
           href="/console/stores"
           className="inline-block text-sm text-zinc-500 transition hover:text-zinc-300"

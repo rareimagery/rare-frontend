@@ -126,20 +126,22 @@ export default function ShippingPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 rounded-lg bg-zinc-900 p-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => { setFilter(f.value); setPage(0); }}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${
-              filter === f.value
-                ? "bg-zinc-700 text-white"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto rounded-lg bg-zinc-900 p-1">
+        <div className="flex min-w-max gap-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => { setFilter(f.value); setPage(0); }}
+              className={`min-h-10 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                filter === f.value
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Shipments */}
@@ -169,10 +171,10 @@ export default function ShippingPage() {
                 key={shipment.id}
                 className="rounded-xl border border-zinc-800 bg-zinc-900 p-5"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     {/* Order + method */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stateInfo.color}`}>
                         {stateInfo.label}
                       </span>
@@ -192,7 +194,7 @@ export default function ShippingPage() {
                     </div>
 
                     {/* Destination + date */}
-                    <div className="flex gap-6 text-sm">
+                    <div className="flex flex-wrap gap-4 text-sm">
                       <div>
                         <p className="text-xs text-zinc-500 mb-0.5">Destination</p>
                         <p className="text-zinc-300">{formatAddress(shipment.shippingAddress)}</p>
@@ -212,18 +214,18 @@ export default function ShippingPage() {
                     {/* Tracking */}
                     <div>
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="text"
                             value={trackingInput}
                             onChange={(e) => setTrackingInput(e.target.value)}
                             placeholder="Enter tracking code…"
-                            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+                            className="min-w-[220px] flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
                           />
                           <button
                             onClick={() => saveTracking(shipment.id)}
                             disabled={saving}
-                            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                            className="min-h-10 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
                           >
                             {saving ? "Saving…" : "Save"}
                           </button>
@@ -282,7 +284,7 @@ export default function ShippingPage() {
 
       {/* Pagination */}
       {total > 20 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-zinc-500">
             Showing {page * 20 + 1}–{Math.min((page + 1) * 20, total)} of {total}
           </p>
@@ -290,14 +292,14 @@ export default function ShippingPage() {
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
+              className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={(page + 1) * 20 >= total}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
+              className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >
               Next
             </button>

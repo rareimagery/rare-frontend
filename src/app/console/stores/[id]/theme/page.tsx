@@ -301,12 +301,12 @@ export default function ThemeEditorPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">🎨 MySpace Theme Editor</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`/console/stores/${storeId}/theme/chat`}
-            className="rounded-lg bg-fuchsia-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-fuchsia-600"
+            className="inline-flex min-h-10 items-center rounded-lg bg-fuchsia-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-fuchsia-600"
           >
             💬 Chat Builder
           </Link>

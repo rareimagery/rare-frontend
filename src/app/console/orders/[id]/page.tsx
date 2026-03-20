@@ -118,7 +118,7 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <Link href="/console/orders" className="text-sm text-indigo-400 hover:text-indigo-300">
             ← Back to Orders
@@ -133,16 +133,16 @@ export default function OrderDetailPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Order Items */}
-        <div className="col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900">
             <div className="border-b border-zinc-800 px-5 py-4">
               <h2 className="font-semibold">Items</h2>
             </div>
             <div className="divide-y divide-zinc-800">
               {order.items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between px-5 py-4">
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div>
                     <p className="font-medium text-white">{item.title}</p>
                     <p className="text-sm text-zinc-500">
@@ -182,7 +182,7 @@ export default function OrderDetailPage() {
                   };
                   return (
                     <div key={shipment.id} className="px-5 py-4 space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-0.5">
                           <p className="font-medium text-white">
                             {shipment.shippingMethod || "Standard Shipping"}
@@ -245,12 +245,12 @@ export default function OrderDetailPage() {
               Timeline
             </h2>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <span className="text-zinc-500">Placed</span>
                 <span className="text-zinc-300">{formatDate(order.placedAt)}</span>
               </div>
               {order.completedAt && (
-                <div className="flex justify-between">
+                <div className="flex flex-wrap justify-between gap-2">
                   <span className="text-zinc-500">Completed</span>
                   <span className="text-zinc-300">{formatDate(order.completedAt)}</span>
                 </div>

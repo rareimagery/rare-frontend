@@ -60,9 +60,50 @@ type Props = {
   handle: string;
   avatar?: string;
   bio?: string;
+  extraComponents?: string[];
+  customCSS?: string;
 };
 
-export function LiveThemePreview({ templateId, handle, avatar, bio }: Props) {
+function ExtraPreviewSection({ componentId }: { componentId: string }) {
+  switch (componentId) {
+    case 'grok-grid':
+      return (
+        <section className="rounded-2xl border border-cyan-400/30 bg-cyan-950/40 p-6 text-cyan-100">
+          <h3 className="text-xl font-semibold">Grok Video Grid</h3>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((id) => (
+              <div key={id} className="h-36 rounded-xl bg-black/40 ring-1 ring-cyan-400/20" />
+            ))}
+          </div>
+        </section>
+      );
+    case 'product-showcase':
+      return (
+        <section className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-950/30 p-6 text-fuchsia-100">
+          <h3 className="text-xl font-semibold">Product Showcase</h3>
+          <p className="mt-2 text-sm opacity-80">Highlight limited drops and featured creator bundles.</p>
+        </section>
+      );
+    case 'subscriber-hero':
+      return (
+        <section className="rounded-2xl border border-emerald-400/40 bg-emerald-950/40 p-6 text-emerald-100">
+          <h3 className="text-xl font-semibold">Big $4 Subscriber CTA</h3>
+          <p className="mt-2 text-sm opacity-80">Unlock private posts, early drops, and premium creator perks.</p>
+        </section>
+      );
+    default:
+      return null;
+  }
+}
+
+export function LiveThemePreview({
+  templateId,
+  handle,
+  avatar,
+  bio,
+  extraComponents = [],
+  customCSS = '',
+}: Props) {
   const [liveData, setLiveData] = useState<PreviewPayload | null>(null);
 
   const normalizedHandle = handle.toLowerCase();
@@ -123,38 +164,38 @@ export function LiveThemePreview({ templateId, handle, avatar, bio }: Props) {
 
   const scaleStyle = { transform: 'scale(0.82)', transformOrigin: 'top left' as const, width: '122%' };
 
+  let previewNode;
   switch (templateId) {
     case 'retro':
-      return (
-        <div style={scaleStyle}>
-          <RetroTemplate {...commonProps} />
-        </div>
-      );
+      previewNode = <RetroTemplate {...commonProps} />;
+      break;
     case 'modern-cart':
-      return (
-        <div style={scaleStyle}>
-          <ModernCartTemplate {...commonProps} />
-        </div>
-      );
+      previewNode = <ModernCartTemplate {...commonProps} />;
+      break;
     case 'ai-video-store':
-      return (
-        <div style={scaleStyle}>
-          <VideoStoreTemplate {...commonProps} />
-        </div>
-      );
+      previewNode = <VideoStoreTemplate {...commonProps} />;
+      break;
     case 'latest-posts':
-      return (
-        <div style={scaleStyle}>
-          <PostsFeedTemplate {...commonProps} />
-        </div>
-      );
+      previewNode = <PostsFeedTemplate {...commonProps} />;
+      break;
     default:
-      return (
-        <div style={scaleStyle}>
-          <BlankTemplate {...commonProps} />
-        </div>
-      );
+      previewNode = <BlankTemplate {...commonProps} />;
+      break;
   }
+
+  return (
+    <div style={scaleStyle}>
+      {customCSS.trim() ? <style>{customCSS}</style> : null}
+      {previewNode}
+      {extraComponents.length > 0 ? (
+        <div className="space-y-4 p-6">
+          {extraComponents.map((componentId, index) => (
+            <ExtraPreviewSection key={`${componentId}-${index}`} componentId={componentId} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default LiveThemePreview;

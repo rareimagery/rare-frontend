@@ -4,6 +4,13 @@ export function buildPreviewDocument(code: string): string {
     .replace(/```$/gm, "")
     .trim();
 
+  // Preview runtime executes in a browser script context, so normalize common
+  // module syntax emitted by the AI before evaluating it.
+  const withoutImports = cleaned.replace(/^\s*import\s.+;?\s*$/gm, "");
+  const withNamedExports = withoutImports.replace(/\bexport\s+function\s+/g, "function ");
+  const withDefaultFn = withNamedExports.replace(/\bexport\s+default\s+function\s+/g, "function ");
+  const normalizedCode = withDefaultFn.replace(/\bexport\s+default\s+/g, "const __RI_DEFAULT = ");
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -21,15 +28,19 @@ export function buildPreviewDocument(code: string): string {
 </head>
 <body>
   <div id="root" class="ri-shell"></div>
-  <script type="text/babel" data-presets="react">
-    ${cleaned}
+  <script type="text/babel" data-presets="react,typescript">
+    ${normalizedCode}
 
     try {
       const root = ReactDOM.createRoot(document.getElementById("root"));
-      if (typeof App === "function") {
-        root.render(React.createElement(App));
-      } else if (typeof Component === "function") {
-        root.render(React.createElement(Component));
+      const candidate =
+        (typeof __RI_DEFAULT === "function" && __RI_DEFAULT) ||
+        (typeof App === "function" && App) ||
+        (typeof Component === "function" && Component) ||
+        (typeof PreviewComponent === "function" && PreviewComponent);
+
+      if (candidate) {
+        root.render(React.createElement(candidate));
       } else {
         root.render(React.createElement("div", { style: { padding: "1rem", fontFamily: "monospace", color: "#fbbf24" } }, "Define App or Component for preview."));
       }

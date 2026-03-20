@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useConsole } from "./ConsoleContext";
 import ConsoleUserMenu from "./ConsoleUserMenu";
 import SupporterBadge from "./SupporterBadge";
@@ -23,13 +24,38 @@ interface ConsoleSidebarProps {
 }
 
 export default function ConsoleSidebar({ className = "", onNavigate }: ConsoleSidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
-  const { role, hasStore, xUsername, storeSlug, xSubscriptionTier } = useConsole();
+  const { role, hasStore, xUsername, storeSlug, xSubscriptionTier, stores, activeStoreId } = useConsole();
   const isAdmin = role === "admin";
+  const [switchingStore, setSwitchingStore] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/console") return pathname === "/console";
     return pathname.startsWith(href);
+  };
+
+  const selectableStores = stores.filter((store) => !!store.storeId);
+
+  const handleStoreSwitch = async (nextStoreId: string) => {
+    if (!nextStoreId || nextStoreId === activeStoreId) return;
+    setSwitchingStore(true);
+    try {
+      const res = await fetch("/api/console/active-store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId: nextStoreId }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to switch store");
+      }
+      onNavigate?.();
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSwitchingStore(false);
+    }
   };
 
   return (
@@ -43,6 +69,26 @@ export default function ConsoleSidebar({ className = "", onNavigate }: ConsoleSi
           <span className="ml-2 text-xs text-zinc-500">Console</span>
         </Link>
       </div>
+
+      {selectableStores.length > 1 && (
+        <div className="border-b border-zinc-800 px-3 py-3">
+          <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Active Store
+          </p>
+          <select
+            value={activeStoreId || ""}
+            disabled={switchingStore}
+            onChange={(e) => handleStoreSwitch(e.target.value)}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:border-indigo-500 focus:outline-none"
+          >
+            {selectableStores.map((store) => (
+              <option key={store.storeId} value={store.storeId || ""}>
+                {store.storeName || store.storeSlug}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Store Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">

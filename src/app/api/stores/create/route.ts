@@ -10,6 +10,46 @@ import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+function normalizeHandle(handle: string | null | undefined): string {
+  return String(handle || "").trim().replace(/^@+/, "").toLowerCase();
+}
+
+function multiStoreTestModeEnabled(): boolean {
+  return String(process.env.MULTI_STORE_TEST_MODE || "false").toLowerCase() === "true";
+}
+
+function multiStoreAllowlist(): string[] {
+  return String(process.env.MULTI_STORE_TEST_ALLOWLIST || "")
+    .split(",")
+    .map((h) => normalizeHandle(h))
+    .filter(Boolean);
+}
+
+function maxStoresPerOwner(): number {
+  const parsed = Number.parseInt(process.env.MAX_STORES_PER_OWNER || "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+async function getStoreCountForXUsername(xUsername: string): Promise<number> {
+  const res = await fetch(
+    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(xUsername)}&include=field_linked_store`,
+    { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+  );
+  if (!res.ok) return 0;
+
+  const json = await res.json();
+  const profiles = Array.isArray(json.data) ? json.data : [];
+
+  const uniqueStoreIds = new Set<string>();
+  for (const profile of profiles) {
+    const storeId = profile?.relationships?.field_linked_store?.data?.id;
+    if (typeof storeId === "string" && storeId.length > 0) {
+      uniqueStoreIds.add(storeId);
+    }
+  }
+  return uniqueStoreIds.size;
+}
+
 async function isSlugTaken(slug: string): Promise<boolean> {
   const res = await fetch(
     `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}`,
@@ -240,6 +280,28 @@ export async function POST(req: NextRequest) {
   if (!xUsername || String(xUsername).toLowerCase() !== String(sessionMeta.xUsername).toLowerCase()) {
     return NextResponse.json(
       { error: "xUsername must match your authenticated X account." },
+      { status: 403 }
+    );
+  }
+
+  const normalizedSessionUser = normalizeHandle(sessionMeta.xUsername);
+  const multiStoreEnabledForUser =
+    multiStoreTestModeEnabled() && multiStoreAllowlist().includes(normalizedSessionUser);
+  const existingStoreCount = await getStoreCountForXUsername(normalizedSessionUser);
+  const maxAllowedStores = multiStoreEnabledForUser ? maxStoresPerOwner() : 1;
+
+  if (existingStoreCount >= maxAllowedStores) {
+    const message = multiStoreEnabledForUser
+      ? `Store limit reached (${maxAllowedStores}). Increase MAX_STORES_PER_OWNER for additional testing stores.`
+      : "This account already has a store. Multi-store is currently disabled for your account.";
+
+    return NextResponse.json(
+      {
+        error: message,
+        storeLimitReached: true,
+        maxAllowedStores,
+        existingStoreCount,
+      },
       { status: 403 }
     );
   }

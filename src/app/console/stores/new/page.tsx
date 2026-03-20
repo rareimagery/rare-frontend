@@ -29,6 +29,10 @@ export default function NewStorePage() {
     null
   );
   const [error, setError] = useState("");
+  const [limitMeta, setLimitMeta] = useState<{
+    existingStoreCount?: number;
+    maxAllowedStores?: number;
+  } | null>(null);
 
   const handleNameChange = (name: string) => {
     setForm((f) => ({
@@ -47,6 +51,7 @@ export default function NewStorePage() {
     e.preventDefault();
     setStatus("loading");
     setError("");
+    setLimitMeta(null);
 
     const res = await fetch("/api/stores/create", {
       method: "POST",
@@ -58,6 +63,12 @@ export default function NewStorePage() {
 
     if (!res.ok) {
       setStatus("error");
+      if (data.storeLimitReached) {
+        setLimitMeta({
+          existingStoreCount: data.existingStoreCount,
+          maxAllowedStores: data.maxAllowedStores,
+        });
+      }
       setError(data.error || "Something went wrong");
       return;
     }
@@ -174,7 +185,16 @@ export default function NewStorePage() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <div className="space-y-2 rounded-lg border border-amber-700 bg-amber-950/30 p-3">
+            <p className="text-sm text-amber-300">{error}</p>
+            {limitMeta && (
+              <p className="text-xs text-amber-400">
+                Current stores: {limitMeta.existingStoreCount ?? "?"} / Allowed: {limitMeta.maxAllowedStores ?? "?"}. Additional stores can be enabled for testing now and later monetized as a per-store add-on.
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"

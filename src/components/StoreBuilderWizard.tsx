@@ -25,6 +25,10 @@ export default function StoreBuilderWizard({
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [storeLimitInfo, setStoreLimitInfo] = useState<{
+    existingStoreCount?: number;
+    maxAllowedStores?: number;
+  } | null>(null);
   const [slugEdited, setSlugEdited] = useState(false);
 
   // Auto-fill from X data + Grok enhancements
@@ -105,6 +109,7 @@ export default function StoreBuilderWizard({
     }
     setCreating(true);
     setError("");
+    setStoreLimitInfo(null);
 
     try {
       const res = await fetch("/api/stores/create", {
@@ -130,6 +135,12 @@ export default function StoreBuilderWizard({
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.storeLimitReached) {
+          setStoreLimitInfo({
+            existingStoreCount: data.existingStoreCount,
+            maxAllowedStores: data.maxAllowedStores,
+          });
+        }
         setError(data.error || "Failed to create store");
         setCreating(false);
         return;
@@ -401,7 +412,21 @@ export default function StoreBuilderWizard({
               </label>
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && (
+              <div className="space-y-2 rounded-lg border border-amber-700 bg-amber-950/30 p-3">
+                <p className="text-sm text-amber-300">{error}</p>
+                {storeLimitInfo && (
+                  <>
+                    <p className="text-xs text-amber-400">
+                      Current stores: {storeLimitInfo.existingStoreCount ?? "?"} / Allowed: {storeLimitInfo.maxAllowedStores ?? "?"}.
+                    </p>
+                    <p className="text-xs text-amber-400">
+                      For testing, your allowlist/limit can be increased. For production, this can become a per-store add-on charge.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-between">
               <button

@@ -925,74 +925,88 @@ export interface ConsoleStoreData {
   xSubscriptionTier: string | null;
 }
 
-/** Fetch console context data for a user by X username. */
-export async function getConsoleProfile(xUsername: string): Promise<ConsoleStoreData | null> {
+function mapConsoleStoreData(profile: any, store: any, fallbackSlug: string): ConsoleStoreData {
+  return {
+    profileNodeId: profile?.id || "",
+    storeName: store?.attributes?.name || profile?.attributes?.title || null,
+    storeSlug: store?.attributes?.field_store_slug || fallbackSlug,
+    storeId: store?.id || null,
+    storeDrupalId: store ? String(store.attributes?.drupal_internal__store_id) : null,
+    storeStatus: store?.attributes?.field_store_status || null,
+    currentTheme: profile?.attributes?.field_store_theme || "xai3",
+    xSubscriptionTier: profile?.attributes?.field_x_subscription_tier || null,
+  };
+}
+
+/** Fetch all console stores for an X username (supports multi-store owners). */
+export async function getConsoleProfiles(xUsername: string): Promise<ConsoleStoreData[]> {
   try {
     const res = await fetch(
       `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?filter[field_x_username]=${xUsername}&include=field_linked_store`,
       { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return [];
+
     const data = await res.json();
-    if (!data.data || data.data.length === 0) return null;
+    const profiles = Array.isArray(data.data) ? data.data : [];
+    const included = Array.isArray(data.included) ? data.included : [];
 
-    const profile = data.data[0];
-    const included = data.included || [];
+    const stores = profiles
+      .map((profile: any) => {
+        const storeRef = profile.relationships?.field_linked_store?.data;
+        const store = storeRef
+          ? included.find((inc: any) => inc.id === storeRef.id)
+          : null;
+        return mapConsoleStoreData(profile, store, xUsername);
+      })
+      .filter((entry: ConsoleStoreData) => !!entry.profileNodeId);
 
-    const storeRef = profile.relationships?.field_linked_store?.data;
-    const store = storeRef
-      ? included.find((inc: any) => inc.id === storeRef.id)
-      : null;
-
-    return {
-      profileNodeId: profile.id,
-      storeName: store?.attributes?.name || profile.attributes?.title || null,
-      storeSlug: store?.attributes?.field_store_slug || xUsername,
-      storeId: store?.id || null,
-      storeDrupalId: store
-        ? String(store.attributes?.drupal_internal__store_id)
-        : null,
-      storeStatus: store?.attributes?.field_store_status || null,
-      currentTheme: profile.attributes?.field_store_theme || "xai3",
-      xSubscriptionTier: profile.attributes?.field_x_subscription_tier || null,
-    };
+    const deduped = new Map<string, ConsoleStoreData>();
+    for (const entry of stores) {
+      const key = entry.storeId || `profile:${entry.profileNodeId}`;
+      if (!deduped.has(key)) deduped.set(key, entry);
+    }
+    return Array.from(deduped.values());
   } catch {
-    return null;
+    return [];
   }
 }
 
-/** Fetch console context data for a user by email (for non-X users). */
-export async function getConsoleProfileByEmail(email: string): Promise<ConsoleStoreData | null> {
+/** Fetch all console stores for a user by email (for non-X users). */
+export async function getConsoleProfilesByEmail(email: string): Promise<ConsoleStoreData[]> {
   try {
     const res = await fetch(
       `${DRUPAL_API_URL}/jsonapi/commerce_store/online?filter[mail]=${encodeURIComponent(email)}&include=field_linked_x_profile`,
       { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return [];
+
     const data = await res.json();
-    if (!data.data || data.data.length === 0) return null;
+    const stores = Array.isArray(data.data) ? data.data : [];
+    const included = Array.isArray(data.included) ? data.included : [];
 
-    const store = data.data[0];
-    const included = data.included || [];
-
-    const profileRef = store.relationships?.field_linked_x_profile?.data;
-    const profile = profileRef
-      ? included.find((inc: any) => inc.id === profileRef.id)
-      : null;
-
-    return {
-      profileNodeId: profile?.id || null,
-      storeName: store.attributes?.name || null,
-      storeSlug: store.attributes?.field_store_slug || "",
-      storeId: store.id,
-      storeDrupalId: String(store.attributes?.drupal_internal__store_id),
-      storeStatus: store.attributes?.field_store_status || null,
-      currentTheme: profile?.attributes?.field_store_theme || "xai3",
-      xSubscriptionTier: profile?.attributes?.field_x_subscription_tier || null,
-    };
+    return stores.map((store: any) => {
+      const profileRef = store.relationships?.field_linked_x_profile?.data;
+      const profile = profileRef
+        ? included.find((inc: any) => inc.id === profileRef.id)
+        : null;
+      return mapConsoleStoreData(profile, store, store.attributes?.field_store_slug || "");
+    });
   } catch {
-    return null;
+    return [];
   }
+}
+
+/** Fetch console context data for a user by X username. */
+export async function getConsoleProfile(xUsername: string): Promise<ConsoleStoreData | null> {
+  const all = await getConsoleProfiles(xUsername);
+  return all[0] || null;
+}
+
+/** Fetch console context data for a user by email (for non-X users). */
+export async function getConsoleProfileByEmail(email: string): Promise<ConsoleStoreData | null> {
+  const all = await getConsoleProfilesByEmail(email);
+  return all[0] || null;
 }
 
 /** Fetch all stores sorted by creation date, with linked X profiles. */

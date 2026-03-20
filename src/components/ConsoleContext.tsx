@@ -3,6 +3,17 @@
 import { createContext, useContext } from "react";
 
 export interface ConsoleContextValue {
+  stores: Array<{
+    profileNodeId: string;
+    storeName: string | null;
+    storeSlug: string;
+    storeId: string | null;
+    storeDrupalId: string | null;
+    storeStatus: string | null;
+    currentTheme: string;
+    xSubscriptionTier: string | null;
+  }>;
+  activeStoreId: string | null;
   role: "admin" | "creator" | "store_owner";
   xUsername: string | null;
   hasStore: boolean;
@@ -17,6 +28,8 @@ export interface ConsoleContextValue {
 }
 
 const ConsoleContext = createContext<ConsoleContextValue>({
+  stores: [],
+  activeStoreId: null,
   role: "creator",
   xUsername: null,
   hasStore: false,

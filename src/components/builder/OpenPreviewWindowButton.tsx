@@ -6,8 +6,11 @@ export default function OpenPreviewWindowButton({ code }: { code: string }) {
   const openPreviewWindow = () => {
     if (!code.trim()) return;
 
-    const popup = window.open("", "ri-builder-preview", "width=1200,height=850,noopener,noreferrer");
-    if (!popup) return;
+    const popup = window.open("", "ri-builder-preview", "width=1200,height=850");
+    if (!popup) {
+      window.alert("Preview window was blocked. Allow pop-ups for RareImagery and try again.");
+      return;
+    }
 
     popup.document.open();
     popup.document.write(buildPreviewDocument(code));

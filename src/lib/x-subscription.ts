@@ -5,6 +5,7 @@
 import { X_API_BASE } from "@/lib/x-api/client";
 import { fetchWithRetry } from "@/lib/x-api/fetch-with-retry";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { isFreeSubscriptionAllowlisted } from "@/lib/subscription-allowlist";
 
 const DEFAULT_REQUIRED_X_USERNAME = "rareimagery";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
@@ -64,6 +65,13 @@ export async function checkRequiredPaidSubscription({
   error?: string;
 }> {
   try {
+    if (isFreeSubscriptionAllowlisted({ xId: buyerXId || null, xUsername: buyerUsername || null })) {
+      return {
+        subscribed: true,
+        tier: "helper_free",
+      };
+    }
+
     if (!DRUPAL_API) {
       return { subscribed: false, error: "Drupal API URL is not configured." };
     }

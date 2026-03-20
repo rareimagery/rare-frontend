@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders } from "@/lib/drupal";
+import { isFreeSubscriptionAllowlisted } from "@/lib/subscription-allowlist";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -14,8 +15,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ subscribed: false });
   }
 
+  const tokenXId = (token.xId as string) || null;
+  const tokenUsername = (token.xUsername as string) || null;
+
+  if (isFreeSubscriptionAllowlisted({ xId: tokenXId, xUsername: tokenUsername })) {
+    return NextResponse.json({
+      subscribed: true,
+      tier: "helper_free",
+      tierName: "Helper Free Access",
+      since: null,
+      source: "allowlist",
+    });
+  }
+
   const storeId = req.nextUrl.searchParams.get("storeId");
-  const buyerXId = (token.xId as string) || (token.xUsername as string) || "";
+  const buyerXId = tokenXId || tokenUsername || "";
 
   if (!storeId || !buyerXId) {
     return NextResponse.json({ subscribed: false });

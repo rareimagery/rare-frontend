@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCreatorStoreBySlug } from '@/lib/drupal';
 import { StripeProvider, XMoneyProvider } from '@/lib/payments';
+import { isFreeSubscriptionAllowlisted } from '@/lib/subscription-allowlist';
 
 type CreateSubscriptionInput = {
   creatorHandle: string;
@@ -62,9 +63,25 @@ export async function createSubscription({
 
   const sessionMeta = session as typeof session & {
     xId?: string | null;
+    xUsername?: string | null;
   };
 
   const baseUrl = process.env.NEXTAUTH_URL || 'https://rareimagery.net';
+
+  // Helpers/testers can receive free subscription access without payment checkout.
+  // This only affects subscription gating, not merch/product purchase charges.
+  if (
+    isFreeSubscriptionAllowlisted({
+      xId: sessionMeta.xId || null,
+      xUsername: sessionMeta.xUsername || null,
+    })
+  ) {
+    return {
+      success: true,
+      link: `${baseUrl}/stores/${handle}?subscribed=true&provider=free-helper`,
+      provider,
+    };
+  }
 
   try {
     const intent = await chosenProvider.createSubscription({

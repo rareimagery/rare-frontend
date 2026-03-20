@@ -3,13 +3,14 @@ import { getToken } from "next-auth/jwt";
 import { checkRequiredPaidSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import {
-  syncXDataToDrupal,
   fetchXData,
   patchProfile,
   findProfileByUsername,
+  uploadImageToDrupal,
   createImportSnapshot,
   updateImportSnapshot,
 } from "@/lib/x-import";
+import type { XImportData } from "@/lib/x-import";
 import { generateCreatorSite } from "@/lib/ai/generate-site";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import { ensureStoreSubdomainDns } from "@/lib/cloudflare";
@@ -30,29 +31,40 @@ async function profileExists(username: string): Promise<string | null> {
 
 async function createProfile(
   username: string,
-  xId: string
+  xId: string,
+  xData?: XImportData
 ): Promise<{ id: string }> {
   const writeHeaders = await drupalWriteHeaders();
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile`,
-    {
-      method: "POST",
-      headers: {
-        ...writeHeaders,
-        "Content-Type": "application/vnd.api+json",
-      },
-      body: JSON.stringify({
-        data: {
-          type: "node--creator_x_profile",
-          attributes: {
-            title: `${username} X Profile`,
-            field_x_username: username,
-            field_store_theme: "xai3",
-          },
-        },
-      }),
+
+  const attributes: Record<string, any> = {
+    title: `${username} X Profile`,
+    field_x_username: username,
+    field_store_theme: "xai3",
+  };
+
+  if (xData) {
+    if (xData.bio) {
+      attributes.field_bio_description = { value: xData.bio, format: "basic_html" };
     }
-  );
+    if (xData.followerCount) {
+      attributes.field_follower_count = xData.followerCount;
+    }
+    if (xData.topPosts.length) {
+      attributes.field_top_posts = xData.topPosts.map((p) => JSON.stringify(p));
+    }
+    if (xData.topFollowers.length) {
+      attributes.field_top_followers = xData.topFollowers.map((f) => JSON.stringify(f));
+    }
+    attributes.field_metrics = JSON.stringify(xData.metrics);
+  }
+
+  const res = await fetch(`${DRUPAL_API}/jsonapi/node/creator_x_profile`, {
+    method: "POST",
+    headers: { ...writeHeaders, "Content-Type": "application/vnd.api+json" },
+    body: JSON.stringify({
+      data: { type: "node--creator_x_profile", attributes },
+    }),
+  });
 
   if (!res.ok) {
     const text = await res.text();
@@ -160,53 +172,96 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const profile = await createProfile(xUsername, xId);
+    // Stage-first: fetch X data before writing any Drupal entities.
+    // Non-fatal — if X API is unavailable we create a minimal profile.
+    let xData: XImportData | undefined;
+    if (xAccessToken) {
+      try {
+        xData = await fetchXData(xAccessToken, xId);
+        // Store the staged X data in the snapshot payload
+        if (snapshotUuid) {
+          await updateImportSnapshot(snapshotUuid, {
+            payload: {
+              username: xData.username,
+              followerCount: xData.followerCount,
+              postsCount: xData.topPosts.length,
+              bio: xData.bio,
+              staged: true,
+            },
+          });
+        }
+      } catch (err: any) {
+        console.warn(
+          `[provision] X data prefetch failed for @${xUsername} — creating minimal profile:`,
+          err.message
+        );
+      }
+    }
+
+    // Create profile node, pre-populated with staged X data when available
+    const profile = await createProfile(xUsername, xId, xData);
     await provisionStoreDns(xUsername);
 
     if (snapshotUuid) {
       await updateImportSnapshot(snapshotUuid, {
         status: "success",
         profileUuid: profile.id,
+        ...(xData && {
+          payload: {
+            username: xData.username,
+            followerCount: xData.followerCount,
+            postsImported: xData.topPosts.length,
+            topFollowersImported: xData.topFollowers.length,
+            engagementScore: xData.metrics.engagement_score,
+            verified: xData.verified,
+          },
+        }),
       });
     }
 
-    // Auto-sync X data to the newly created profile
-    if (xAccessToken) {
-      syncXDataToDrupal(xAccessToken, xId, xUsername).catch((err) =>
-        console.error(`[provision] X data sync failed for @${xUsername}:`, err)
-      );
+    // Async: upload profile images (non-blocking)
+    if (xData) {
+      const profileId = profile.id;
+      if (xData.profileImageUrl) {
+        uploadImageToDrupal(xData.profileImageUrl, profileId, "field_profile_picture", `${xUsername}-pfp`)
+          .catch((e) => console.error(`[provision] pfp upload failed:`, e));
+      }
+      if (xData.bannerUrl) {
+        uploadImageToDrupal(xData.bannerUrl, profileId, "field_background_banner", `${xUsername}-banner`)
+          .catch((e) => console.error(`[provision] banner upload failed:`, e));
+      }
     }
 
-    // Auto-generate site via dual-AI pipeline (Grok → Haiku) — non-blocking
-    (async () => {
-      try {
-        const xData = await fetchXData(xAccessToken, xId);
-        const result = await generateCreatorSite(xData);
-
-        const profileNode = await findProfileByUsername(xUsername);
-        if (profileNode) {
-          // Apply Grok's theme recommendation and rewritten bio
-          await patchProfile(profileNode.uuid, {
-            field_store_theme: result.grokAnalysis.suggestedThemePreset || "xai3",
-            field_bio_description: {
-              value: result.grokAnalysis.rewrittenBio,
-              format: "basic_html",
-            },
-            field_metrics: JSON.stringify({
-              ai_site: {
-                version: 1,
-                generatedAt: result.generatedAt,
-                grokAnalysis: result.grokAnalysis,
-                components: result.components,
+    // Async: AI site generation using already-fetched xData — non-blocking
+    if (xData) {
+      const stagedXData = xData;
+      (async () => {
+        try {
+          const result = await generateCreatorSite(stagedXData);
+          const profileNode = await findProfileByUsername(xUsername);
+          if (profileNode) {
+            await patchProfile(profileNode.uuid, {
+              field_store_theme: result.grokAnalysis.suggestedThemePreset || "xai3",
+              field_bio_description: {
+                value: result.grokAnalysis.rewrittenBio,
+                format: "basic_html",
               },
-            }),
-          });
-          console.log(`[provision] AI site generated for @${xUsername}`);
+              field_metrics: JSON.stringify({
+                ai_site: {
+                  version: 1,
+                  generatedAt: result.generatedAt,
+                  grokAnalysis: result.grokAnalysis,
+                  components: result.components,
+                },
+              }),
+            });
+            console.log(`[provision] AI site generated for @${xUsername}`);
+          }
+        } catch (err) {
+          console.error(`[provision] AI site generation failed for @${xUsername}:`, err);
         }
-      } catch (err) {
-        console.error(`[provision] AI site generation failed for @${xUsername}:`, err);
-      }
-    })();
+      })();
+    }
 
     return NextResponse.json({
       success: true,

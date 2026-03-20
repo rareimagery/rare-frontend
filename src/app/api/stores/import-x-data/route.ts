@@ -7,6 +7,7 @@ import {
   uploadImageToDrupal,
   createImportSnapshot,
   updateImportSnapshot,
+  findLatestSnapshot,
 } from "@/lib/x-import";
 import { randomUUID } from "crypto";
 
@@ -35,7 +36,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. Find the creator profile node in Drupal
+  // 2. Idempotency: reject if an import is already in-flight for this account
+  const pendingSnapshot = await findLatestSnapshot(xUsername, "pending");
+  if (pendingSnapshot) {
+    return NextResponse.json(
+      { error: "An X data import is already in progress for this account. Please wait and try again." },
+      { status: 409 }
+    );
+  }
+
+  // 3. Find the creator profile node in Drupal
   const profile = await findProfileByUsername(xUsername);
   const importRunId = randomUUID();
   const snapshotUuid = await createImportSnapshot({
@@ -62,7 +72,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3. Fetch data from X API
+  // 4. Fetch data from X API
   let xData;
   try {
     xData = await fetchXData(xAccessToken, xId);
@@ -80,7 +90,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 4. Build Drupal PATCH payload
+  // 5. Build Drupal PATCH payload
   const topPostsJson = xData.topPosts.map((p) => JSON.stringify(p));
   const topFollowersJson = xData.topFollowers.map((f) => JSON.stringify(f));
   const metricsJson = JSON.stringify(xData.metrics);
@@ -96,7 +106,7 @@ export async function POST(req: NextRequest) {
     field_metrics: metricsJson,
   };
 
-  // 5. PATCH the Drupal node (text fields)
+  // 6. PATCH the Drupal node (text fields)
   try {
     await patchProfile(profile.uuid, attributes);
   } catch (err: any) {
@@ -113,7 +123,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6. Upload profile picture and banner to Drupal
+  // 7. Upload profile picture and banner to Drupal
   let pfpUploaded = false;
   let bannerUploaded = false;
 
@@ -152,7 +162,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 7. Return summary
+  // 8. Return summary
   return NextResponse.json({
     success: true,
     profileId: profile.uuid,

@@ -464,6 +464,34 @@ export async function updateImportSnapshot(
   }
 }
 
+/**
+ * Look up the most recent import snapshot for a given username.
+ * Optionally filter to a specific status. Returns null if none found or on error.
+ */
+export async function findLatestSnapshot(
+  xUsername: string,
+  status?: XImportSnapshotStatus
+): Promise<{ uuid: string; runId: string | null; status: XImportSnapshotStatus } | null> {
+  try {
+    let url = `${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot?filter[field_x_import_username]=${encodeURIComponent(xUsername)}&sort=-changed&page[limit]=1`;
+    if (status) {
+      url += `&filter[field_x_import_status]=${encodeURIComponent(status)}`;
+    }
+    const res = await fetch(url, { headers: { ...drupalAuthHeaders() } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.data?.length) return null;
+    const node = json.data[0];
+    return {
+      uuid: node.id,
+      runId: node.attributes?.field_x_import_run_id ?? null,
+      status: node.attributes?.field_x_import_status as XImportSnapshotStatus,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function uploadImageToDrupal(
   imageUrl: string,
   nodeUuid: string,

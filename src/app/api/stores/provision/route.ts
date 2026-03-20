@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkRequiredPaidSubscription } from "@/lib/x-subscription";
 import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
-import { syncXDataToDrupal, fetchXData, patchProfile, findProfileByUsername } from "@/lib/x-import";
+import {
+  syncXDataToDrupal,
+  fetchXData,
+  patchProfile,
+  findProfileByUsername,
+  createImportSnapshot,
+  updateImportSnapshot,
+} from "@/lib/x-import";
 import { generateCreatorSite } from "@/lib/ai/generate-site";
 import { createRateLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import { ensureStoreSubdomainDns } from "@/lib/cloudflare";
+import { randomUUID } from "crypto";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
@@ -94,6 +102,13 @@ export async function POST(req: NextRequest) {
   const xUsername = token.xUsername as string;
   const xId = token.xId as string;
   const xAccessToken = token.xAccessToken as string;
+  const importRunId = randomUUID();
+  const snapshotUuid = await createImportSnapshot({
+    xUsername,
+    xUserId: xId,
+    runId: importRunId,
+    status: "pending",
+  });
 
   if (!xUsername || !xId) {
     return NextResponse.json(
@@ -106,6 +121,12 @@ export async function POST(req: NextRequest) {
   const existingId = await profileExists(xUsername);
   if (existingId) {
     await provisionStoreDns(xUsername);
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "success",
+        profileUuid: existingId,
+      });
+    }
     return NextResponse.json({
       success: true,
       profileId: existingId,
@@ -120,6 +141,14 @@ export async function POST(req: NextRequest) {
       buyerUsername: xUsername,
     });
     if (!subscribed) {
+      if (snapshotUuid) {
+        await updateImportSnapshot(snapshotUuid, {
+          status: "failed",
+          errorMessage:
+            error ||
+            "An active paid X subscription is required to create your RareImagery account.",
+        });
+      }
       return NextResponse.json(
         {
           error: error || "An active paid X subscription is required to create your RareImagery account.",
@@ -133,6 +162,13 @@ export async function POST(req: NextRequest) {
   try {
     const profile = await createProfile(xUsername, xId);
     await provisionStoreDns(xUsername);
+
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "success",
+        profileUuid: profile.id,
+      });
+    }
 
     // Auto-sync X data to the newly created profile
     if (xAccessToken) {
@@ -179,6 +215,12 @@ export async function POST(req: NextRequest) {
       url: `https://${xUsername}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
     });
   } catch (err: any) {
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "failed",
+        errorMessage: err?.message || "Provision failed",
+      });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

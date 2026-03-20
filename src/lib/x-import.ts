@@ -53,6 +53,19 @@ export interface XImportData {
   };
 }
 
+export type XImportSnapshotStatus = "pending" | "success" | "failed";
+
+export interface XImportSnapshotInput {
+  xUsername: string;
+  xUserId?: string;
+  runId: string;
+  status: XImportSnapshotStatus;
+  payload?: unknown;
+  errorMessage?: string;
+  profileUuid?: string;
+  storeUuid?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -369,6 +382,85 @@ export async function patchProfile(
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Drupal PATCH failed (${res.status}): ${text}`);
+  }
+}
+
+export async function createImportSnapshot(input: XImportSnapshotInput): Promise<string | null> {
+  try {
+    const writeHeaders = await drupalWriteHeaders();
+    const payload =
+      input.payload !== undefined
+        ? JSON.stringify(input.payload)
+        : null;
+
+    const res = await fetch(`${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot`, {
+      method: "POST",
+      headers: {
+        ...writeHeaders,
+        "Content-Type": "application/vnd.api+json",
+      },
+      body: JSON.stringify({
+        data: {
+          type: "node--x_import_profile_snapshot",
+          attributes: {
+            title: `X Import @${input.xUsername} (${input.runId.slice(0, 8)})`,
+            field_x_import_status: input.status,
+            field_x_import_username: input.xUsername,
+            field_x_import_user_id: input.xUserId || "",
+            field_x_import_run_id: input.runId,
+            field_x_import_payload: payload || "",
+            field_x_import_error: input.errorMessage || "",
+            field_x_import_profile_uuid: input.profileUuid || "",
+            field_x_import_store_uuid: input.storeUuid || "",
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const json = await res.json();
+    return json?.data?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateImportSnapshot(
+  snapshotUuid: string,
+  input: Partial<XImportSnapshotInput>
+): Promise<void> {
+  try {
+    const writeHeaders = await drupalWriteHeaders();
+    const attributes: Record<string, unknown> = {};
+
+    if (input.status) attributes.field_x_import_status = input.status;
+    if (input.xUsername !== undefined) attributes.field_x_import_username = input.xUsername;
+    if (input.xUserId !== undefined) attributes.field_x_import_user_id = input.xUserId;
+    if (input.runId !== undefined) attributes.field_x_import_run_id = input.runId;
+    if (input.payload !== undefined) attributes.field_x_import_payload = JSON.stringify(input.payload);
+    if (input.errorMessage !== undefined) attributes.field_x_import_error = input.errorMessage;
+    if (input.profileUuid !== undefined) attributes.field_x_import_profile_uuid = input.profileUuid;
+    if (input.storeUuid !== undefined) attributes.field_x_import_store_uuid = input.storeUuid;
+
+    await fetch(`${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot/${snapshotUuid}`, {
+      method: "PATCH",
+      headers: {
+        ...writeHeaders,
+        "Content-Type": "application/vnd.api+json",
+      },
+      body: JSON.stringify({
+        data: {
+          type: "node--x_import_profile_snapshot",
+          id: snapshotUuid,
+          attributes,
+        },
+      }),
+    });
+  } catch {
+    // Non-blocking telemetry path.
   }
 }
 

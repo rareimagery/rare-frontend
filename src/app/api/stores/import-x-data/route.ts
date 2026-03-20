@@ -5,7 +5,10 @@ import {
   findProfileByUsername,
   patchProfile,
   uploadImageToDrupal,
+  createImportSnapshot,
+  updateImportSnapshot,
 } from "@/lib/x-import";
+import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
 // POST /api/stores/import-x-data
@@ -34,7 +37,22 @@ export async function POST(req: NextRequest) {
 
   // 2. Find the creator profile node in Drupal
   const profile = await findProfileByUsername(xUsername);
+  const importRunId = randomUUID();
+  const snapshotUuid = await createImportSnapshot({
+    xUsername,
+    xUserId: xId,
+    runId: importRunId,
+    status: "pending",
+    profileUuid: profile?.uuid,
+  });
+
   if (!profile) {
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "failed",
+        errorMessage: "No Creator X Profile found for this account.",
+      });
+    }
     return NextResponse.json(
       {
         error:
@@ -50,6 +68,12 @@ export async function POST(req: NextRequest) {
     xData = await fetchXData(xAccessToken, xId);
   } catch (err: any) {
     console.error("X data import failed:", err);
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "failed",
+        errorMessage: err.message,
+      });
+    }
     return NextResponse.json(
       { error: `Failed to fetch X data: ${err.message}` },
       { status: 502 }
@@ -77,6 +101,12 @@ export async function POST(req: NextRequest) {
     await patchProfile(profile.uuid, attributes);
   } catch (err: any) {
     console.error("Drupal PATCH failed:", err);
+    if (snapshotUuid) {
+      await updateImportSnapshot(snapshotUuid, {
+        status: "failed",
+        errorMessage: err.message,
+      });
+    }
     return NextResponse.json(
       { error: `Failed to save to Drupal: ${err.message}` },
       { status: 500 }
@@ -105,6 +135,21 @@ export async function POST(req: NextRequest) {
       `${xUsername}-banner`
     );
     bannerUploaded = bannerId !== null;
+  }
+
+  if (snapshotUuid) {
+    await updateImportSnapshot(snapshotUuid, {
+      status: "success",
+      profileUuid: profile.uuid,
+      payload: {
+        username: xData.username,
+        followerCount: xData.followerCount,
+        postsImported: xData.topPosts.length,
+        topFollowersImported: xData.topFollowers.length,
+        engagementScore: xData.metrics.engagement_score,
+        verified: xData.verified,
+      },
+    });
   }
 
   // 7. Return summary

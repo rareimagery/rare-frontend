@@ -3,6 +3,7 @@ export type PreviewProduct = {
   title: string;
   price: number;
   image?: string;
+  description?: string;
 };
 
 export type PreviewVideo = {
@@ -23,5 +24,6 @@ export type TemplatePreviewProps = {
   posts: PreviewPost[];
   handle: string;
   avatar?: string;
+  banner?: string;
   bio?: string;
 };

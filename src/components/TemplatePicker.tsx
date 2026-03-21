@@ -15,6 +15,8 @@ const templates = [
 type TemplateId = (typeof templates)[number]['id'];
 
 type CreateThemeResult = {
+  success?: boolean;
+  error?: string;
   builderUrl?: string;
 };
 
@@ -73,13 +75,25 @@ export default function TemplatePicker({
         : await (async () => {
             await updateTemplate(sellerHandle, selected);
             return {
+              success: true,
               builderUrl: `/builder/new-tab?handle=${encodeURIComponent(sellerHandle)}&template=${encodeURIComponent(selected)}`,
             } satisfies CreateThemeResult;
           })();
 
       const builderUrl =
+        result?.success === false
+          ? null
+          :
         result?.builderUrl ||
         `/builder/new-tab?handle=${encodeURIComponent(sellerHandle)}&template=${encodeURIComponent(selected)}`;
+
+      if (result?.success === false) {
+        throw new Error(result.error || 'Could not create your theme. Please try again.');
+      }
+
+      if (!builderUrl) {
+        throw new Error('Could not create your theme. Please try again.');
+      }
 
       if (pendingTab) {
         pendingTab.location.href = builderUrl;

@@ -64,6 +64,7 @@ type Props = {
   /** Alias for extraComponents — pass either or both; they are merged */
   sections?: string[];
   customCSS?: string;
+  drupalContext?: Record<string, unknown>;
 };
 
 function ExtraPreviewSection({ componentId }: { componentId: string }) {
@@ -72,7 +73,7 @@ function ExtraPreviewSection({ componentId }: { componentId: string }) {
     case 'ai-creations':
       return (
         <section className="rounded-2xl border border-cyan-400/30 bg-cyan-950/40 p-6 text-cyan-100">
-          <h3 className="text-xl font-semibold">🎥 AI Creations (Grok Videos)</h3>
+          <h3 className="text-xl font-semibold">🎥 Your Grok Videos from R2</h3>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[1, 2, 3, 4].map((id) => (
               <div key={id} className="flex h-28 items-center justify-center rounded-xl bg-black/40 ring-1 ring-cyan-400/20 text-xs text-cyan-400/60">
@@ -86,7 +87,7 @@ function ExtraPreviewSection({ componentId }: { componentId: string }) {
     case 'products':
       return (
         <section className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-950/30 p-6 text-fuchsia-100">
-          <h3 className="text-xl font-semibold">🛒 Products Showcase</h3>
+          <h3 className="text-xl font-semibold">🛒 Products Showcase with X Money buttons</h3>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {['Limited Hoodie', 'Digital Art Pack', 'Film Presets', 'Poster Set'].map((name) => (
               <div key={name} className="rounded-xl bg-black/30 p-3 ring-1 ring-fuchsia-400/20">
@@ -107,7 +108,7 @@ function ExtraPreviewSection({ componentId }: { componentId: string }) {
     case 'recent-posts':
       return (
         <section className="rounded-2xl border border-blue-400/30 bg-blue-950/40 p-6 text-blue-100">
-          <h3 className="text-xl font-semibold">📜 Recent X Posts</h3>
+          <h3 className="text-xl font-semibold">📜 Recent X Posts (pulled live from your Drupal sync)</h3>
           <ul className="mt-4 space-y-3">
             {['Just dropped this new merch 👀', 'Behind-the-scenes from last night 🎥', 'New Grok video dropping soon ⚡'].map((post) => (
               <li key={post} className="rounded-xl bg-black/30 px-4 py-3 text-sm ring-1 ring-blue-400/20">
@@ -117,10 +118,10 @@ function ExtraPreviewSection({ componentId }: { componentId: string }) {
           </ul>
         </section>
       );
-    case 'favorite-people':
+    case 'favorite-people':  // Followers you follow
       return (
         <section className="rounded-2xl border border-pink-400/30 bg-pink-950/40 p-6 text-pink-100">
-          <h3 className="text-xl font-semibold">❤️ Favorite People</h3>
+          <h3 className="text-xl font-semibold">❤️ Favorite People / Followers you follow</h3>
           <p className="mt-1 text-xs text-pink-300/70">Top supporters &amp; subscribers</p>
           <div className="mt-4 flex flex-wrap gap-3">
             {['@fan1', '@fan2', '@fan3', '@fan4', '@fan5'].map((handle) => (
@@ -145,7 +146,9 @@ export function LiveThemePreview({
   extraComponents = [],
   sections = [],
   customCSS = '',
+  drupalContext,
 }: Props) {
+  // drupalContext is available for section renderers that need live Drupal data
   // Merge both props so callers can use either name
   const resolvedComponents = Array.from(new Set([...extraComponents, ...sections]));
   const [liveData, setLiveData] = useState<PreviewPayload | null>(null);

@@ -83,6 +83,7 @@ export default function CreatorStudio({ params }: { params: Promise<{ handle: st
             sections={sections}
             customCSS={customCSS}
             avatar={(drupalContext as Record<string, unknown>)?.avatar as string | undefined}
+            drupalContext={drupalContext as Record<string, unknown> | undefined}
           />
 
           {/* Active sections list — click × to remove */}

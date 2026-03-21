@@ -5,23 +5,36 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import LiveThemePreview from '@/components/LiveThemePreview';
 import SubscribeButton from '@/components/SubscribeButton';
+import { AIBubble } from '@/components/AIBubble';
+import { fetchDrupalDataForCreator } from '@/app/actions/drupalContext';
 import { savePlaygroundDraft, publishSite } from '@/app/actions/playground';
 
 type TemplateId = 'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank';
 
-const COMPONENT_OPTIONS = [
-  { id: 'grok-grid', label: 'Grok Video Grid' },
-  { id: 'product-showcase', label: 'Product Showcase' },
-  { id: 'subscriber-hero', label: 'Big $4 Subscriber CTA' },
+type PreviewState = {
+  templateId: TemplateId;
+  extraComponents: string[];
+  customCSS: string;
+};
+
+const QUICK_BUILD_IDEAS: Array<{ label: string; id: TemplateId }> = [
+  { label: 'AI Video Store (Grok-first)', id: 'ai-video-store' },
+  { label: 'Modern Shopping Cart + Subs', id: 'modern-cart' },
+  { label: 'Retro Memories Feed', id: 'retro' },
+  { label: 'Latest X Posts + $4 CTA', id: 'latest-posts' },
+  { label: 'Blank Canvas (AI will fill)', id: 'blank' },
 ];
 
 export default function PlaygroundPage() {
   const params = useParams<{ handle: string }>();
   const handle = useMemo(() => (params?.handle || '').replace(/^@+/, ''), [params?.handle]);
 
-  const [templateId, setTemplateId] = useState<TemplateId>('blank');
-  const [customCSS, setCustomCSS] = useState('');
-  const [addedComponents, setAddedComponents] = useState<string[]>([]);
+  const [previewData, setPreviewData] = useState<PreviewState>({
+    templateId: 'blank',
+    extraComponents: [],
+    customCSS: '',
+  });
+  const [drupalContext, setDrupalContext] = useState<unknown>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState('');
@@ -29,10 +42,30 @@ export default function PlaygroundPage() {
   useEffect(() => {
     if (!handle) return;
 
+    let active = true;
+    (async () => {
+      try {
+        const data = await fetchDrupalDataForCreator(handle);
+        if (!active) return;
+        setDrupalContext(data);
+      } catch {
+        if (!active) return;
+        setDrupalContext(null);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [handle]);
+
+  useEffect(() => {
+    if (!handle) return;
+
     const timer = setTimeout(async () => {
       try {
         setSavingDraft(true);
-        await savePlaygroundDraft(handle, templateId, customCSS, addedComponents);
+        await savePlaygroundDraft(handle, previewData.templateId, previewData.customCSS, previewData.extraComponents);
         setStatus('Draft auto-saved.');
       } catch {
         setStatus('Could not auto-save draft.');
@@ -42,10 +75,14 @@ export default function PlaygroundPage() {
     }, 900);
 
     return () => clearTimeout(timer);
-  }, [addedComponents, customCSS, handle, templateId]);
+  }, [handle, previewData]);
 
-  const addComponent = (componentId: string) => {
-    setAddedComponents((prev) => [...prev, componentId]);
+  const addFromTemplate = (templateId: TemplateId) => {
+    setPreviewData((prev) => ({
+      ...prev,
+      templateId,
+      extraComponents: Array.from(new Set([...prev.extraComponents, 'subscriber-hero'])),
+    }));
   };
 
   const handlePublish = async () => {
@@ -54,7 +91,7 @@ export default function PlaygroundPage() {
     try {
       setPublishing(true);
       setStatus('');
-      await publishSite(handle, templateId, customCSS, addedComponents);
+      await publishSite(handle, previewData.templateId, previewData.customCSS, previewData.extraComponents);
       window.alert(`Site published to rareimagery.net/shop/${handle}.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Publish failed.';
@@ -65,74 +102,70 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100">
-      <div className="w-80 overflow-auto border-r border-zinc-800 p-6">
-        <h2 className="mb-6 text-2xl font-bold">Playground - @{handle || 'creator'}</h2>
-
-        <div className="mb-8">
-          <p className="mb-3 text-sm text-gray-400">Base Template</p>
-          <select
-            value={templateId}
-            onChange={(event) => setTemplateId(event.target.value as TemplateId)}
-            className="w-full rounded-xl bg-zinc-900 p-3"
-          >
-            <option value="retro">Retro Memories</option>
-            <option value="modern-cart">Modern Cart</option>
-            <option value="ai-video-store">AI Video Store</option>
-            <option value="latest-posts">Latest Posts</option>
-            <option value="blank">Blank Canvas (free build)</option>
-          </select>
-        </div>
-
-        <div className="mb-8">
-          <p className="mb-3 text-sm text-gray-400">Add Sections</p>
-          {COMPONENT_OPTIONS.map((component) => (
+    <div className="relative flex h-screen overflow-hidden bg-zinc-950">
+      <div className="w-80 overflow-auto border-r border-zinc-800 bg-zinc-900 p-6 text-zinc-100">
+        <h2 className="mb-6 text-2xl font-bold">Quick Build Ideas</h2>
+        <div className="space-y-4">
+          {QUICK_BUILD_IDEAS.map((item) => (
             <Button
-              key={component.id}
+              key={item.id}
               variant="outline"
-              className="mb-2 w-full justify-start"
-              onClick={() => addComponent(component.id)}
+              className="h-auto w-full justify-start py-6 text-left"
+              onClick={() => addFromTemplate(item.id)}
             >
-              + {component.label}
+              <div>
+                <div className="font-semibold">{item.label}</div>
+                <div className="text-xs text-gray-400">Auto-adds subscriber CTA + your live context</div>
+              </div>
             </Button>
           ))}
         </div>
 
-        <div>
-          <p className="mb-2 text-sm text-gray-400">Custom CSS (advanced)</p>
-          <textarea
-            value={customCSS}
-            onChange={(event) => setCustomCSS(event.target.value)}
-            className="h-40 w-full rounded-xl bg-zinc-900 p-4 font-mono text-sm"
-            placeholder="body { background: linear-gradient(...); }"
-          />
+        <div className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 text-xs text-zinc-400">
+          {savingDraft ? 'Saving draft...' : status || 'AI Studio ready.'}
         </div>
 
         <Button
           onClick={() => void handlePublish()}
-          className="mt-8 w-full bg-green-500 py-8 text-xl text-black hover:bg-green-400"
+          className="mt-4 w-full bg-green-500 py-4 text-base text-black hover:bg-green-400"
           disabled={publishing || !handle}
         >
-          {publishing ? 'Publishing...' : 'Publish to My Shop + Enable Subscribers'}
+          {publishing ? 'Publishing...' : 'Publish to My Shop'}
         </Button>
-
-        <p className="mt-3 text-xs text-zinc-400">{savingDraft ? 'Saving draft...' : status}</p>
       </div>
 
-      <div className="flex-1 overflow-auto bg-white/5 p-8">
-        <div className="border-b border-zinc-800 bg-black p-4 text-center text-xs text-gray-400">
-          LIVE PREVIEW - rareimagery.net/shop/@{handle}
-        </div>
-        <LiveThemePreview
-          templateId={templateId}
-          handle={handle}
-          extraComponents={addedComponents}
-          customCSS={customCSS}
-        />
-        <div className="mt-8 text-center">
-          <SubscribeButton creatorHandle={handle} />
+      <div className="flex flex-1 items-center justify-center overflow-auto bg-zinc-950 p-8">
+        <div className="relative w-full max-w-[420px] overflow-hidden rounded-3xl border border-zinc-800 bg-white shadow-2xl">
+          <div className="flex h-12 items-center bg-black px-4 text-xs text-white">
+            rareimagery.net/@{handle || 'creator'}
+          </div>
+
+          <LiveThemePreview
+            templateId={previewData.templateId}
+            handle={handle}
+            extraComponents={previewData.extraComponents}
+            customCSS={previewData.customCSS}
+            avatar={(drupalContext as any)?.avatar}
+          />
+
+          <div className="border-t bg-zinc-50 p-6">
+            <SubscribeButton creatorHandle={handle} />
+          </div>
         </div>
       </div>
+
+      <AIBubble
+        handle={handle}
+        drupalContext={drupalContext}
+        onSuggestion={(newCSS, newComponents) => {
+          setPreviewData((prev) => ({
+            ...prev,
+            customCSS: newCSS || prev.customCSS,
+            extraComponents: Array.from(new Set([...prev.extraComponents, ...(newComponents || [])])),
+          }));
+          setStatus('Applied AI suggestion.');
+        }}
+      />
     </div>
   );
 }

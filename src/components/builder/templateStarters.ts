@@ -8,6 +8,13 @@ export type PreviewProduct = {
   description?: string;
 };
 
+export type ProductCardPayload = {
+  id: string;
+  title: string;
+  price: number;
+  image?: string;
+};
+
 export type PreviewPost = {
   id: string;
   text: string;
@@ -25,6 +32,8 @@ export type TemplatePreviewPayload = {
 export type StarterInput = {
   handle: string;
   bio: string;
+  avatar?: string | null;
+  banner?: string | null;
   products: PreviewProduct[];
   posts: PreviewPost[];
 };
@@ -53,6 +62,15 @@ function leadPost(posts: PreviewPost[]): string {
   return posts[0]?.text || "Latest updates and curated drops for your audience.";
 }
 
+function productCards(products: PreviewProduct[]): ProductCardPayload[] {
+  return products.slice(0, 3).map((product) => ({
+    id: product.id,
+    title: product.title,
+    price: product.price,
+    image: product.image,
+  }));
+}
+
 export const TEMPLATE_STARTERS: TemplateStarter[] = [
   {
     id: "blank",
@@ -64,7 +82,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     id: "modern-store",
     name: "Modern Storefront",
     description: "Balanced hero, product grid, and support section.",
-    createData: ({ handle, bio, products }) => ({
+    createData: ({ handle, bio, products, avatar, banner }) => ({
       content: [
         {
           type: "Hero",
@@ -72,6 +90,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `@${handle} Store`,
             subtitle: bio || "Products, drops, and creator support in one place.",
             ctaLabel: "Shop New Drop",
+            avatarUrl: avatar || undefined,
+            bannerUrl: banner || undefined,
           },
         },
         {
@@ -79,6 +99,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           props: {
             heading: "Featured Collection",
             subheading: `Now featuring ${topProducts(products)}.`,
+            productCards: productCards(products),
           },
         },
         {
@@ -96,7 +117,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     id: "product-drop",
     name: "Product Drop",
     description: "High-conversion launch page focused on fast purchasing.",
-    createData: ({ handle, products }) => ({
+    createData: ({ handle, products, avatar, banner }) => ({
       content: [
         {
           type: "Hero",
@@ -104,6 +125,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `${handle} Limited Drop`,
             subtitle: "Limited inventory. Premium quality. Instant checkout.",
             ctaLabel: "Claim the Drop",
+            avatarUrl: avatar || undefined,
+            bannerUrl: banner || undefined,
           },
         },
         {
@@ -113,6 +136,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subheading: products.length
               ? `Top picks: ${topProducts(products)}`
               : "Add products to show limited drop inventory.",
+            productCards: productCards(products),
           },
         },
       ],
@@ -123,7 +147,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     id: "content-commerce",
     name: "Content + Commerce",
     description: "Posts-first layout that funnels readers into product purchases.",
-    createData: ({ handle, posts, products }) => ({
+    createData: ({ handle, posts, products, avatar, banner }) => ({
       content: [
         {
           type: "Hero",
@@ -131,6 +155,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `@${handle} Updates`,
             subtitle: leadPost(posts),
             ctaLabel: "Read Latest",
+            avatarUrl: avatar || undefined,
+            bannerUrl: banner || undefined,
           },
         },
         {
@@ -146,6 +172,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subheading: products.length
               ? `Shoppable picks: ${topProducts(products)}`
               : "Attach products to convert post traffic.",
+            productCards: productCards(products),
           },
         },
       ],
@@ -156,7 +183,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     id: "subscriber-funnel",
     name: "Subscriber Funnel",
     description: "Support-first layout for memberships and recurring revenue.",
-    createData: ({ handle, bio }) => ({
+    createData: ({ handle, bio, avatar, banner, products }) => ({
       content: [
         {
           type: "Hero",
@@ -165,6 +192,18 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subtitle:
               bio || "Unlock premium content, private drops, and behind-the-scenes access.",
             ctaLabel: "Join Membership",
+            avatarUrl: avatar || undefined,
+            bannerUrl: banner || undefined,
+          },
+        },
+        {
+          type: "ProductGrid",
+          props: {
+            heading: "Member Picks",
+            subheading: products.length
+              ? `Featured products: ${topProducts(products)}`
+              : "Add products to populate member picks.",
+            productCards: productCards(products),
           },
         },
         {

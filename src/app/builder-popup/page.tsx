@@ -30,22 +30,44 @@ const puckConfig: Config = {
         title: { type: "text" },
         subtitle: { type: "text" },
         ctaLabel: { type: "text" },
+        avatarUrl: { type: "text" },
+        bannerUrl: { type: "text" },
       },
       defaultProps: {
         title: "Creator Store",
         subtitle: "Products + Support in one place",
         ctaLabel: "Shop New Drop",
+        avatarUrl: "",
+        bannerUrl: "",
       },
       render: (props: unknown) => {
-        const { title, subtitle, ctaLabel } = (props || {}) as {
+        const { title, subtitle, ctaLabel, avatarUrl, bannerUrl } = (props || {}) as {
           title?: string;
           subtitle?: string;
           ctaLabel?: string;
+          avatarUrl?: string;
+          bannerUrl?: string;
         };
 
         return (
-          <div className="flex h-96 items-center justify-center bg-gradient-to-br from-indigo-700 via-violet-600 to-zinc-900 px-6 text-white">
+          <div
+            className="flex h-96 items-center justify-center px-6 text-white"
+            style={{
+              backgroundImage: bannerUrl
+                ? `linear-gradient(rgba(17,24,39,.55), rgba(17,24,39,.75)), url(${bannerUrl})`
+                : "linear-gradient(to bottom right, rgb(67 56 202), rgb(124 58 237), rgb(24 24 27))",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
             <div className="max-w-3xl text-center">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Creator avatar"
+                  className="mx-auto mb-4 h-16 w-16 rounded-full border-2 border-white/80 object-cover shadow-lg"
+                />
+              ) : null}
               <h1 className="text-5xl font-bold sm:text-6xl">{title || "Creator Store"}</h1>
               <p className="mt-4 text-xl sm:text-2xl">{subtitle || "Products + Support in one place"}</p>
               <button className="mt-8 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black hover:bg-zinc-100">
@@ -66,10 +88,19 @@ const puckConfig: Config = {
         subheading: "Ready to wear, signed drops, and exclusive edits.",
       },
       render: (props: unknown) => {
-        const { heading, subheading } = (props || {}) as {
+        const { heading, subheading, productCards } = (props || {}) as {
           heading?: string;
           subheading?: string;
+          productCards?: Array<{ id?: string; title?: string; price?: number; image?: string }>;
         };
+
+        const cards = Array.isArray(productCards) && productCards.length
+          ? productCards.slice(0, 3)
+          : [
+              { id: "drop-tee", title: "Drop Tee", price: 49 },
+              { id: "poster-pack", title: "Poster Pack", price: 49 },
+              { id: "limited-print", title: "Limited Print", price: 49 },
+            ];
 
         return (
           <section className="bg-zinc-900 p-8">
@@ -78,11 +109,15 @@ const puckConfig: Config = {
               {subheading || "Ready to wear, signed drops, and exclusive edits."}
             </p>
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-              {["Drop Tee", "Poster Pack", "Limited Print"].map((name) => (
-                <article key={name} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
-                  <div className="h-40 rounded-lg bg-zinc-700" />
-                  <p className="mt-4 text-sm font-medium text-zinc-100">{name}</p>
-                  <p className="text-xs text-zinc-400">$49.00</p>
+              {cards.map((card, index) => (
+                <article key={card.id || `card-${index}`} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
+                  {card.image ? (
+                    <img src={card.image} alt={card.title || "Product"} className="h-40 w-full rounded-lg object-cover" />
+                  ) : (
+                    <div className="h-40 rounded-lg bg-zinc-700" />
+                  )}
+                  <p className="mt-4 text-sm font-medium text-zinc-100">{card.title || "Untitled product"}</p>
+                  <p className="text-xs text-zinc-400">${Number(card.price ?? 49).toFixed(2)}</p>
                 </article>
               ))}
             </div>
@@ -303,6 +338,8 @@ function BuilderPopupInner() {
     const input = {
       handle: normalizedHandle,
       bio: previewPayload?.bio || "",
+      avatar: previewPayload?.avatar || pfp,
+      banner: previewPayload?.banner || banner,
       products: previewPayload?.products || [],
       posts: previewPayload?.posts || [],
     };

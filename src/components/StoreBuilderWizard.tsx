@@ -185,31 +185,43 @@ export default function StoreBuilderWizard({
         }),
       });
 
-      const data = await res.json();
+      const raw = await res.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
 
       if (!res.ok) {
-        if (data.storeLimitReached) {
+        if (data?.storeLimitReached) {
           setStoreLimitInfo({
             existingStoreCount: data.existingStoreCount,
             maxAllowedStores: data.maxAllowedStores,
           });
         }
-        setError(data.error || "Failed to create store");
+
+        const fallbackMessage = raw
+          ? `Store creation failed (${res.status}). ${raw.slice(0, 180)}`
+          : `Store creation failed (${res.status}).`;
+
+        setError(data?.error || fallbackMessage);
         setCreating(false);
         return;
       }
 
-      if (data.partial && data.warning) {
+      if (data?.partial && data?.warning) {
         setError(data.warning);
       }
 
-      setStoreId(data.storeId);
-      setStoreDrupalId(data.storeDrupalId || "");
-      setProfileNodeId(data.profileNodeId || "");
+      setStoreId(data?.storeId || null);
+      setStoreDrupalId(data?.storeDrupalId || "");
+      setProfileNodeId(data?.profileNodeId || "");
       clearDraft();  // Draft fulfilled — remove so retry doesn't loop
       setStep(2); // Jump to theme step
-    } catch {
-      setError("Network error — please try again");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Network error — please try again";
+      setError(message);
     }
     setCreating(false);
   }

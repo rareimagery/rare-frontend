@@ -31,32 +31,50 @@ function maxStoresPerOwner(): number {
 }
 
 async function getStoreCountForXUsername(xUsername: string): Promise<number> {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(xUsername)}&include=field_linked_store`,
-    { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
-  );
-  if (!res.ok) return 0;
+  try {
+    const res: Response = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(xUsername)}&include=field_linked_store`,
+      { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+    );
 
-  const json = await res.json();
-  const profiles = Array.isArray(json.data) ? json.data : [];
-
-  const uniqueStoreIds = new Set<string>();
-  for (const profile of profiles) {
-    const storeId = profile?.relationships?.field_linked_store?.data?.id;
-    if (typeof storeId === "string" && storeId.length > 0) {
-      uniqueStoreIds.add(storeId);
+    if (!res.ok) {
+      throw new Error(`Could not verify existing stores (${res.status}).`);
     }
+
+    const json = await res.json();
+    const profiles = Array.isArray(json.data) ? json.data : [];
+
+    const uniqueStoreIds = new Set<string>();
+    for (const profile of profiles) {
+      const storeId = profile?.relationships?.field_linked_store?.data?.id;
+      if (typeof storeId === "string" && storeId.length > 0) {
+        uniqueStoreIds.add(storeId);
+      }
+    }
+    return uniqueStoreIds.size;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not verify existing stores.";
+    throw new Error(message);
   }
-  return uniqueStoreIds.size;
 }
 
 async function isSlugTaken(slug: string): Promise<boolean> {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}`,
-    { headers: { ...drupalAuthHeaders() } }
-  );
-  const data = await res.json();
-  return (data?.data?.length ?? 0) > 0;
+  try {
+    const res: Response = await fetch(
+      `${DRUPAL_API}/jsonapi/commerce_store/online?filter[field_store_slug]=${slug}`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Could not validate subdomain availability (${res.status}).`);
+    }
+
+    const data = await res.json();
+    return (data?.data?.length ?? 0) > 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not validate subdomain availability.";
+    throw new Error(message);
+  }
 }
 
 async function createDrupalStore(
@@ -236,6 +254,13 @@ async function provisionStoreDns(slug: string) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!DRUPAL_API) {
+    return NextResponse.json(
+      { error: "Drupal API URL is not configured on the server." },
+      { status: 500 }
+    );
+  }
+
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -258,7 +283,11 @@ export async function POST(req: NextRequest) {
   const rl = storeCreateLimit(userId);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs);
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });
+  }
+
   const {
     storeName,
     slug,
@@ -287,7 +316,14 @@ export async function POST(req: NextRequest) {
   const normalizedSessionUser = normalizeHandle(sessionMeta.xUsername);
   const multiStoreEnabledForUser =
     multiStoreTestModeEnabled() && multiStoreAllowlist().includes(normalizedSessionUser);
-  const existingStoreCount = await getStoreCountForXUsername(normalizedSessionUser);
+  let existingStoreCount = 0;
+  try {
+    existingStoreCount = await getStoreCountForXUsername(normalizedSessionUser);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not verify store limits.";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+
   const maxAllowedStores = multiStoreEnabledForUser ? maxStoresPerOwner() : 1;
 
   if (existingStoreCount >= maxAllowedStores) {
@@ -320,7 +356,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (await isSlugTaken(slug)) {
+  let slugTaken = false;
+  try {
+    slugTaken = await isSlugTaken(slug);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not validate subdomain availability.";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+
+  if (slugTaken) {
     return NextResponse.json(
       { error: "That subdomain is already taken" },
       { status: 409 }

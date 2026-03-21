@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ConsoleSidebar from "@/components/ConsoleSidebar";
 import { useConsole } from "@/components/ConsoleContext";
+import SellerChatbot from "@/components/chatbot/SellerChatbot";
 
 function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/console/admin/subscribers")) return "X Subscribers";
@@ -157,6 +158,9 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
           })}
         </div>
       </nav>
+
+      {/* AI Storefront Chatbot — floating, console-only */}
+      <SellerChatbot />
     </div>
   );
 }

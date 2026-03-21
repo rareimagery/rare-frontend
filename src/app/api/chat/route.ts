@@ -79,9 +79,39 @@ const THEME_PROMPTS: Record<string, string> = {
 - Vibe: social media, familiar, content-first, conversation-threaded`,
 };
 
-function getSystemPrompt(theme: string): string {
+interface CreatorContext {
+  username?: string;
+  storeSlug?: string;
+  bio?: string;
+  followerCount?: number;
+  products?: Array<{ name: string; price?: string }>;
+  topPosts?: Array<{ title?: string; summary?: string }>;
+}
+
+function getSystemPrompt(theme: string, ctx?: CreatorContext): string {
   const themeBlock = THEME_PROMPTS[theme] || THEME_PROMPTS.xai3;
-  return `${BASE_RULES}\n\nStore theme: "${theme}"\n${themeBlock}`;
+  const base = `${BASE_RULES}\n\nStore theme: "${theme}"\n${themeBlock}`;
+
+  if (!ctx?.username) return base;
+
+  const lines: string[] = [
+    `\n\n--- Creator Context ---`,
+    `Creator: @${ctx.username}`,
+  ];
+  if (ctx.storeSlug) lines.push(`Store URL: https://rareimagery.net/stores/${ctx.storeSlug}`);
+  if (ctx.bio) lines.push(`Bio: ${ctx.bio}`);
+  if (ctx.followerCount) lines.push(`Audience: ${ctx.followerCount.toLocaleString()} followers`);
+  if (ctx.products?.length) {
+    lines.push(`Products: ${ctx.products.slice(0, 5).map((p) => `${p.name}${p.price ? ` ($${p.price})` : ""}`).join(", ")}`);
+  }
+  if (ctx.topPosts?.length) {
+    lines.push(`Top content: ${ctx.topPosts.slice(0, 3).map((p) => p.title ?? p.summary ?? "").join("; ")}`);
+  }
+  lines.push(
+    `Prioritize this creator's context — feature their products above the fold and reflect their brand voice.`,
+    `--- End Context ---`
+  );
+  return base + lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -115,12 +145,12 @@ export async function POST(req: NextRequest) {
   limit.count++;
   rateLimitMap.set(userId, limit);
 
-  const { message, theme } = await req.json();
+  const { message, theme, creatorContext } = await req.json();
   if (!message || typeof message !== "string") {
     return NextResponse.json({ error: "Invalid message" }, { status: 400 });
   }
 
-  const systemPrompt = getSystemPrompt(theme || "xai3");
+  const systemPrompt = getSystemPrompt(theme || "xai3", creatorContext as CreatorContext | undefined);
 
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {

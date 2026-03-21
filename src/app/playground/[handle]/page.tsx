@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import LiveThemePreview from '@/components/LiveThemePreview';
 import SubscribeButton from '@/components/SubscribeButton';
 import { AIBubble } from '@/components/AIBubble';
+import DraggableLibrary from '@/components/DraggableLibrary';
 import { fetchDrupalDataForCreator } from '@/app/actions/drupalContext';
 import { savePlaygroundDraft, publishSite } from '@/app/actions/playground';
 
@@ -38,6 +39,8 @@ export default function PlaygroundPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState('');
+  const [dropActive, setDropActive] = useState(false);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!handle) return;
@@ -54,9 +57,7 @@ export default function PlaygroundPage() {
       }
     })();
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [handle]);
 
   useEffect(() => {
@@ -77,6 +78,13 @@ export default function PlaygroundPage() {
     return () => clearTimeout(timer);
   }, [handle, previewData]);
 
+  const addComponent = (id: string) => {
+    setPreviewData((prev) => ({
+      ...prev,
+      extraComponents: Array.from(new Set([...prev.extraComponents, id])),
+    }));
+  };
+
   const addFromTemplate = (templateId: TemplateId) => {
     setPreviewData((prev) => ({
       ...prev,
@@ -85,17 +93,25 @@ export default function PlaygroundPage() {
     }));
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDropActive(false);
+    const id = e.dataTransfer.getData('text/plain');
+    if (id) {
+      addComponent(id);
+      setStatus(`Added: ${id}`);
+    }
+  };
+
   const handlePublish = async () => {
     if (!handle) return;
-
     try {
       setPublishing(true);
       setStatus('');
       await publishSite(handle, previewData.templateId, previewData.customCSS, previewData.extraComponents);
       window.alert(`Site published to rareimagery.net/shop/${handle}.`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Publish failed.';
-      setStatus(message);
+      setStatus(error instanceof Error ? error.message : 'Publish failed.');
     } finally {
       setPublishing(false);
     }
@@ -103,38 +119,58 @@ export default function PlaygroundPage() {
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-zinc-950">
-      <div className="w-80 overflow-auto border-r border-zinc-800 bg-zinc-900 p-6 text-zinc-100">
-        <h2 className="mb-6 text-2xl font-bold">Quick Build Ideas</h2>
-        <div className="space-y-4">
-          {QUICK_BUILD_IDEAS.map((item) => (
-            <Button
-              key={item.id}
-              variant="outline"
-              className="h-auto w-full justify-start py-6 text-left"
-              onClick={() => addFromTemplate(item.id)}
-            >
-              <div>
-                <div className="font-semibold">{item.label}</div>
-                <div className="text-xs text-gray-400">Auto-adds subscriber CTA + your live context</div>
-              </div>
-            </Button>
-          ))}
+      {/* Left panel: Draggable blocks + template picker */}
+      <div className="flex flex-col overflow-hidden border-r border-zinc-800 bg-zinc-900 text-zinc-100">
+        <DraggableLibrary />
+
+        <div className="border-t border-zinc-800 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Templates</p>
+          <div className="space-y-2">
+            {QUICK_BUILD_IDEAS.map((item) => (
+              <Button
+                key={item.id}
+                variant="outline"
+                className="h-auto w-full justify-start py-3 text-left text-xs"
+                onClick={() => addFromTemplate(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 text-xs text-zinc-400">
-          {savingDraft ? 'Saving draft...' : status || 'AI Studio ready.'}
+        <div className="border-t border-zinc-800 p-4">
+          <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-xs text-zinc-400">
+            {savingDraft ? 'Saving draft…' : status || 'AI Studio ready.'}
+          </div>
+          <Button
+            onClick={() => void handlePublish()}
+            className="w-full bg-green-500 text-sm font-bold text-black hover:bg-green-400"
+            disabled={publishing || !handle}
+          >
+            {publishing ? 'Publishing…' : 'Publish to My Shop'}
+          </Button>
         </div>
-
-        <Button
-          onClick={() => void handlePublish()}
-          className="mt-4 w-full bg-green-500 py-4 text-base text-black hover:bg-green-400"
-          disabled={publishing || !handle}
-        >
-          {publishing ? 'Publishing...' : 'Publish to My Shop'}
-        </Button>
       </div>
 
-      <div className="flex flex-1 items-center justify-center overflow-auto bg-zinc-950 p-8">
+      {/* Center: drop zone + preview */}
+      <div
+        ref={dropZoneRef}
+        className={`flex flex-1 items-center justify-center overflow-auto p-8 transition-colors ${
+          dropActive ? 'bg-[#1DA1F2]/10 ring-inset ring-2 ring-[#1DA1F2]/40' : 'bg-zinc-950'
+        }`}
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropActive(true); }}
+        onDragLeave={(e) => { if (!dropZoneRef.current?.contains(e.relatedTarget as Node)) setDropActive(false); }}
+        onDrop={handleDrop}
+      >
+        {dropActive && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-2xl border-2 border-dashed border-[#1DA1F2]/60 bg-[#1DA1F2]/5 px-8 py-6 text-sm font-semibold text-[#1DA1F2]">
+              Drop to add section
+            </div>
+          </div>
+        )}
+
         <div className="relative w-full max-w-[420px] overflow-hidden rounded-3xl border border-zinc-800 bg-white shadow-2xl">
           <div className="flex h-12 items-center bg-black px-4 text-xs text-white">
             rareimagery.net/@{handle || 'creator'}
@@ -145,7 +181,7 @@ export default function PlaygroundPage() {
             handle={handle}
             extraComponents={previewData.extraComponents}
             customCSS={previewData.customCSS}
-            avatar={(drupalContext as any)?.avatar}
+            avatar={(drupalContext as Record<string, unknown>)?.avatar as string | undefined}
           />
 
           <div className="border-t bg-zinc-50 p-6">

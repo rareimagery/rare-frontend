@@ -67,21 +67,32 @@ type Props = {
 function ExtraPreviewSection({ componentId }: { componentId: string }) {
   switch (componentId) {
     case 'grok-grid':
+    case 'ai-creations':
       return (
         <section className="rounded-2xl border border-cyan-400/30 bg-cyan-950/40 p-6 text-cyan-100">
-          <h3 className="text-xl font-semibold">Grok Video Grid</h3>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((id) => (
-              <div key={id} className="h-36 rounded-xl bg-black/40 ring-1 ring-cyan-400/20" />
+          <h3 className="text-xl font-semibold">🎥 AI Creations (Grok Videos)</h3>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((id) => (
+              <div key={id} className="flex h-28 items-center justify-center rounded-xl bg-black/40 ring-1 ring-cyan-400/20 text-xs text-cyan-400/60">
+                Grok video {id}
+              </div>
             ))}
           </div>
         </section>
       );
     case 'product-showcase':
+    case 'products':
       return (
         <section className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-950/30 p-6 text-fuchsia-100">
-          <h3 className="text-xl font-semibold">Product Showcase</h3>
-          <p className="mt-2 text-sm opacity-80">Highlight limited drops and featured creator bundles.</p>
+          <h3 className="text-xl font-semibold">🛒 Products Showcase</h3>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {['Limited Hoodie', 'Digital Art Pack', 'Film Presets', 'Poster Set'].map((name) => (
+              <div key={name} className="rounded-xl bg-black/30 p-3 ring-1 ring-fuchsia-400/20">
+                <div className="h-16 w-full rounded-lg bg-fuchsia-900/40" />
+                <p className="mt-2 text-xs font-medium">{name}</p>
+              </div>
+            ))}
+          </div>
         </section>
       );
     case 'subscriber-hero':
@@ -89,6 +100,34 @@ function ExtraPreviewSection({ componentId }: { componentId: string }) {
         <section className="rounded-2xl border border-emerald-400/40 bg-emerald-950/40 p-6 text-emerald-100">
           <h3 className="text-xl font-semibold">Big $4 Subscriber CTA</h3>
           <p className="mt-2 text-sm opacity-80">Unlock private posts, early drops, and premium creator perks.</p>
+        </section>
+      );
+    case 'recent-posts':
+      return (
+        <section className="rounded-2xl border border-blue-400/30 bg-blue-950/40 p-6 text-blue-100">
+          <h3 className="text-xl font-semibold">📜 Recent X Posts</h3>
+          <ul className="mt-4 space-y-3">
+            {['Just dropped this new merch 👀', 'Behind-the-scenes from last night 🎥', 'New Grok video dropping soon ⚡'].map((post) => (
+              <li key={post} className="rounded-xl bg-black/30 px-4 py-3 text-sm ring-1 ring-blue-400/20">
+                {post}
+              </li>
+            ))}
+          </ul>
+        </section>
+      );
+    case 'favorite-people':
+      return (
+        <section className="rounded-2xl border border-pink-400/30 bg-pink-950/40 p-6 text-pink-100">
+          <h3 className="text-xl font-semibold">❤️ Favorite People</h3>
+          <p className="mt-1 text-xs text-pink-300/70">Top supporters &amp; subscribers</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {['@fan1', '@fan2', '@fan3', '@fan4', '@fan5'].map((handle) => (
+              <div key={handle} className="flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 text-xs ring-1 ring-pink-400/20">
+                <div className="h-5 w-5 rounded-full bg-pink-700" />
+                {handle}
+              </div>
+            ))}
+          </div>
         </section>
       );
     default:

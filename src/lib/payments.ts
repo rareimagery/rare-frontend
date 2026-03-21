@@ -5,6 +5,8 @@
 // Stripe serves as the interim/fallback provider.
 // ---------------------------------------------------------------------------
 
+import type Stripe from "stripe";
+
 /** Anti-spam listing fee charged via Stripe before product creation. */
 export const LISTING_FEE_CENTS = 5; // $0.05
 
@@ -196,7 +198,7 @@ export class StripeProvider implements PaymentProvider {
     const feeCents = Math.round(subtotalCents * 0.029) + 30;
     const currency = params.items[0]?.currency?.toLowerCase() ?? "usd";
 
-    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: lineItems,

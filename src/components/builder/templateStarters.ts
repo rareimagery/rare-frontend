@@ -62,6 +62,10 @@ function leadPost(posts: PreviewPost[]): string {
   return posts[0]?.text || "Latest updates and curated drops for your audience.";
 }
 
+function displayHandle(handle: string): string {
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
 function productCards(products: PreviewProduct[]): ProductCardPayload[] {
   return products.slice(0, 3).map((product) => ({
     id: product.id,
@@ -87,7 +91,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
         {
           type: "Hero",
           props: {
-            title: `@${handle} Store`,
+            title: `${displayHandle(handle)} Studio Store`,
             subtitle: bio || "Products, drops, and creator support in one place.",
             ctaLabel: "Shop New Drop",
             avatarUrl: avatar || undefined,
@@ -105,8 +109,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
         {
           type: "DonationBar",
           props: {
-            title: "Support with X Money",
-            progressText: "62% to monthly goal",
+            title: "Support the Studio",
+            progressText: "62% to this month's creator goal",
           },
         },
       ],
@@ -122,19 +126,26 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
         {
           type: "Hero",
           props: {
-            title: `${handle} Limited Drop`,
-            subtitle: "Limited inventory. Premium quality. Instant checkout.",
+            title: `${displayHandle(handle)} Limited Drop`,
+            subtitle: "Flash release. Limited units. Fast checkout.",
             ctaLabel: "Claim the Drop",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
         },
         {
+          type: "DonationBar",
+          props: {
+            title: "Drop Momentum",
+            progressText: "73% sold in first wave",
+          },
+        },
+        {
           type: "ProductGrid",
           props: {
-            heading: "Drop Inventory",
+            heading: "Drop Inventory: Live",
             subheading: products.length
-              ? `Top picks: ${topProducts(products)}`
+              ? `Selling now: ${topProducts(products)}`
               : "Add products to show limited drop inventory.",
             productCards: productCards(products),
           },
@@ -150,25 +161,25 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     createData: ({ handle, posts, products, avatar, banner }) => ({
       content: [
         {
+          type: "PostsList",
+          props: {
+            heading: `${displayHandle(handle)} Feed Highlights`,
+          },
+        },
+        {
           type: "Hero",
           props: {
-            title: `@${handle} Updates`,
+            title: `${displayHandle(handle)} Storyline`,
             subtitle: leadPost(posts),
-            ctaLabel: "Read Latest",
+            ctaLabel: "Read + Shop",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
         },
         {
-          type: "PostsList",
-          props: {
-            heading: "Latest Posts",
-          },
-        },
-        {
           type: "ProductGrid",
           props: {
-            heading: "Shop This Feed",
+            heading: "Shop the Conversation",
             subheading: products.length
               ? `Shoppable picks: ${topProducts(products)}`
               : "Attach products to convert post traffic.",
@@ -188,12 +199,25 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
         {
           type: "Hero",
           props: {
-            title: `${handle} Inner Circle`,
+            title: `${displayHandle(handle)} Inner Circle`,
             subtitle:
               bio || "Unlock premium content, private drops, and behind-the-scenes access.",
             ctaLabel: "Join Membership",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
+          },
+        },
+        {
+          type: "DonationBar",
+          props: {
+            title: "Subscriber Drive",
+            progressText: "128 active supporters this month",
+          },
+        },
+        {
+          type: "PostsList",
+          props: {
+            heading: "Members-Only Updates",
           },
         },
         {
@@ -204,19 +228,6 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
               ? `Featured products: ${topProducts(products)}`
               : "Add products to populate member picks.",
             productCards: productCards(products),
-          },
-        },
-        {
-          type: "DonationBar",
-          props: {
-            title: "Subscriber Goal",
-            progressText: "128 supporters this month",
-          },
-        },
-        {
-          type: "PostsList",
-          props: {
-            heading: "Subscriber Updates",
           },
         },
       ],

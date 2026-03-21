@@ -339,35 +339,74 @@ function parseMultiJsonField<T>(raw: unknown): T[] {
     .filter(Boolean) as T[];
 }
 
+function firstNonEmptyString(...values: Array<unknown>): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function resolveImageFromRelationship(
+  relationshipData: unknown,
+  included: any[]
+): string | null {
+  if (!relationshipData) return null;
+
+  const refs = Array.isArray(relationshipData)
+    ? relationshipData
+    : [relationshipData];
+
+  for (const ref of refs) {
+    const refId = (ref as { id?: string })?.id;
+    if (!refId) continue;
+
+    const entity = included.find((inc: any) => inc.id === refId);
+    if (!entity) continue;
+
+    if (entity.type === "file--file") {
+      const url = drupalAbsoluteUrl(entity.attributes?.uri?.url);
+      if (url) return url;
+      continue;
+    }
+
+    if (typeof entity.type === "string" && entity.type.startsWith("media--")) {
+      const mediaFileRef = entity.relationships?.field_media_image?.data;
+      const mediaFileId = mediaFileRef?.id;
+      if (!mediaFileId) continue;
+
+      const fileEntity = included.find(
+        (inc: any) => inc.id === mediaFileId && inc.type === "file--file"
+      );
+
+      const mediaUrl = drupalAbsoluteUrl(fileEntity?.attributes?.uri?.url);
+      if (mediaUrl) return mediaUrl;
+    }
+  }
+
+  return null;
+}
+
 function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
   const attrs = node.attributes;
   const rels = node.relationships;
 
-  // Resolve profile picture from included
-  let profilePicUrl: string | null = null;
-  const pfpData = rels?.field_profile_picture?.data;
-  if (pfpData) {
-    const fileId = pfpData.id;
-    const fileEntity = included.find(
-      (inc: any) => inc.id === fileId && inc.type === "file--file"
+  const profilePicUrl =
+    resolveImageFromRelationship(rels?.field_profile_picture?.data, included) ||
+    firstNonEmptyString(
+      attrs?.field_x_avatar_url,
+      attrs?.field_profile_picture_url,
+      attrs?.field_profile_image_url
     );
-    if (fileEntity) {
-      profilePicUrl = drupalAbsoluteUrl(fileEntity.attributes?.uri?.url);
-    }
-  }
 
-  // Resolve banner from included
-  let bannerUrl: string | null = null;
-  const bannerData = rels?.field_background_banner?.data;
-  if (bannerData) {
-    const fileId = bannerData.id;
-    const fileEntity = included.find(
-      (inc: any) => inc.id === fileId && inc.type === "file--file"
+  const bannerUrl =
+    resolveImageFromRelationship(rels?.field_background_banner?.data, included) ||
+    firstNonEmptyString(
+      attrs?.field_x_banner_url,
+      attrs?.field_banner_url,
+      attrs?.field_profile_banner_url
     );
-    if (fileEntity) {
-      bannerUrl = drupalAbsoluteUrl(fileEntity.attributes?.uri?.url);
-    }
-  }
 
   // Parse multi-value JSON text fields
   const topPosts: TopPost[] = parseMultiJsonField<TopPost>(attrs.field_top_posts)
@@ -439,7 +478,8 @@ export async function getCreatorProfile(
 ): Promise<CreatorProfile | null> {
   const params = new URLSearchParams({
     "filter[field_x_username]": username,
-    include: "field_linked_store,field_profile_picture,field_background_banner",
+    include:
+      "field_linked_store,field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
   });
 
   const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
@@ -460,7 +500,8 @@ export async function getCreatorProfile(
 
 export async function getAllCreatorProfiles(): Promise<CreatorProfile[]> {
   const params = new URLSearchParams({
-    include: "field_profile_picture,field_background_banner",
+    include:
+      "field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
   });
 
   const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
@@ -526,7 +567,7 @@ export async function getStoreProducts(storeId: string): Promise<Product[]> {
     try {
       const params = new URLSearchParams({
         "filter[stores.meta.drupal_internal__target_id]": storeId,
-        include: "variations,field_images",
+        include: "variations,variations.field_variation_image,field_images,field_images.field_media_image",
         "page[limit]": "50",
       });
 
@@ -557,16 +598,10 @@ export async function getStoreProducts(storeId: string): Promise<Product[]> {
           }
         }
 
-        let imageUrl: string | null = null;
-        const imageRef = p.relationships?.field_images?.data?.[0];
-        if (imageRef) {
-          const imageFile = included.find(
-            (inc: any) => inc.id === imageRef.id && inc.type === "file--file"
-          );
-          if (imageFile) {
-            imageUrl = drupalAbsoluteUrl(imageFile.attributes?.uri?.url);
-          }
-        }
+        const imageUrl =
+          resolveImageFromRelationship(p.relationships?.field_images?.data, included) ||
+          resolveImageFromRelationship(variationRef, included) ||
+          firstNonEmptyString(attrs.field_product_image_url);
 
         allProducts.push({
           id: p.id,

@@ -6,6 +6,76 @@ function stripHtml(input: string | null | undefined): string {
   return input.replace(/<[^>]*>/g, "").trim();
 }
 
+function svgDataUrl(svg: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function escapeSvgText(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function initials(handle: string): string {
+  const clean = (handle || "creator").replace(/[^a-z0-9_]/gi, "").toUpperCase();
+  return clean.slice(0, 2) || "CR";
+}
+
+function fallbackAvatar(handle: string): string {
+  const label = initials(handle);
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="120" fill="url(#g)"/>
+  <text x="120" y="130" text-anchor="middle" font-size="74" font-family="Arial, Helvetica, sans-serif" fill="#ffffff" font-weight="700">${escapeSvgText(label)}</text>
+</svg>`;
+  return svgDataUrl(svg);
+}
+
+function fallbackBanner(handle: string): string {
+  const safeHandle = escapeSvgText(handle || "creator");
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="560" viewBox="0 0 1600 560">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="50%" stop-color="#172554"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="560" fill="url(#bg)"/>
+  <circle cx="1300" cy="120" r="180" fill="#ffffff" fill-opacity="0.08"/>
+  <circle cx="320" cy="480" r="240" fill="#ffffff" fill-opacity="0.06"/>
+  <text x="120" y="320" font-size="84" font-family="Arial, Helvetica, sans-serif" fill="#ffffff" fill-opacity="0.9" font-weight="700">@${safeHandle}</text>
+</svg>`;
+  return svgDataUrl(svg);
+}
+
+function fallbackProductImage(title: string): string {
+  const safeTitle = escapeSvgText(title || "Product");
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <linearGradient id="pg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="url(#pg)"/>
+  <rect x="90" y="90" width="1020" height="1020" rx="54" fill="#ffffff" fill-opacity="0.08"/>
+  <text x="600" y="620" text-anchor="middle" font-size="56" font-family="Arial, Helvetica, sans-serif" fill="#ffffff" fill-opacity="0.95" font-weight="600">${safeTitle}</text>
+</svg>`;
+  return svgDataUrl(svg);
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ handle: string }> }
@@ -19,13 +89,16 @@ export async function GET(
       getProductsByStoreSlug(normalizedHandle),
     ]);
 
-    const previewProducts = (products || []).slice(0, 8).map((product) => ({
-      id: product.id,
-      title: product.title,
-      price: Number.parseFloat(product.price) || 0,
-      image: product.image_url || undefined,
-      description: stripHtml(product.description),
-    }));
+    const previewProducts = (products || []).slice(0, 8).map((product) => {
+      const title = product.title || "Product";
+      return {
+        id: product.id,
+        title,
+        price: Number.parseFloat(product.price) || 0,
+        image: product.image_url || fallbackProductImage(title),
+        description: stripHtml(product.description),
+      };
+    });
 
     const topPosts = (profile?.top_posts || []).slice(0, 6).map((post) => ({
       id: post.id,
@@ -35,8 +108,8 @@ export async function GET(
     return NextResponse.json(
       {
         handle: normalizedHandle,
-        avatar: profile?.profile_picture_url || null,
-        banner: profile?.banner_url || null,
+        avatar: profile?.profile_picture_url || fallbackAvatar(normalizedHandle),
+        banner: profile?.banner_url || fallbackBanner(normalizedHandle),
         bio: stripHtml(profile?.bio),
         products: previewProducts,
         posts: topPosts,
@@ -51,8 +124,8 @@ export async function GET(
     return NextResponse.json(
       {
         handle: normalizedHandle,
-        avatar: null,
-        banner: null,
+        avatar: fallbackAvatar(normalizedHandle),
+        banner: fallbackBanner(normalizedHandle),
         bio: "",
         products: [],
         posts: [],

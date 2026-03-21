@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import TemplatePicker from '@/components/TemplatePicker';
 import { createCreatorSite } from '@/app/actions/onboarding';
@@ -15,9 +14,7 @@ type WizardProfile = {
 
 export default function OnboardingWizard() {
   const { data: session } = useSession();
-  const router = useRouter();
   const [step, setStep] = useState(1);
-  const [creating, setCreating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank'>('modern-cart');
   const [profile, setProfile] = useState<WizardProfile>({
     handle: '',
@@ -44,16 +41,12 @@ export default function OnboardingWizard() {
 
   const handleConfirmProfile = () => setStep(2);
 
-  const handleCreateSite = async () => {
-    setCreating(true);
-    try {
-      const result = await createCreatorSite(profile, selectedTemplate);
-      const liveUrl = result.url || `https://${profile.handle}.rareimagery.net`;
-      alert(`Your rareimagery.net site is LIVE at ${liveUrl}`);
-      router.push('/console');
-    } finally {
-      setCreating(false);
-    }
+  const handleCreateTheme = async (templateId: 'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank') => {
+    setSelectedTemplate(templateId);
+    await createCreatorSite(profile, templateId);
+    return {
+      builderUrl: `/builder/new-tab?handle=${encodeURIComponent(profile.handle)}&template=${encodeURIComponent(templateId)}`,
+    };
   };
 
   const inputClass =
@@ -106,17 +99,10 @@ export default function OnboardingWizard() {
               xAvatar={session?.user?.image ?? undefined}
               xBio={profile.bio}
               onChange={setSelectedTemplate}
+              onCreateTheme={handleCreateTheme}
             />
-            <button
-              type="button"
-              onClick={handleCreateSite}
-              disabled={creating}
-              className="w-full rounded-2xl bg-green-500 px-6 py-5 text-xl font-semibold text-white transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {creating ? 'Creating your site...' : 'Create My Quality Site on rareimagery.net'}
-            </button>
             <p className="text-center text-sm text-zinc-400">
-              Your site will be live instantly with Grok video support and X Money checkout ready
+              Clicking Create This Theme launches your new builder tab with your profile elements and AI helper.
             </p>
           </div>
         )}

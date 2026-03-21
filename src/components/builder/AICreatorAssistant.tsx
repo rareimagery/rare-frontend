@@ -6,14 +6,16 @@ interface AICreatorAssistantProps {
   theme: string;
   contextPrompt: string;
   onApplySuggestion: (suggestion: string) => void;
+  mode?: "floating" | "sidebar";
 }
 
 export default function AICreatorAssistant({
   theme,
   contextPrompt,
   onApplySuggestion,
+  mode = "floating",
 }: AICreatorAssistantProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(mode === "sidebar");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +63,7 @@ export default function AICreatorAssistant({
     }
   };
 
-  if (!open) {
+  if (mode === "floating" && !open) {
     return (
       <button
         onClick={() => setOpen(true)}
@@ -73,15 +75,23 @@ export default function AICreatorAssistant({
   }
 
   return (
-    <div className="fixed bottom-20 right-4 z-30 w-[min(92vw,360px)] rounded-xl border border-zinc-700 bg-zinc-900/95 p-3 shadow-2xl lg:bottom-6 lg:right-6">
+    <div
+      className={
+        mode === "sidebar"
+          ? "h-full w-full rounded-xl border border-zinc-800 bg-zinc-900/90 p-4"
+          : "fixed bottom-20 right-4 z-30 w-[min(92vw,360px)] rounded-xl border border-zinc-700 bg-zinc-900/95 p-3 shadow-2xl lg:bottom-6 lg:right-6"
+      }
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-zinc-100">AI Creator Assistant</p>
-        <button
-          onClick={() => setOpen(false)}
-          className="rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          Close
-        </button>
+        {mode === "floating" ? (
+          <button
+            onClick={() => setOpen(false)}
+            className="rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            Close
+          </button>
+        ) : null}
       </div>
 
       <textarea

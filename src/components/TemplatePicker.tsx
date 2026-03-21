@@ -14,6 +14,10 @@ const templates = [
 
 type TemplateId = (typeof templates)[number]['id'];
 
+type CreateThemeResult = {
+  builderUrl?: string;
+};
+
 function normalizeCurrentTemplate(current: string): TemplateId {
   if (templates.some((template) => template.id === current)) {
     return current as TemplateId;
@@ -36,12 +40,14 @@ export default function TemplatePicker({
   xAvatar,
   xBio,
   onChange,
+  onCreateTheme,
 }: {
   current: string;
   sellerHandle: string;
   xAvatar?: string;
   xBio?: string;
   onChange?: (templateId: TemplateId) => void;
+  onCreateTheme?: (templateId: TemplateId) => Promise<CreateThemeResult | void>;
 }) {
   const [selected, setSelected] = useState<TemplateId>(normalizeCurrentTemplate(current));
   const [saving, setSaving] = useState(false);
@@ -56,11 +62,47 @@ export default function TemplatePicker({
   };
 
   const handleSave = async () => {
+    // Open a placeholder tab synchronously so browsers do not block popup after async save.
+    const pendingTab = window.open('about:blank', '_blank');
+    let navigated = false;
+
     setSaving(true);
     try {
-      await updateTemplate(sellerHandle, selected);
-      alert(`Preview saved - your site at rareimagery.net/shop/${sellerHandle} will look exactly like this!`);
+      const result = onCreateTheme
+        ? await onCreateTheme(selected)
+        : await (async () => {
+            await updateTemplate(sellerHandle, selected);
+            return {
+              builderUrl: `/builder/new-tab?handle=${encodeURIComponent(sellerHandle)}&template=${encodeURIComponent(selected)}`,
+            } satisfies CreateThemeResult;
+          })();
+
+      const builderUrl =
+        result?.builderUrl ||
+        `/builder/new-tab?handle=${encodeURIComponent(sellerHandle)}&template=${encodeURIComponent(selected)}`;
+
+      if (pendingTab) {
+        pendingTab.location.href = builderUrl;
+        navigated = true;
+      } else {
+        const popup = window.open(builderUrl, '_blank');
+        if (!popup) {
+          window.location.assign(builderUrl);
+        } else {
+          navigated = true;
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not create your theme. Please try again.';
+      alert(message);
     } finally {
+      if (pendingTab && !navigated) {
+        try {
+          pendingTab.close();
+        } catch {
+          // no-op
+        }
+      }
       setSaving(false);
     }
   };
@@ -86,14 +128,14 @@ export default function TemplatePicker({
           ))}
         </div>
 
-        {!onChange && (
+        {(!onChange || onCreateTheme) && (
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
             className="mt-8 w-full rounded-md bg-[#1DA1F2] px-4 py-4 text-base font-semibold text-white transition hover:bg-[#0f8bd6] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {saving ? 'Saving...' : 'Save This Theme & Create My Site'}
+            {saving ? 'Saving...' : 'Create This Theme'}
           </button>
         )}
       </div>

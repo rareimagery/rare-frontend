@@ -10,6 +10,35 @@ import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+function isLikelyDrupalOutage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("fetch failed") ||
+    normalized.includes("network") ||
+    normalized.includes("econnrefused") ||
+    normalized.includes("enotfound") ||
+    normalized.includes("timed out") ||
+    normalized.includes("could not verify existing stores") ||
+    normalized.includes("could not validate subdomain availability")
+  );
+}
+
+function drupalOutageFallback(slug: string, reason: string) {
+  return NextResponse.json({
+    success: true,
+    partial: true,
+    outageMode: true,
+    warning:
+      "Drupal is temporarily unreachable. Your builder access is enabled, but store provisioning is pending until backend connectivity is restored.",
+    reason,
+    storeId: null,
+    storeDrupalId: null,
+    profileNodeId: null,
+    slug,
+    url: `https://${slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN}`,
+  });
+}
+
 function normalizeHandle(handle: string | null | undefined): string {
   return String(handle || "").trim().replace(/^@+/, "").toLowerCase();
 }
@@ -313,6 +342,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!agreedToTerms) {
+    return NextResponse.json(
+      { error: "You must agree to the Terms of Service, EULA, and Privacy Policy" },
+      { status: 400 }
+    );
+  }
+
+  if (!isValidSlug(slug)) {
+    return NextResponse.json(
+      { error: "Slug must be 3-30 lowercase letters, numbers, or hyphens" },
+      { status: 400 }
+    );
+  }
+
   const normalizedSessionUser = normalizeHandle(sessionMeta.xUsername);
   const multiStoreEnabledForUser =
     multiStoreTestModeEnabled() && multiStoreAllowlist().includes(normalizedSessionUser);
@@ -321,6 +364,9 @@ export async function POST(req: NextRequest) {
     existingStoreCount = await getStoreCountForXUsername(normalizedSessionUser);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not verify store limits.";
+    if (isLikelyDrupalOutage(message)) {
+      return drupalOutageFallback(slug, message);
+    }
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
@@ -342,25 +388,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!agreedToTerms) {
-    return NextResponse.json(
-      { error: "You must agree to the Terms of Service, EULA, and Privacy Policy" },
-      { status: 400 }
-    );
-  }
-
-  if (!isValidSlug(slug)) {
-    return NextResponse.json(
-      { error: "Slug must be 3-30 lowercase letters, numbers, or hyphens" },
-      { status: 400 }
-    );
-  }
-
   let slugTaken = false;
   try {
     slugTaken = await isSlugTaken(slug);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not validate subdomain availability.";
+    if (isLikelyDrupalOutage(message)) {
+      return drupalOutageFallback(slug, message);
+    }
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
@@ -488,6 +523,10 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = String(err?.message || "Store creation failed");
+    if (isLikelyDrupalOutage(message)) {
+      return drupalOutageFallback(slug, message);
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

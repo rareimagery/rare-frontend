@@ -366,18 +366,6 @@ async function streamBuilderChat(message: string, onChunk: (value: string) => vo
   return fullText;
 }
 
-function mapTemplateToStarter(template: string): string {
-  const lookup: Record<string, string> = {
-    retro: "subscriber-funnel",
-    "modern-cart": "modern-store",
-    "ai-video-store": "product-drop",
-    "latest-posts": "content-commerce",
-    blank: "blank",
-  };
-
-  return lookup[template] || "modern-store";
-}
-
 export default function BuilderWorkspace() {
   const searchParams = useSearchParams();
   const initialTemplate = searchParams.get("template") || "modern-cart";
@@ -476,7 +464,7 @@ export default function BuilderWorkspace() {
     const starterKey = `${normalizedHandle}:${initialTemplate}`;
     if (initialStarterKey.current === starterKey) return;
 
-    const starterId = mapTemplateToStarter(initialTemplate);
+    const starterId = initialTemplate;
     const starter = TEMPLATE_STARTERS.find((item) => item.id === starterId) || TEMPLATE_STARTERS[0];
 
     const input = {

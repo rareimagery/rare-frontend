@@ -83,8 +83,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     createData: () => EMPTY_CANVAS,
   },
   {
-    id: "modern-store",
-    name: "Modern Storefront",
+    id: "modern-cart",
+    name: "Modern",
     description: "Balanced hero, product grid, and support section.",
     createData: ({ handle, bio, products, avatar, banner }) => ({
       content: [
@@ -121,8 +121,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     }),
   },
   {
-    id: "product-drop",
-    name: "Product Drop",
+    id: "ai-video-store",
+    name: "Drops",
     description: "High-conversion launch page focused on fast purchasing.",
     createData: ({ handle, products, avatar, banner }) => ({
       content: [
@@ -161,8 +161,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     }),
   },
   {
-    id: "content-commerce",
-    name: "Content + Commerce",
+    id: "latest-posts",
+    name: "Editorial",
     description: "Posts-first layout that funnels readers into product purchases.",
     createData: ({ handle, posts, products, avatar, banner }) => ({
       content: [
@@ -200,8 +200,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
     }),
   },
   {
-    id: "subscriber-funnel",
-    name: "Subscriber Funnel",
+    id: "retro",
+    name: "Retro",
     description: "Support-first layout for memberships and recurring revenue.",
     createData: ({ handle, bio, avatar, banner, products }) => ({
       content: [

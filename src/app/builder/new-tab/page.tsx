@@ -30,6 +30,7 @@ const puckConfig: Config = {
         title: { type: "text" },
         subtitle: { type: "text" },
         ctaLabel: { type: "text" },
+        stylePreset: { type: "text" },
         avatarUrl: { type: "text" },
         bannerUrl: { type: "text" },
       },
@@ -37,25 +38,53 @@ const puckConfig: Config = {
         title: "Creator Store",
         subtitle: "Products + Support in one place",
         ctaLabel: "Shop New Drop",
+        stylePreset: "studio",
         avatarUrl: "",
         bannerUrl: "",
       },
       render: (props: unknown) => {
-        const { title, subtitle, ctaLabel, avatarUrl, bannerUrl } = (props || {}) as {
+        const { title, subtitle, ctaLabel, stylePreset, avatarUrl, bannerUrl } = (props || {}) as {
           title?: string;
           subtitle?: string;
           ctaLabel?: string;
+          stylePreset?: string;
           avatarUrl?: string;
           bannerUrl?: string;
         };
+
+        const preset = stylePreset || "studio";
+        const overlay =
+          preset === "drop"
+            ? "rgba(124, 45, 18, .58), rgba(15, 23, 42, .78)"
+            : preset === "editorial"
+              ? "rgba(30, 41, 59, .58), rgba(17, 24, 39, .78)"
+              : preset === "members"
+                ? "rgba(6, 78, 59, .58), rgba(6, 95, 70, .76)"
+                : "rgba(17,24,39,.55), rgba(17,24,39,.75)";
+
+        const fallbackGradient =
+          preset === "drop"
+            ? "linear-gradient(to bottom right, rgb(251 146 60), rgb(220 38 38), rgb(41 37 36))"
+            : preset === "editorial"
+              ? "linear-gradient(to bottom right, rgb(100 116 139), rgb(30 41 59), rgb(23 23 23))"
+              : preset === "members"
+                ? "linear-gradient(to bottom right, rgb(16 185 129), rgb(5 150 105), rgb(6 78 59))"
+                : "linear-gradient(to bottom right, rgb(67 56 202), rgb(124 58 237), rgb(24 24 27))";
+
+        const buttonClass =
+          preset === "drop"
+            ? "bg-amber-300 text-black hover:bg-amber-200"
+            : preset === "members"
+              ? "bg-emerald-100 text-emerald-950 hover:bg-emerald-50"
+              : "bg-white text-black hover:bg-zinc-100";
 
         return (
           <div
             className="flex h-96 items-center justify-center px-6 text-white"
             style={{
               backgroundImage: bannerUrl
-                ? `linear-gradient(rgba(17,24,39,.55), rgba(17,24,39,.75)), url(${bannerUrl})`
-                : "linear-gradient(to bottom right, rgb(67 56 202), rgb(124 58 237), rgb(24 24 27))",
+                ? `linear-gradient(${overlay}), url(${bannerUrl})`
+                : fallbackGradient,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -70,7 +99,7 @@ const puckConfig: Config = {
               ) : null}
               <h1 className="text-5xl font-bold sm:text-6xl">{title || "Creator Store"}</h1>
               <p className="mt-4 text-xl sm:text-2xl">{subtitle || "Products + Support in one place"}</p>
-              <button className="mt-8 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black hover:bg-zinc-100">
+              <button className={`mt-8 rounded-full px-6 py-2 text-sm font-semibold ${buttonClass}`}>
                 {ctaLabel || "Shop New Drop"}
               </button>
             </div>
@@ -82,17 +111,39 @@ const puckConfig: Config = {
       fields: {
         heading: { type: "text" },
         subheading: { type: "text" },
+        stylePreset: { type: "text" },
       },
       defaultProps: {
         heading: "Featured Collection",
         subheading: "Ready to wear, signed drops, and exclusive edits.",
+        stylePreset: "studio",
       },
       render: (props: unknown) => {
-        const { heading, subheading, productCards } = (props || {}) as {
+        const { heading, subheading, stylePreset, productCards } = (props || {}) as {
           heading?: string;
           subheading?: string;
+          stylePreset?: string;
           productCards?: Array<{ id?: string; title?: string; price?: number; image?: string }>;
         };
+
+        const preset = stylePreset || "studio";
+        const sectionClass =
+          preset === "drop"
+            ? "bg-stone-900"
+            : preset === "editorial"
+              ? "bg-slate-950"
+              : preset === "members"
+                ? "bg-emerald-950"
+                : "bg-zinc-900";
+
+        const cardClass =
+          preset === "drop"
+            ? "border-amber-700/40 bg-stone-800"
+            : preset === "editorial"
+              ? "border-slate-700 bg-slate-900"
+              : preset === "members"
+                ? "border-emerald-700/40 bg-emerald-900/40"
+                : "border-zinc-700 bg-zinc-800";
 
         const cards = Array.isArray(productCards) && productCards.length
           ? productCards.slice(0, 3)
@@ -103,14 +154,14 @@ const puckConfig: Config = {
             ];
 
         return (
-          <section className="bg-zinc-900 p-8">
+          <section className={`${sectionClass} p-8`}>
             <h2 className="text-2xl font-semibold text-white">{heading || "Featured Collection"}</h2>
             <p className="mt-2 text-sm text-zinc-400">
               {subheading || "Ready to wear, signed drops, and exclusive edits."}
             </p>
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
               {cards.map((card, index) => (
-                <article key={card.id || `card-${index}`} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
+                <article key={card.id || `card-${index}`} className={`rounded-xl border p-4 ${cardClass}`}>
                   {card.image ? (
                     <img src={card.image} alt={card.title || "Product"} className="h-40 w-full rounded-lg object-cover" />
                   ) : (
@@ -129,19 +180,32 @@ const puckConfig: Config = {
       fields: {
         title: { type: "text" },
         progressText: { type: "text" },
+        stylePreset: { type: "text" },
       },
       defaultProps: {
         title: "Support this creator",
         progressText: "62% to monthly goal",
+        stylePreset: "studio",
       },
       render: (props: unknown) => {
-        const { title, progressText } = (props || {}) as {
+        const { title, progressText, stylePreset } = (props || {}) as {
           title?: string;
           progressText?: string;
+          stylePreset?: string;
         };
 
+        const preset = stylePreset || "studio";
+        const sectionClass =
+          preset === "drop"
+            ? "bg-amber-600"
+            : preset === "editorial"
+              ? "bg-slate-700"
+              : preset === "members"
+                ? "bg-emerald-700"
+                : "bg-emerald-600";
+
         return (
-          <section className="bg-emerald-600 p-8 text-white">
+          <section className={`${sectionClass} p-8 text-white`}>
             <div className="mx-auto max-w-4xl">
               <p className="text-2xl font-bold">{title || "Support this creator"}</p>
               <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-emerald-900/50">
@@ -156,26 +220,48 @@ const puckConfig: Config = {
     PostsList: {
       fields: {
         heading: { type: "text" },
+        stylePreset: { type: "text" },
       },
       defaultProps: {
         heading: "Latest Posts",
+        stylePreset: "studio",
       },
       render: (props: unknown) => {
-        const { heading } = (props || {}) as {
+        const { heading, stylePreset } = (props || {}) as {
           heading?: string;
+          stylePreset?: string;
         };
 
+        const preset = stylePreset || "studio";
+        const sectionClass =
+          preset === "drop"
+            ? "bg-stone-950"
+            : preset === "editorial"
+              ? "bg-slate-950"
+              : preset === "members"
+                ? "bg-emerald-950"
+                : "bg-zinc-950";
+
+        const cardClass =
+          preset === "drop"
+            ? "border-amber-900/60 bg-stone-900"
+            : preset === "editorial"
+              ? "border-slate-800 bg-slate-900"
+              : preset === "members"
+                ? "border-emerald-900/60 bg-emerald-900/40"
+                : "border-zinc-800 bg-zinc-900";
+
         return (
-          <section className="bg-zinc-950 p-8 text-zinc-100">
+          <section className={`${sectionClass} p-8 text-zinc-100`}>
             <h2 className="text-2xl font-semibold text-white">{heading || "Latest Posts"}</h2>
             <div className="mt-4 space-y-3">
-              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+              <article className={`rounded-xl border p-4 text-sm ${cardClass}`}>
                 Drop is live now. Grab early access before midnight.
               </article>
-              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+              <article className={`rounded-xl border p-4 text-sm ${cardClass}`}>
                 New creator bundle coming this weekend.
               </article>
-              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+              <article className={`rounded-xl border p-4 text-sm ${cardClass}`}>
                 Subscribers unlocked a behind-the-scenes update.
               </article>
             </div>
@@ -323,7 +409,7 @@ function BuilderNewTabInner() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("ri:autoIncludeProfileMedia");
+      const saved = window.localStorage.getItem("ri:autoIncludeProfileMedia:v2");
       if (saved === "true") setAutoIncludeProfileMedia(true);
       if (saved === "false") setAutoIncludeProfileMedia(false);
     } catch {
@@ -333,7 +419,7 @@ function BuilderNewTabInner() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem("ri:autoIncludeProfileMedia", autoIncludeProfileMedia ? "true" : "false");
+      window.localStorage.setItem("ri:autoIncludeProfileMedia:v2", autoIncludeProfileMedia ? "true" : "false");
     } catch {
       // Ignore storage write failures.
     }

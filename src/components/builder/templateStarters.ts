@@ -94,6 +94,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `${displayHandle(handle)} Studio Store`,
             subtitle: bio || "Products, drops, and creator support in one place.",
             ctaLabel: "Shop New Drop",
+            stylePreset: "studio",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
@@ -103,6 +104,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           props: {
             heading: "Featured Collection",
             subheading: `Now featuring ${topProducts(products)}.`,
+            stylePreset: "studio",
             productCards: productCards(products),
           },
         },
@@ -111,6 +113,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           props: {
             title: "Support the Studio",
             progressText: "62% to this month's creator goal",
+            stylePreset: "studio",
           },
         },
       ],
@@ -129,6 +132,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `${displayHandle(handle)} Limited Drop`,
             subtitle: "Flash release. Limited units. Fast checkout.",
             ctaLabel: "Claim the Drop",
+            stylePreset: "drop",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
@@ -138,6 +142,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           props: {
             title: "Drop Momentum",
             progressText: "73% sold in first wave",
+            stylePreset: "drop",
           },
         },
         {
@@ -147,6 +152,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subheading: products.length
               ? `Selling now: ${topProducts(products)}`
               : "Add products to show limited drop inventory.",
+            stylePreset: "drop",
             productCards: productCards(products),
           },
         },
@@ -164,6 +170,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           type: "PostsList",
           props: {
             heading: `${displayHandle(handle)} Feed Highlights`,
+            stylePreset: "editorial",
           },
         },
         {
@@ -172,6 +179,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             title: `${displayHandle(handle)} Storyline`,
             subtitle: leadPost(posts),
             ctaLabel: "Read + Shop",
+            stylePreset: "editorial",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
@@ -183,6 +191,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subheading: products.length
               ? `Shoppable picks: ${topProducts(products)}`
               : "Attach products to convert post traffic.",
+            stylePreset: "editorial",
             productCards: productCards(products),
           },
         },
@@ -203,6 +212,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subtitle:
               bio || "Unlock premium content, private drops, and behind-the-scenes access.",
             ctaLabel: "Join Membership",
+            stylePreset: "members",
             avatarUrl: avatar || undefined,
             bannerUrl: banner || undefined,
           },
@@ -212,12 +222,14 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
           props: {
             title: "Subscriber Drive",
             progressText: "128 active supporters this month",
+            stylePreset: "members",
           },
         },
         {
           type: "PostsList",
           props: {
             heading: "Members-Only Updates",
+            stylePreset: "members",
           },
         },
         {
@@ -227,6 +239,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
             subheading: products.length
               ? `Featured products: ${topProducts(products)}`
               : "Add products to populate member picks.",
+            stylePreset: "members",
             productCards: productCards(products),
           },
         },

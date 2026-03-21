@@ -239,7 +239,7 @@ export function LiveThemePreview({
       {customCSS.trim() ? <style>{customCSS}</style> : null}
       {previewNode}
       {resolvedComponents.length > 0 ? (
-        <div className="space-y-4 p-6">
+        <div className="divide-y">
           {resolvedComponents.map((componentId, index) => (
             <div
               key={`${componentId}-${index}`}
@@ -255,9 +255,26 @@ export function LiveThemePreview({
                 setSections(() => next);
                 dragSrcIndex.current = null;
               }}
-              className={setSections ? 'cursor-grab active:cursor-grabbing' : undefined}
+              className="group relative flex items-center gap-4 border-b bg-white transition-colors hover:bg-zinc-50 active:cursor-grabbing"
             >
-              <ExtraPreviewSection componentId={componentId} />
+              {/* Drag handle */}
+              {setSections && (
+                <span className="shrink-0 cursor-grab pl-4 text-2xl text-gray-300 group-hover:text-[#1DA1F2]">≡</span>
+              )}
+              <div className="flex-1 py-2">
+                <ExtraPreviewSection componentId={componentId} />
+              </div>
+              {/* Inline remove */}
+              {setSections && (
+                <button
+                  type="button"
+                  onClick={() => setSections((prev) => prev.filter((_, i) => i !== index))}
+                  className="shrink-0 pr-4 text-xl leading-none text-red-500 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                  aria-label={`Remove ${componentId}`}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>

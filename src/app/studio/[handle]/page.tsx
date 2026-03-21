@@ -39,10 +39,6 @@ export default function CreatorStudio({ params }: { params: Promise<{ handle: st
     setSections((prev) => Array.from(new Set([...prev, id])));
   };
 
-  const removeSection = (id: string) => {
-    setSections((prev) => prev.filter((s) => s !== id));
-  };
-
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDropActive(false);
@@ -86,28 +82,6 @@ export default function CreatorStudio({ params }: { params: Promise<{ handle: st
             avatar={(drupalContext as Record<string, unknown>)?.avatar as string | undefined}
             drupalContext={drupalContext as Record<string, unknown> | undefined}
           />
-
-          {/* Active sections list — click × to remove */}
-          {sections.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 border-t border-zinc-200 bg-zinc-50 px-4 py-3">
-              {sections.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center gap-1 rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700"
-                >
-                  {s}
-                  <button
-                    type="button"
-                    onClick={() => removeSection(s)}
-                    className="ml-0.5 text-zinc-500 hover:text-zinc-900"
-                    aria-label={`Remove ${s}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
 
           <div className="sticky bottom-0 border-t bg-zinc-50 p-6">
             <SubscribeButton creatorHandle={handle} />

@@ -200,106 +200,114 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await req.json().catch(() => ({}));
-  const dryRun = Boolean(body?.dryRun);
-  const rawHandles: string[] = Array.isArray(body?.handles)
-    ? body.handles.filter((v: unknown): v is string => typeof v === "string")
-    : [];
-  const handles: string[] = Array.from(
-    new Set(
-      rawHandles.map((v) => normalizeHandle(v)).filter(Boolean)
-    )
-  );
-
-  if (handles.length === 0) {
-    return NextResponse.json(
-      { error: "Provide handles: string[] in request body" },
-      { status: 400 }
-    );
-  }
-
-  const session = dryRun ? null : await getDrupalSession();
-  const results: BackfillResult[] = [];
-
-  for (const handle of handles) {
-    const result: BackfillResult = {
-      handle,
-      profileId: null,
-      avatar: { status: "skipped", reason: "not-run" },
-      banner: { status: "skipped", reason: "not-run" },
-      usedXFallback: false,
-      errors: [],
-    };
-
-    try {
-      const profile = await findProfileByHandle(handle);
-      if (!profile) {
-        result.errors.push("profile-not-found");
-        results.push(result);
-        continue;
-      }
-
-      result.profileId = profile.id;
-      const attrs = profile.attributes || {};
-
-      let avatarUrl = firstNonEmptyString(
-        attrs.field_x_avatar_url,
-        attrs.field_profile_image_url,
-        attrs.field_profile_picture_url
-      );
-      let bannerUrl = firstNonEmptyString(
-        attrs.field_x_banner_url,
-        attrs.field_profile_banner_url,
-        attrs.field_banner_url
-      );
-
-      if (!avatarUrl || !bannerUrl) {
-        const fromX = await fetchXProfileMedia(handle);
-        if (!avatarUrl && fromX.avatar) avatarUrl = fromX.avatar;
-        if (!bannerUrl && fromX.banner) bannerUrl = fromX.banner;
-        result.usedXFallback = Boolean(fromX.avatar || fromX.banner);
-      }
-
-      result.avatar = await uploadImageToProfileField(
-        avatarUrl,
-        profile.id,
-        "field_profile_picture",
-        `${handle}-pfp-backfill`,
-        session || { cookie: "", csrfToken: "" },
-        dryRun
-      );
-
-      result.banner = await uploadImageToProfileField(
-        bannerUrl,
-        profile.id,
-        "field_background_banner",
-        `${handle}-banner-backfill`,
-        session || { cookie: "", csrfToken: "" },
-        dryRun
-      );
-    } catch (error) {
-      result.errors.push(error instanceof Error ? error.message : String(error));
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
     }
 
-    results.push(result);
-  }
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  return NextResponse.json({
-    dryRun,
-    total: results.length,
-    uploadedAny: results.filter(
-      (r) => r.avatar.status === "uploaded" || r.banner.status === "uploaded"
-    ).length,
-    results,
-  });
+    const body = await req.json().catch(() => ({}));
+    const dryRun = Boolean(body?.dryRun);
+    const rawHandles: string[] = Array.isArray(body?.handles)
+      ? body.handles.filter((v: unknown): v is string => typeof v === "string")
+      : [];
+    const handles: string[] = Array.from(
+      new Set(rawHandles.map((v) => normalizeHandle(v)).filter(Boolean))
+    );
+
+    if (handles.length === 0) {
+      return NextResponse.json(
+        { error: "Provide handles: string[] in request body" },
+        { status: 400 }
+      );
+    }
+
+    const session = dryRun ? null : await getDrupalSession();
+    const results: BackfillResult[] = [];
+
+    for (const handle of handles) {
+      const result: BackfillResult = {
+        handle,
+        profileId: null,
+        avatar: { status: "skipped", reason: "not-run" },
+        banner: { status: "skipped", reason: "not-run" },
+        usedXFallback: false,
+        errors: [],
+      };
+
+      try {
+        const profile = await findProfileByHandle(handle);
+        if (!profile) {
+          result.errors.push("profile-not-found");
+          results.push(result);
+          continue;
+        }
+
+        result.profileId = profile.id;
+        const attrs = profile.attributes || {};
+
+        let avatarUrl = firstNonEmptyString(
+          attrs.field_x_avatar_url,
+          attrs.field_profile_image_url,
+          attrs.field_profile_picture_url
+        );
+        let bannerUrl = firstNonEmptyString(
+          attrs.field_x_banner_url,
+          attrs.field_profile_banner_url,
+          attrs.field_banner_url
+        );
+
+        if (!avatarUrl || !bannerUrl) {
+          const fromX = await fetchXProfileMedia(handle);
+          if (!avatarUrl && fromX.avatar) avatarUrl = fromX.avatar;
+          if (!bannerUrl && fromX.banner) bannerUrl = fromX.banner;
+          result.usedXFallback = Boolean(fromX.avatar || fromX.banner);
+        }
+
+        result.avatar = await uploadImageToProfileField(
+          avatarUrl,
+          profile.id,
+          "field_profile_picture",
+          `${handle}-pfp-backfill`,
+          session || { cookie: "", csrfToken: "" },
+          dryRun
+        );
+
+        result.banner = await uploadImageToProfileField(
+          bannerUrl,
+          profile.id,
+          "field_background_banner",
+          `${handle}-banner-backfill`,
+          session || { cookie: "", csrfToken: "" },
+          dryRun
+        );
+      } catch (error) {
+        result.errors.push(error instanceof Error ? error.message : String(error));
+      }
+
+      results.push(result);
+    }
+
+    return NextResponse.json({
+      dryRun,
+      total: results.length,
+      uploadedAny: results.filter(
+        (r) => r.avatar.status === "uploaded" || r.banner.status === "uploaded"
+      ).length,
+      results,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "media-backfill-failed",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
 }

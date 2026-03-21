@@ -3,6 +3,10 @@ import { getToken } from "next-auth/jwt";
 import { verifyStoreOwnership, isValidUUID } from "@/lib/ownership";
 import { getStorePrintfulKey, setupWebhooks, getWebhooks } from "@/lib/printful";
 
+function hasWebhookUrl(value: unknown): value is { url?: string } {
+  return typeof value === "object" && value !== null && "url" in value;
+}
+
 /**
  * POST /api/printful/webhook/setup
  * Register webhook URL with Printful for the store's events.
@@ -74,7 +78,8 @@ export async function GET(req: NextRequest) {
     }
 
     const webhook = await getWebhooks(apiKey);
-    return NextResponse.json({ configured: !!webhook?.url, webhook });
+    const configured = hasWebhookUrl(webhook) && typeof webhook.url === "string";
+    return NextResponse.json({ configured, webhook });
   } catch (err: any) {
     return NextResponse.json({ configured: false });
   }

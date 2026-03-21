@@ -8,6 +8,7 @@ interface JsonApiEntity {
   id?: string;
   type?: string;
   attributes?: Record<string, unknown>;
+  relationships?: Record<string, { data?: { id?: string } | null }>;
 }
 
 interface FollowFlagging {
@@ -15,6 +16,14 @@ interface FollowFlagging {
   attributes?: {
     field_follower_store_id?: string;
   };
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" ? value : fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +132,7 @@ export async function checkFollowStatus(
   );
 
   if (flagging) {
-    return { isFollowing: true, flaggingId: flagging.id };
+    return { isFollowing: true, flaggingId: flagging.id ?? null };
   }
 
   return { isFollowing: false, flaggingId: null };
@@ -327,7 +336,7 @@ export async function getFollowers(
 
     if (!storeRes.ok) continue;
     const storeJson = await storeRes.json();
-    const store = storeJson.data;
+    const store = storeJson.data as JsonApiEntity | null;
     if (!store) continue;
 
     const profileRef = store.relationships?.field_linked_x_profile?.data;
@@ -347,13 +356,16 @@ export async function getFollowers(
     const reverseJson = reverseRes.ok ? await reverseRes.json() : { data: [] };
     const isMutual = (reverseJson.data ?? []).length > 0;
 
+    const storeAttrs = store.attributes ?? {};
+    const profileAttrs = profile?.attributes ?? {};
+
     followers.push({
       storeId: followerStoreId,
-      storeName: store.attributes?.name ?? "",
-      storeSlug: store.attributes?.field_store_slug ?? "",
-      xUsername: profile?.attributes?.field_x_username ?? "",
+      storeName: asString(storeAttrs["name"]),
+      storeSlug: asString(storeAttrs["field_store_slug"]),
+      xUsername: asString(profileAttrs["field_x_username"]),
       profilePictureUrl: null, // Would need file include chain
-      followerCount: store.attributes?.field_follower_count ?? 0,
+      followerCount: asNumber(storeAttrs["field_follower_count"]),
       isMutual,
     });
   }
@@ -391,7 +403,7 @@ export async function getFollowing(
 
     if (!storeRes.ok) continue;
     const storeJson = await storeRes.json();
-    const store = storeJson.data;
+    const store = storeJson.data as JsonApiEntity | null;
     if (!store) continue;
 
     const profileRef = store.relationships?.field_linked_x_profile?.data;
@@ -411,13 +423,16 @@ export async function getFollowing(
     const reverseJson = reverseRes.ok ? await reverseRes.json() : { data: [] };
     const isMutual = (reverseJson.data ?? []).length > 0;
 
+    const storeAttrs = store.attributes ?? {};
+    const profileAttrs = profile?.attributes ?? {};
+
     following.push({
       storeId: targetRef.id,
-      storeName: store.attributes?.name ?? "",
-      storeSlug: store.attributes?.field_store_slug ?? "",
-      xUsername: profile?.attributes?.field_x_username ?? "",
+      storeName: asString(storeAttrs["name"]),
+      storeSlug: asString(storeAttrs["field_store_slug"]),
+      xUsername: asString(profileAttrs["field_x_username"]),
       profilePictureUrl: null,
-      followerCount: store.attributes?.field_follower_count ?? 0,
+      followerCount: asNumber(storeAttrs["field_follower_count"]),
       isMutual,
     });
   }
@@ -472,13 +487,15 @@ export async function seedFromX(
       }
     }
 
+    const storeAttrs = storeEntity.attributes ?? {};
+
     matched.push({
       storeId: storeRef.id,
-      storeName: storeEntity.attributes?.name ?? handle,
-      storeSlug: storeEntity.attributes?.field_store_slug ?? handle,
+      storeName: asString(storeAttrs["name"], handle),
+      storeSlug: asString(storeAttrs["field_store_slug"], handle),
       xUsername: handle,
       profilePictureUrl: pfpUrl,
-      followerCount: storeEntity.attributes?.field_follower_count ?? 0,
+      followerCount: asNumber(storeAttrs["field_follower_count"]),
       isMutual: false,
     });
   }

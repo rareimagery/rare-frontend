@@ -68,9 +68,9 @@ export async function GET(req: NextRequest) {
         : null;
 
       const itemRefs = (order.relationships?.order_items?.data as JsonApiEntityRef[] | undefined) || [];
-      const items = itemRefs.map((ref) =>
-        included.find((i) => i.id === ref.id)
-      ).filter(Boolean);
+      const items = itemRefs
+        .map((ref) => included.find((i) => i.id === ref.id))
+        .filter((item): item is JsonApiEntity => Boolean(item));
 
       const orderAttributes = order.attributes || {};
       const billingAddress = (billingProfile?.attributes?.["address"] as Record<string, unknown> | undefined) || null;

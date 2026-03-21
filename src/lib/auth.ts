@@ -302,8 +302,18 @@ export const authOptions: NextAuthOptions = {
           xProfile.data?.description ??
           "";
         appToken.bio = appToken.xBio;
-        appToken.xAccessToken = account.access_token ?? account.oauth_token ?? null;
-        appToken.xAccessTokenSecret = account.oauth_token_secret ?? null;
+        const accessToken =
+          typeof account.access_token === "string"
+            ? account.access_token
+            : typeof account.oauth_token === "string"
+              ? account.oauth_token
+              : null;
+        const accessTokenSecret =
+          typeof account.oauth_token_secret === "string"
+            ? account.oauth_token_secret
+            : null;
+        appToken.xAccessToken = accessToken;
+        appToken.xAccessTokenSecret = accessTokenSecret;
 
         const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         const xUser = (appToken.xUsername || "").toLowerCase();

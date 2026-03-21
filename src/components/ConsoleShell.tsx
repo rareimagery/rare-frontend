@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import ConsoleSidebar from "@/components/ConsoleSidebar";
 import { useConsole } from "@/components/ConsoleContext";
@@ -27,7 +28,7 @@ function titleFromPath(pathname: string): string {
 }
 
 type QuickAction = {
-  href: string;
+  href: Route;
   label: string;
   icon: string;
 };

@@ -369,7 +369,7 @@ export default function MySpaceTheme({
   const effectiveMusicUrl = theme.songUrl || musicUrl;
 
   const [visitorCount] = useState(() => {
-    const seed = profile.x_username || profile.display_name || "rareimagery";
+    const seed = profile.x_username || "rareimagery";
     return theme.visitorCount + (stableHash(seed) % 50);
   });
 

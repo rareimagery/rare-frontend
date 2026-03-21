@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const allProfiles: ProfileNode[] = [];
 
     while (url) {
-      const res = await fetch(url, {
+      const res: Response = await fetch(url, {
         headers: { ...drupalAuthHeaders() },
         cache: "no-store",
       });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Puck } from "@measured/puck";
@@ -368,6 +368,18 @@ async function streamBuilderChat(message: string, onChunk: (value: string) => vo
   return fullText;
 }
 
+function mapTemplateToStarter(template: string): string {
+  const lookup: Record<string, string> = {
+    retro: "subscriber-funnel",
+    "modern-cart": "modern-store",
+    "ai-video-store": "product-drop",
+    "latest-posts": "content-commerce",
+    blank: "blank",
+  };
+
+  return lookup[template] || "modern-store";
+}
+
 function BuilderPopupInner() {
   const searchParams = useSearchParams();
   const initialTemplate = searchParams.get("template") || "Template";
@@ -386,6 +398,7 @@ function BuilderPopupInner() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
   const [previewPayload, setPreviewPayload] = useState<TemplatePreviewPayload | null>(null);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
   const [activeStarterId, setActiveStarterId] = useState<string>("blank");
   const [autoIncludeProfileMedia, setAutoIncludeProfileMedia] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
@@ -396,6 +409,7 @@ function BuilderPopupInner() {
   ]);
 
   const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
+  const initialStarterApplied = useRef(false);
 
   useEffect(() => {
     try {
@@ -423,13 +437,18 @@ function BuilderPopupInner() {
         const res = await fetch(`/api/template-preview/${encodeURIComponent(normalizedHandle)}`, {
           cache: "no-store",
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (mounted) setPreviewPayload(null);
+          return;
+        }
         const payload = (await res.json()) as TemplatePreviewPayload;
         if (!mounted) return;
         setPreviewPayload(payload);
       } catch {
         if (!mounted) return;
         setPreviewPayload(null);
+      } finally {
+        if (mounted) setPreviewLoaded(true);
       }
     }
 
@@ -453,6 +472,28 @@ function BuilderPopupInner() {
     setActiveStarterId(starter.id);
     setStatus(`Applied template: ${starter.name}`);
   }
+
+  useEffect(() => {
+    if (initialStarterApplied.current) return;
+    if (!previewLoaded) return;
+
+    const starterId = mapTemplateToStarter(initialTemplate);
+    const starter = TEMPLATE_STARTERS.find((item) => item.id === starterId) || TEMPLATE_STARTERS[0];
+
+    const input = {
+      handle: normalizedHandle,
+      bio: previewPayload?.bio || "",
+      avatar: autoIncludeProfileMedia ? previewPayload?.avatar || pfp : "",
+      banner: autoIncludeProfileMedia ? previewPayload?.banner || banner : "",
+      products: previewPayload?.products || [],
+      posts: previewPayload?.posts || [],
+    };
+
+    setData(starter.createData(input));
+    setActiveStarterId(starter.id);
+    setStatus(`Applied template: ${starter.name}`);
+    initialStarterApplied.current = true;
+  }, [autoIncludeProfileMedia, banner, initialTemplate, normalizedHandle, pfp, previewLoaded, previewPayload]);
 
   async function sendToAssistant() {
     if (!message.trim() || sending) return;

@@ -395,6 +395,7 @@ function BuilderNewTabInner() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
   const [previewPayload, setPreviewPayload] = useState<TemplatePreviewPayload | null>(null);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
   const [activeStarterId, setActiveStarterId] = useState<string>("blank");
   const [autoIncludeProfileMedia, setAutoIncludeProfileMedia] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
@@ -433,13 +434,18 @@ function BuilderNewTabInner() {
         const res = await fetch(`/api/template-preview/${encodeURIComponent(normalizedHandle)}`, {
           cache: "no-store",
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (mounted) setPreviewPayload(null);
+          return;
+        }
         const payload = (await res.json()) as TemplatePreviewPayload;
         if (!mounted) return;
         setPreviewPayload(payload);
       } catch {
         if (!mounted) return;
         setPreviewPayload(null);
+      } finally {
+        if (mounted) setPreviewLoaded(true);
       }
     }
 
@@ -466,7 +472,7 @@ function BuilderNewTabInner() {
 
   useEffect(() => {
     if (initialStarterApplied.current) return;
-    if (!previewPayload) return;
+    if (!previewLoaded) return;
 
     const starterId = mapTemplateToStarter(initialTemplate);
     const starter = TEMPLATE_STARTERS.find((item) => item.id === starterId) || TEMPLATE_STARTERS[0];
@@ -484,7 +490,7 @@ function BuilderNewTabInner() {
     setActiveStarterId(starter.id);
     setStatus(`Applied template: ${starter.name}`);
     initialStarterApplied.current = true;
-  }, [autoIncludeProfileMedia, banner, initialTemplate, normalizedHandle, pfp, previewPayload]);
+  }, [autoIncludeProfileMedia, banner, initialTemplate, normalizedHandle, pfp, previewLoaded, previewPayload]);
 
   async function sendToAssistant() {
     if (!message.trim() || sending) return;

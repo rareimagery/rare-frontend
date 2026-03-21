@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import ThemeSelector from "./ThemeSelector";
 import ProductManager from "./ProductManager";
@@ -22,6 +22,8 @@ export default function StoreBuilderWizard({
   xImportData,
   grokEnhancements,
 }: StoreBuilderWizardProps) {
+  const DRAFT_KEY = `store_wizard_draft_${xUsername || "anon"}`;
+
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -35,15 +37,13 @@ export default function StoreBuilderWizard({
   const xName = xImportData?.displayName || xUsername || "";
   const xUser = xImportData?.username || xUsername || "";
 
-  // Store fields
-  const [storeName, setStoreName] = useState(
-    xName ? `${xName}'s Store` : ""
-  );
+  // Store fields — initialised from X data; overridden by persisted draft on mount
+  const [storeName, setStoreName] = useState(xName ? `${xName}'s Store` : "");
   const [slug, setSlug] = useState(xUser.toLowerCase() || "");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [currency, setCurrency] = useState("USD");
 
-  // Creator X Profile fields — auto-filled from X data
+  // Creator X Profile fields
   const [xUsernameField, setXUsernameField] = useState(xUser);
   const [bioDescription, setBioDescription] = useState(
     grokEnhancements?.storeBio || xImportData?.bio || ""
@@ -58,6 +58,59 @@ export default function StoreBuilderWizard({
   const [backgroundBannerUrl, setBackgroundBannerUrl] = useState(
     xImportData?.bannerUrl || ""
   );
+
+  // Restore draft from localStorage on first mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.step !== undefined) setStep(draft.step);
+      if (draft.storeName) setStoreName(draft.storeName);
+      if (draft.slug) { setSlug(draft.slug); setSlugEdited(true); }
+      if (draft.ownerEmail) setOwnerEmail(draft.ownerEmail);
+      if (draft.currency) setCurrency(draft.currency);
+      if (draft.xUsernameField) setXUsernameField(draft.xUsernameField);
+      if (draft.bioDescription) setBioDescription(draft.bioDescription);
+      if (draft.followerCount) setFollowerCount(draft.followerCount);
+      if (draft.profilePictureUrl) setProfilePictureUrl(draft.profilePictureUrl);
+      if (draft.backgroundBannerUrl) setBackgroundBannerUrl(draft.backgroundBannerUrl);
+    } catch {
+      // Corrupt draft — ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist relevant state to localStorage whenever it changes
+  const saveDraft = useCallback(() => {
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          step,
+          storeName,
+          slug,
+          ownerEmail,
+          currency,
+          xUsernameField,
+          bioDescription,
+          followerCount,
+          profilePictureUrl,
+          backgroundBannerUrl,
+        })
+      );
+    } catch {
+      // Storage quota exceeded — non-critical
+    }
+  }, [DRAFT_KEY, step, storeName, slug, ownerEmail, currency, xUsernameField, bioDescription, followerCount, profilePictureUrl, backgroundBannerUrl]);
+
+  useEffect(() => {
+    saveDraft();
+  }, [saveDraft]);
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+  }
   const topPosts = xImportData?.topPosts
     ? JSON.stringify(xImportData.topPosts)
     : "";
@@ -153,6 +206,7 @@ export default function StoreBuilderWizard({
       setStoreId(data.storeId);
       setStoreDrupalId(data.storeDrupalId || "");
       setProfileNodeId(data.profileNodeId || "");
+      clearDraft();  // Draft fulfilled — remove so retry doesn't loop
       setStep(2); // Jump to theme step
     } catch {
       setError("Network error — please try again");

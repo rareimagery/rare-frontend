@@ -24,6 +24,19 @@ type AccountingData = {
     total: string;
     placedAt: string;
   }[];
+  conversion: {
+    storeStatus: string;
+    activated: boolean;
+    hasFirstSale: boolean;
+    storeCreatedAt: string | null;
+    firstSaleAt: string | null;
+    timeToFirstSaleHours: number | null;
+  };
+  attribution: {
+    source: string;
+    orders: number;
+    revenue: number;
+  }[];
 };
 
 const PERIODS = [
@@ -38,6 +51,16 @@ function formatCurrency(amount: number, currency = "USD") {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function MiniBarChart({ data }: { data: ChartPoint[] }) {
@@ -140,6 +163,12 @@ export default function AccountingPage() {
             ))}
           </div>
         </div>
+        <a
+          href={`/api/accounting?storeId=${encodeURIComponent(storeId)}&period=${period}&format=csv`}
+          className="inline-flex min-h-10 items-center rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+        >
+          Export CSV
+        </a>
       </div>
 
       {loading ? (
@@ -214,6 +243,65 @@ export default function AccountingPage() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Conversion analytics */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 font-semibold">Conversion Metrics</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatCard
+                label="Store Activated"
+                value={data.conversion.activated ? "Yes" : "No"}
+                sub={`Current status: ${data.conversion.storeStatus}`}
+              />
+              <StatCard
+                label="First Sale"
+                value={data.conversion.hasFirstSale ? "Completed" : "No sales yet"}
+                sub={
+                  data.conversion.firstSaleAt
+                    ? formatDateTime(data.conversion.firstSaleAt)
+                    : "Waiting for first order"
+                }
+              />
+              <StatCard
+                label="Time To First Sale"
+                value={
+                  data.conversion.timeToFirstSaleHours == null
+                    ? "N/A"
+                    : `${data.conversion.timeToFirstSaleHours}h`
+                }
+                sub={
+                  data.conversion.storeCreatedAt
+                    ? `Store created ${formatDateTime(data.conversion.storeCreatedAt)}`
+                    : "Store creation timestamp unavailable"
+                }
+              />
+            </div>
+          </div>
+
+          {/* Attribution */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 font-semibold">Purchase Attribution</h2>
+            {data.attribution.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                No attribution data yet for this period. New checkouts now record source metadata.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {data.attribution.map((row) => (
+                  <div
+                    key={row.source}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2 last:border-0"
+                  >
+                    <span className="text-sm text-zinc-300">{row.source}</span>
+                    <span className="text-sm text-zinc-500">{row.orders} orders</span>
+                    <span className="text-sm font-medium text-white">
+                      {formatCurrency(row.revenue, data.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Recent transactions */}

@@ -56,9 +56,12 @@ export interface PaymentProvider {
     storeId: string;
     buyerXId: string | null;
     sellerXId: string | null;
+    metadata?: Record<string, string>;
     successUrl: string;
     cancelUrl: string;
   }): Promise<PaymentIntent>;
+  /** Optional: Stripe Express account ID for the seller (enables automatic payouts) */
+  sellerStripeAccountId?: string;
 
   /** Create a subscription for a creator's tier */
   createSubscription(params: {
@@ -98,6 +101,7 @@ export class XMoneyProvider implements PaymentProvider {
     storeId: string;
     buyerXId: string | null;
     sellerXId: string | null;
+    metadata?: Record<string, string>;
     successUrl: string;
     cancelUrl: string;
   }): Promise<PaymentIntent> {
@@ -168,6 +172,8 @@ export class StripeProvider implements PaymentProvider {
     storeId: string;
     buyerXId: string | null;
     sellerXId: string | null;
+    sellerStripeAccountId?: string;
+    metadata?: Record<string, string>;
     successUrl: string;
     cancelUrl: string;
   }): Promise<PaymentIntent> {
@@ -183,7 +189,6 @@ export class StripeProvider implements PaymentProvider {
       quantity: item.quantity,
     }));
 
-    // Platform processing fee: 2.9% + $0.30 per order
     const subtotalCents = params.items.reduce(
       (sum, i) => sum + Math.round(i.price * 100) * i.quantity,
       0
@@ -191,16 +196,7 @@ export class StripeProvider implements PaymentProvider {
     const feeCents = Math.round(subtotalCents * 0.029) + 30;
     const currency = params.items[0]?.currency?.toLowerCase() ?? "usd";
 
-    lineItems.push({
-      price_data: {
-        currency,
-        product_data: { name: "Platform processing fee" },
-        unit_amount: feeCents,
-      },
-      quantity: 1,
-    });
-
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: lineItems,
@@ -209,6 +205,7 @@ export class StripeProvider implements PaymentProvider {
         buyer_x_id: params.buyerXId ?? "",
         seller_x_id: params.sellerXId ?? "",
         type: "product_purchase",
+        ...(params.metadata ?? {}),
         items: JSON.stringify(
           params.items.map((i) => ({
             id: i.productId,
@@ -219,7 +216,28 @@ export class StripeProvider implements PaymentProvider {
       },
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
-    });
+    };
+
+    if (params.sellerStripeAccountId) {
+      // Route funds to the seller's connected account automatically.
+      // Platform retains feeCents as the application fee.
+      sessionParams.payment_intent_data = {
+        application_fee_amount: feeCents,
+        transfer_data: { destination: params.sellerStripeAccountId },
+      };
+    } else {
+      // No connected account yet — add fee as a visible line item so it still covers costs.
+      lineItems.push({
+        price_data: {
+          currency,
+          product_data: { name: "Platform processing fee" },
+          unit_amount: feeCents,
+        },
+        quantity: 1,
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return {
       id: session.id,

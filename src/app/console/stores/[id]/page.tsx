@@ -4,7 +4,7 @@ import ProductManager from "@/components/ProductManager";
 import PrintfulManager from "@/components/PrintfulManager";
 import StoreApprovalButton from "@/components/StoreApprovalButton";
 import NotificationPreferences from "@/components/NotificationPreferences";
-
+import StripeConnectPanel from "@/components/StripeConnectPanel";
 import { getStoreById, getProfileByStoreId } from "@/lib/drupal";
 
 export default async function StoreDetailPage({
@@ -133,6 +133,13 @@ export default async function StoreDetailPage({
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
         <NotificationPreferences />
+
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-zinc-300">Stripe Payouts</h2>
+              </div>
+              <StripeConnectPanel />
+            </section>
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

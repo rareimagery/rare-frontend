@@ -49,8 +49,7 @@ const STYLE_OPTIONS = [
 ];
 
 export default function ConsoleBuilderPage() {
-  const { hasStore, currentTheme, storeSlug } = useConsole();
-  const theme = currentTheme || "xai3";
+  const { hasStore, storeSlug } = useConsole();
 
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
   const [launchingTitle, setLaunchingTitle] = useState<string | null>(null);
@@ -59,7 +58,7 @@ export default function ConsoleBuilderPage() {
   const dynamicOptions = STYLE_OPTIONS.map((option) => {
     const promptContext = [
       option.prompt,
-      `Keep the generated section aligned with the ${theme} visual system.`,
+      "Use a template-first structure and keep code valid for Next.js + Tailwind.",
       visuals?.profilePictureUrl ? "Use the creator profile image as an identity anchor in the layout." : "",
       visuals?.bannerUrl ? "Use the creator banner image as the dominant background mood." : "",
     ]
@@ -124,7 +123,6 @@ export default function ConsoleBuilderPage() {
     const params = new URLSearchParams({
       template: title,
       prompt,
-      theme,
     });
     if (storeSlug) {
       params.set("store", storeSlug);
@@ -155,7 +153,7 @@ export default function ConsoleBuilderPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Page Builder</h1>
-          <p className="text-zinc-400 text-sm">Theme: <span className="text-indigo-400">{theme}</span></p>
+          <p className="text-zinc-400 text-sm">Template-first builder with blank canvas workflow.</p>
         </div>
         {storeSlug && (
           <a

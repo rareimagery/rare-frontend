@@ -392,6 +392,7 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
   const [activeTab, setActiveTab] = useState<TabId>("posts");
   const [cart, setCart] = useState<(Product & { qty: number })[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const addToCart = (product: Product) => {
     setCart((c) => {
@@ -409,6 +410,63 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
     0
   );
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
+
+  const handleCheckout = async () => {
+    if (cart.length === 0 || checkoutLoading) return;
+
+    setCheckoutLoading(true);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const body = {
+        items: cart.map((item) => ({
+          productId: item.id,
+          variationId: item.sku || item.id,
+          title: item.title,
+          price: parseFloat(item.price),
+          currency: item.currency || "USD",
+          quantity: item.qty,
+        })),
+        storeId: profile.linked_store_id || profile.id,
+        sellerXId: profile.x_username,
+        sellerHandle: profile.x_username,
+        provider: "stripe" as const,
+        attribution: {
+          utmSource: params.get("utm_source") || undefined,
+          utmMedium: params.get("utm_medium") || undefined,
+          utmCampaign: params.get("utm_campaign") || undefined,
+          landingPath: `${window.location.pathname}${window.location.search}`,
+        },
+      };
+
+      const res = await fetch("/api/checkout/product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        const message = data?.error || "Unable to start checkout";
+        if (res.status === 401) {
+          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          return;
+        }
+        throw new Error(message);
+      }
+
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      throw new Error("Missing checkout URL");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Checkout failed";
+      alert(message);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   return (
     <>
@@ -737,8 +795,8 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
                   <span>Total</span>
                   <span>${cartTotal.toFixed(2)}</span>
                 </div>
-                <button className="xm-checkout-btn">
-                  Proceed to Checkout
+                <button className="xm-checkout-btn" onClick={handleCheckout} disabled={checkoutLoading}>
+                  {checkoutLoading ? "Redirecting..." : "Proceed to Checkout"}
                 </button>
               </>
             )}

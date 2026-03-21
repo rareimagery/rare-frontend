@@ -272,10 +272,112 @@ export async function POST(req: NextRequest) {
 
     case "invoice.payment_failed": {
       const invoice = event.data.object;
+      const customerId = invoice.customer as string | null;
+      const attemptCount: number = (invoice as any).attempt_count ?? 1;
+
       console.warn(
-        `Payment failed for customer ${invoice.customer}, invoice ${invoice.id}`
+        `[dunning] Payment failed for customer ${customerId}, invoice ${invoice.id}, attempt #${attemptCount}`
       );
-      // Stripe will retry — store stays active until subscription.deleted fires
+
+      // On the first failure, set store status to "payment_warning" so the
+      // creator console can surface the issue. Stripe will auto-retry; the store
+      // is only suspended when customer.subscription.deleted fires.
+      if (customerId) {
+        try {
+          // Find the store by Stripe customer ID via Drupal JSON:API.
+          const params = new URLSearchParams({
+            "filter[field_stripe_customer_id]": customerId,
+            "fields[commerce_store--online]": "id,field_store_slug,field_store_status",
+          });
+          const storeRes = await fetch(
+            `${DRUPAL_API}/jsonapi/commerce_store/online?${params.toString()}`,
+            { headers: { ...drupalAuthHeaders() } }
+          );
+
+          if (storeRes.ok) {
+            const storeJson = await storeRes.json();
+            const stores = storeJson.data ?? [];
+
+            for (const store of stores) {
+              const slug: string = store.attributes?.field_store_slug ?? "";
+              const currentStatus: string = store.attributes?.field_store_status ?? "";
+
+              // Only flag if the store is currently active (not already suspended).
+              if (currentStatus === "approved" || currentStatus === "active") {
+                const writeHeaders = await drupalWriteHeaders();
+                await fetch(
+                  `${DRUPAL_API}/jsonapi/commerce_store/online/${store.id}`,
+                  {
+                    method: "PATCH",
+                    headers: { ...writeHeaders, "Content-Type": "application/vnd.api+json" },
+                    body: JSON.stringify({
+                      data: {
+                        type: "commerce_store--online",
+                        id: store.id,
+                        attributes: { field_store_status: "payment_warning" },
+                      },
+                    }),
+                  }
+                );
+
+                console.warn(
+                  `[dunning] Store "${slug}" flagged as payment_warning after failed payment (attempt #${attemptCount})`
+                );
+              }
+            }
+          }
+        } catch (err: any) {
+          // Non-critical — Stripe will retry anyway
+          console.error("[dunning] Failed to update store warning status:", err.message);
+        }
+      }
+      break;
+    }
+
+    case "invoice.payment_succeeded": {
+      // Clear any payment_warning flag if payment recovers after a failed attempt.
+      const invoice = event.data.object;
+      const customerId = invoice.customer as string | null;
+      if (!customerId) break;
+
+      try {
+        const params = new URLSearchParams({
+          "filter[field_stripe_customer_id]": customerId,
+          "fields[commerce_store--online]": "id,field_store_slug,field_store_status",
+        });
+        const storeRes = await fetch(
+          `${DRUPAL_API}/jsonapi/commerce_store/online?${params.toString()}`,
+          { headers: { ...drupalAuthHeaders() } }
+        );
+
+        if (storeRes.ok) {
+          const storeJson = await storeRes.json();
+          for (const store of storeJson.data ?? []) {
+            if (store.attributes?.field_store_status === "payment_warning") {
+              const writeHeaders = await drupalWriteHeaders();
+              await fetch(
+                `${DRUPAL_API}/jsonapi/commerce_store/online/${store.id}`,
+                {
+                  method: "PATCH",
+                  headers: { ...writeHeaders, "Content-Type": "application/vnd.api+json" },
+                  body: JSON.stringify({
+                    data: {
+                      type: "commerce_store--online",
+                      id: store.id,
+                      attributes: { field_store_status: "approved" },
+                    },
+                  }),
+                }
+              );
+              console.log(
+                `[dunning] Store "${store.attributes.field_store_slug}" restored to approved after payment recovery`
+              );
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error("[dunning] Failed to clear warning status:", err.message);
+      }
       break;
     }
 

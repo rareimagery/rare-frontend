@@ -1,18 +1,27 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Puck } from "@measured/puck";
-import type { Data } from "@measured/puck";
-import type { Config } from "@measured/puck";
-import { MessageCircle, Send, X } from "lucide-react";
+import type { Data, Config } from "@measured/puck";
+import TemplateStarterPanel from "@/components/builder/TemplateStarterPanel";
+import {
+  EMPTY_CANVAS,
+  TEMPLATE_STARTERS,
+  type TemplateStarter,
+  type TemplatePreviewPayload,
+} from "@/components/builder/templateStarters";
 import "@measured/puck/puck.css";
 
 type ChatMessage = {
   role: "assistant" | "user";
   content: string;
 };
+
+type JsonRecord = Record<string, unknown>;
+
+const LAYOUT_SCHEMA_VERSION = 1;
 
 const puckConfig: Config = {
   components: {
@@ -24,7 +33,7 @@ const puckConfig: Config = {
       },
       defaultProps: {
         title: "Creator Store",
-        subtitle: "Products + X Money Donations",
+        subtitle: "Products + Support in one place",
         ctaLabel: "Shop New Drop",
       },
       render: (props: unknown) => {
@@ -35,15 +44,15 @@ const puckConfig: Config = {
         };
 
         return (
-      <div className="flex h-96 items-center justify-center bg-gradient-to-br from-indigo-700 via-violet-600 to-zinc-900 px-6 text-white">
-        <div className="text-center max-w-3xl">
-            <h1 className="text-5xl font-bold sm:text-6xl">{title || "Creator Store"}</h1>
-            <p className="mt-4 text-xl sm:text-2xl">{subtitle || "Products + X Money Donations"}</p>
-            <button className="mt-8 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black hover:bg-zinc-100">
-              {ctaLabel || "Shop New Drop"}
-            </button>
-        </div>
-      </div>
+          <div className="flex h-96 items-center justify-center bg-gradient-to-br from-indigo-700 via-violet-600 to-zinc-900 px-6 text-white">
+            <div className="max-w-3xl text-center">
+              <h1 className="text-5xl font-bold sm:text-6xl">{title || "Creator Store"}</h1>
+              <p className="mt-4 text-xl sm:text-2xl">{subtitle || "Products + Support in one place"}</p>
+              <button className="mt-8 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black hover:bg-zinc-100">
+                {ctaLabel || "Shop New Drop"}
+              </button>
+            </div>
+          </div>
         );
       },
     },
@@ -63,20 +72,22 @@ const puckConfig: Config = {
         };
 
         return (
-      <section className="bg-zinc-900 p-8">
-        <h2 className="text-2xl font-semibold text-white">{heading || "Featured Collection"}</h2>
-        <p className="mt-2 text-sm text-zinc-400">{subheading || "Ready to wear, signed drops, and exclusive edits."}</p>
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {["Drop Tee", "Poster Pack", "Limited Print"].map((name) => (
-            <article key={name} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
-              <div className="h-40 rounded-lg bg-zinc-700" />
-              <p className="mt-4 text-sm font-medium text-zinc-100">{name}</p>
-              <p className="text-xs text-zinc-400">$49.00</p>
-            </article>
-          ))}
-        </div>
-      </section>
-    );
+          <section className="bg-zinc-900 p-8">
+            <h2 className="text-2xl font-semibold text-white">{heading || "Featured Collection"}</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              {subheading || "Ready to wear, signed drops, and exclusive edits."}
+            </p>
+            <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+              {["Drop Tee", "Poster Pack", "Limited Print"].map((name) => (
+                <article key={name} className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
+                  <div className="h-40 rounded-lg bg-zinc-700" />
+                  <p className="mt-4 text-sm font-medium text-zinc-100">{name}</p>
+                  <p className="text-xs text-zinc-400">$49.00</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        );
       },
     },
     DonationBar: {
@@ -85,7 +96,7 @@ const puckConfig: Config = {
         progressText: { type: "text" },
       },
       defaultProps: {
-        title: "Support with X Money",
+        title: "Support this creator",
         progressText: "62% to monthly goal",
       },
       render: (props: unknown) => {
@@ -95,16 +106,46 @@ const puckConfig: Config = {
         };
 
         return (
-      <section className="bg-emerald-600 p-8 text-white">
-        <div className="mx-auto max-w-4xl">
-          <p className="text-2xl font-bold">{title || "Support with X Money"}</p>
-          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-emerald-900/50">
-            <div className="h-full w-[62%] bg-white" />
-          </div>
-          <p className="mt-2 text-sm text-emerald-100">{progressText || "62% to monthly goal"}</p>
-        </div>
-      </section>
-    );
+          <section className="bg-emerald-600 p-8 text-white">
+            <div className="mx-auto max-w-4xl">
+              <p className="text-2xl font-bold">{title || "Support this creator"}</p>
+              <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-emerald-900/50">
+                <div className="h-full w-[62%] bg-white" />
+              </div>
+              <p className="mt-2 text-sm text-emerald-100">{progressText || "62% to monthly goal"}</p>
+            </div>
+          </section>
+        );
+      },
+    },
+    PostsList: {
+      fields: {
+        heading: { type: "text" },
+      },
+      defaultProps: {
+        heading: "Latest Posts",
+      },
+      render: (props: unknown) => {
+        const { heading } = (props || {}) as {
+          heading?: string;
+        };
+
+        return (
+          <section className="bg-zinc-950 p-8 text-zinc-100">
+            <h2 className="text-2xl font-semibold text-white">{heading || "Latest Posts"}</h2>
+            <div className="mt-4 space-y-3">
+              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+                Drop is live now. Grab early access before midnight.
+              </article>
+              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+                New creator bundle coming this weekend.
+              </article>
+              <article className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+                Subscribers unlocked a behind-the-scenes update.
+              </article>
+            </div>
+          </section>
+        );
       },
     },
   },
@@ -119,11 +160,69 @@ function isPuckData(value: unknown): value is Data {
   );
 }
 
-async function streamThemeChat(message: string, theme: string, onChunk: (value: string) => void) {
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeAiPuckData(value: unknown): Data | null {
+  if (!isPuckData(value)) return null;
+
+  const allowedTypes = new Set(Object.keys(puckConfig.components));
+  const raw = value as JsonRecord;
+  const rawContent = raw.content;
+
+  if (!Array.isArray(rawContent)) return null;
+
+  const sanitizedContent: Data["content"] = [];
+
+  for (const item of rawContent) {
+    if (!isJsonRecord(item)) return null;
+
+    const type = item.type;
+    if (typeof type !== "string" || !allowedTypes.has(type)) {
+      return null;
+    }
+
+    const props = isJsonRecord(item.props) ? item.props : {};
+    sanitizedContent.push({ type, props });
+  }
+
+  const root = isJsonRecord(raw.root) && isJsonRecord(raw.root.props) ? { props: raw.root.props } : { props: {} };
+  return { content: sanitizedContent, root };
+}
+
+function parseAiLayoutResponse(value: unknown): { data: Data; version: number } | null {
+  // Backward compatible: accept direct Data payloads as schema v1.
+  const directData = sanitizeAiPuckData(value);
+  if (directData) {
+    return { data: directData, version: LAYOUT_SCHEMA_VERSION };
+  }
+
+  // Forward path: accept envelope { layoutSchemaVersion, data }.
+  if (!isJsonRecord(value)) return null;
+
+  const rawVersion = value.layoutSchemaVersion;
+  const rawData = value.data;
+
+  if (typeof rawVersion !== "number" || !Number.isInteger(rawVersion)) {
+    return null;
+  }
+
+  if (rawVersion !== LAYOUT_SCHEMA_VERSION) {
+    return null;
+  }
+
+  const sanitized = sanitizeAiPuckData(rawData);
+  if (!sanitized) return null;
+
+  return { data: sanitized, version: rawVersion };
+}
+
+async function streamBuilderChat(message: string, onChunk: (value: string) => void) {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, theme }),
+    body: JSON.stringify({ message, theme: "template-builder" }),
   });
 
   if (response.status === 429) {
@@ -150,7 +249,6 @@ async function streamThemeChat(message: string, theme: string, onChunk: (value: 
 
 function BuilderPopupInner() {
   const searchParams = useSearchParams();
-  const initialTheme = searchParams.get("theme") || "xai3";
   const initialTemplate = searchParams.get("template") || "Template";
   const initialPrompt = searchParams.get("prompt") || "";
   const storeSlug = searchParams.get("store") || "";
@@ -158,30 +256,61 @@ function BuilderPopupInner() {
   const handle = handleParam.startsWith("@") ? handleParam : `@${handleParam}`;
   const pfp = searchParams.get("pfp") || "https://picsum.photos/id/64/80/80";
   const banner = searchParams.get("banner") || "https://picsum.photos/id/1015/1920/400";
+  const normalizedHandle = handle.replace(/^@/, "").toLowerCase();
 
-  const [data, setData] = useState<Data>({
-    content: [
-      { type: "Hero", props: { title: `${handle} Store`, subtitle: "Products + X Money Donations", ctaLabel: "Shop New Drop" } },
-      { type: "ProductGrid", props: { heading: "Featured Collection", subheading: "Ready to wear, signed drops, and exclusive edits." } },
-      { type: "DonationBar", props: { title: "Support with X Money", progressText: "62% to monthly goal" } },
-    ],
-    root: { props: {} },
-  });
-  const [chatOpen, setChatOpen] = useState(true);
+  const [data, setData] = useState<Data>(EMPTY_CANVAS);
   const [message, setMessage] = useState(initialPrompt);
   const [sending, setSending] = useState(false);
   const [saveLabel, setSaveLabel] = useState(`${initialTemplate} Draft`);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
+  const [previewPayload, setPreviewPayload] = useState<TemplatePreviewPayload | null>(null);
+  const [activeStarterId, setActiveStarterId] = useState<string>("blank");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content:
-        "Hi. I am your Tailwind + Next.js builder bot. Ask for changes like: Add a floating X Money donate button and make the hero full-bleed with my PFP on the left.",
+      content: "Blank canvas is ready. Pick a template on the right, or ask AI to generate sections.",
     },
   ]);
 
   const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPreviewPayload() {
+      try {
+        const res = await fetch(`/api/template-preview/${encodeURIComponent(normalizedHandle)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const payload = (await res.json()) as TemplatePreviewPayload;
+        if (!mounted) return;
+        setPreviewPayload(payload);
+      } catch {
+        if (!mounted) return;
+        setPreviewPayload(null);
+      }
+    }
+
+    void loadPreviewPayload();
+    return () => {
+      mounted = false;
+    };
+  }, [normalizedHandle]);
+
+  function applyStarter(starter: TemplateStarter) {
+    const input = {
+      handle: normalizedHandle,
+      bio: previewPayload?.bio || "",
+      products: previewPayload?.products || [],
+      posts: previewPayload?.posts || [],
+    };
+
+    setData(starter.createData(input));
+    setActiveStarterId(starter.id);
+    setStatus(`Applied template: ${starter.name}`);
+  }
 
   async function sendToAssistant() {
     if (!message.trim() || sending) return;
@@ -196,10 +325,13 @@ function BuilderPopupInner() {
     setChatHistory((prev) => [...prev, { role: "assistant", content: "" }]);
 
     const systemPrompt = [
-      "You are an expert Tailwind + Next.js storefront builder for X creators.",
-      "Return either strict JSON for Puck data updates or concise code suggestions.",
-      `Current store handle: ${handle}.`,
-      "If returning JSON, include at minimum a top-level content array.",
+      "You are an expert Next.js and Tailwind storefront builder.",
+      "Return strict JSON only when producing a Puck data update.",
+      `Preferred JSON format: { \"layoutSchemaVersion\": ${LAYOUT_SCHEMA_VERSION}, \"data\": { \"content\": [...] } }.`,
+      "Backward-compatible format with top-level content array is accepted but not preferred.",
+      `Creator handle: ${handle}.`,
+      `Known products: ${(previewPayload?.products || []).map((p) => p.title).join(", ") || "none"}`,
+      `Known posts: ${(previewPayload?.posts || []).map((p) => p.text).join(" | ") || "none"}`,
     ].join(" ");
 
     const stitchedMessage = `${systemPrompt}\n\nConversation:\n${nextHistory
@@ -207,7 +339,7 @@ function BuilderPopupInner() {
       .join("\n")}`;
 
     try {
-      const reply = await streamThemeChat(stitchedMessage, initialTheme, (chunk) => {
+      const reply = await streamBuilderChat(stitchedMessage, (chunk) => {
         setChatHistory((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: "assistant", content: chunk };
@@ -217,12 +349,15 @@ function BuilderPopupInner() {
 
       try {
         const parsed = JSON.parse(reply);
-        if (isPuckData(parsed)) {
-          setData(parsed);
-          setStatus("Applied AI JSON update to canvas.");
+        const layout = parseAiLayoutResponse(parsed);
+        if (layout) {
+          setData(layout.data);
+          setStatus(`Applied AI JSON update to canvas (schema v${layout.version}).`);
+        } else {
+          setStatus("AI returned JSON, but it did not match the builder schema.");
         }
       } catch {
-        // Non-JSON responses are treated as guidance text.
+        // Non-JSON responses remain as guidance in chat history.
       }
     } catch (err) {
       setChatHistory((prev) => {
@@ -249,7 +384,6 @@ function BuilderPopupInner() {
         {
           type: "puck",
           version: 1,
-          theme: initialTheme,
           handle,
           store: storeSlug || null,
           data,
@@ -295,7 +429,7 @@ function BuilderPopupInner() {
         <div className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-6">
           <div className="flex items-center gap-4">
             <Image src={pfp} alt="Profile" width={32} height={32} unoptimized className="h-8 w-8 rounded-full" />
-            <div className="text-xl font-bold">{handle} Store Builder</div>
+            <div className="text-xl font-bold">{handle} Builder</div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -305,6 +439,12 @@ function BuilderPopupInner() {
               className="h-9 rounded-full border border-zinc-700 bg-zinc-800 px-4 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none"
               placeholder="Build name"
             />
+            <button
+              onClick={() => applyStarter(TEMPLATE_STARTERS[0])}
+              className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-200 hover:border-zinc-500"
+            >
+              Blank
+            </button>
             <button
               onClick={() => void applyStore()}
               disabled={saving || !saveLabel.trim()}
@@ -323,65 +463,19 @@ function BuilderPopupInner() {
         </div>
       </div>
 
-      {chatOpen ? (
-        <div className="fixed bottom-8 right-8 z-50 flex h-[500px] w-96 flex-col rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl">
-          <div className="flex items-center justify-between rounded-t-3xl bg-zinc-800 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-xs font-semibold">
-                G
-              </div>
-              <div>
-                <div className="font-semibold">Grok Store Builder</div>
-                <div className="text-xs text-emerald-400">Live Tailwind editor</div>
-              </div>
-            </div>
-            <button onClick={() => setChatOpen(false)} className="text-zinc-300 hover:text-white" aria-label="Close chat">
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto p-6 text-sm">
-            {chatHistory.map((entry, index) => (
-              <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
-                <div
-                  className={`inline-block max-w-[80%] rounded-2xl px-4 py-3 ${
-                    entry.role === "user" ? "bg-blue-600" : "bg-zinc-800"
-                  }`}
-                >
-                  {entry.content || (sending && index === chatHistory.length - 1 ? "Thinking..." : "")}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2 border-t border-zinc-700 p-4">
-            <input
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void sendToAssistant();
-              }}
-              placeholder="Make the donation bar glow emerald..."
-              className="flex-1 rounded-full bg-zinc-800 px-6 py-3 text-sm focus:outline-none"
-            />
-            <button
-              onClick={() => void sendToAssistant()}
-              disabled={sending || !message.trim()}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black hover:bg-emerald-400 disabled:opacity-40"
-            >
-              <Send size={18} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-500"
-          aria-label="Open chat"
-        >
-          <MessageCircle size={20} />
-        </button>
-      )}
+      <TemplateStarterPanel
+        starters={TEMPLATE_STARTERS}
+        activeStarterId={activeStarterId}
+        onSelectStarter={applyStarter}
+        chatHistory={chatHistory}
+        message={message}
+        sending={sending}
+        onMessageChange={setMessage}
+        onSend={() => void sendToAssistant()}
+        handle={normalizedHandle}
+        productCount={(previewPayload?.products || []).length}
+        postCount={(previewPayload?.posts || []).length}
+      />
 
       {status && (
         <div className="fixed left-6 bottom-6 z-50 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2 text-xs text-zinc-200">

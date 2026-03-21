@@ -45,43 +45,81 @@ export default function ConsoleDashboard() {
     approved: "bg-emerald-500/20 text-emerald-400",
     pending: "bg-amber-500/20 text-amber-400",
     rejected: "bg-red-500/20 text-red-400",
+    suspended: "bg-red-500/20 text-red-400",
+    payment_warning: "bg-orange-500/20 text-orange-400",
   };
 
   return (
     <div className="space-y-6">
+      {storeStatus === "payment_warning" && (
+        <div className="rounded-xl border border-orange-700/50 bg-orange-950/40 p-4 text-sm text-orange-300">
+          <strong className="font-semibold">Payment failed.</strong> Your last subscription payment
+          didn&apos;t go through. Update your billing info in Stripe before your store is suspended.{" "}
+          <a
+            href="https://billing.stripe.com/p/login/test_00g00000000"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-white"
+          >
+            Manage billing →
+          </a>
+        </div>
+      )}
+
+      {storeStatus === "suspended" && (
+        <div className="rounded-xl border border-red-700/50 bg-red-950/40 p-4 text-sm text-red-300">
+          <strong className="font-semibold">Store suspended.</strong> Your subscription has lapsed.
+          Renew to re-activate your storefront.{" "}
+          <a
+            href="https://billing.stripe.com/p/login/test_00g00000000"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-white"
+          >
+            Renew subscription →
+          </a>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Store Workspace</h1>
         <a
           href={`https://${storeSlug}.rareimagery.net`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+          className="inline-flex min-h-11 items-center rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-600"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-          </svg>
-          Open Live Store
+          Visit Live Store
         </a>
       </div>
 
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">{storeName}</h2>
-            <p className="text-sm text-zinc-400">@{xUsername} • {storeSlug}.rareimagery.net</p>
-            <p className="mt-2 text-xs text-zinc-500">Theme: {currentTheme}</p>
-          </div>
+        <h2 className="text-lg font-semibold text-white">{storeName || "Your Store"}</h2>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-zinc-400">Status</span>
           <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              statusColors[storeStatus || "pending"] || statusColors.pending
-            }`}
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusColors[storeStatus || "pending"] || "bg-zinc-700/40 text-zinc-300"}`}
           >
-            {storeStatus || "pending"}
+            {(storeStatus || "pending").replace("_", " ")}
           </span>
+          <span className="text-zinc-500">slug: {storeSlug}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Link
+          href="/console/products"
+          className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition hover:border-zinc-700"
+        >
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600/20">
+            <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 1.036-1.007 1.875-2.25 1.875s-2.25-.84-2.25-1.875 1.007-1.875 2.25-1.875 2.25.84 2.25 1.875zM12.75 6.375c0 1.036-1.007 1.875-2.25 1.875s-2.25-.84-2.25-1.875 1.007-1.875 2.25-1.875 2.25.84 2.25 1.875zM5.25 6.375c0 1.036-1.007 1.875-2.25 1.875S.75 7.41.75 6.375 1.757 4.5 3 4.5s2.25.84 2.25 1.875zM3 10.5h18M5.25 15.75h13.5" />
+            </svg>
+          </div>
+          <h3 className="font-medium text-white group-hover:text-indigo-400">Products</h3>
+          <p className="mt-1 text-xs text-zinc-500">Create and manage products in your catalog</p>
+        </Link>
+
         <Link
           href="/console/categories"
           className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition hover:border-zinc-700"

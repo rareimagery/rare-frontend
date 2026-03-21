@@ -409,11 +409,7 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
     linked_store_id: linkedStoreId,
     linked_store_path: linkedStorePath,
     store_theme: attrs.field_store_theme ?? "default",
-    store_theme_config: (() => {
-      if (!linkedStoreId) return null;
-      const storeEntity = included.find((inc: any) => inc.id === linkedStoreId);
-      return parseJsonField<Record<string, any>>(storeEntity?.attributes?.field_store_theme);
-    })(),
+    store_theme_config: parseJsonField<Record<string, any>>(attrs.field_store_theme_config),
     myspace_background: attrs.field_myspace_background ?? null,
     myspace_music_url: attrs.field_myspace_music_url ?? null,
     myspace_glitter_color: attrs.field_myspace_glitter_color ?? null,

@@ -18,6 +18,12 @@ import StoreNav from "@/components/StoreNav";
 import BuilderGate from "@/components/builder/BuilderGate";
 import StoreBuildRenderer from "@/components/builder/StoreBuildRenderer";
 import StoreRareProjectConversations from "@/components/StoreRareProjectConversations";
+import { RetroTemplate } from "@/templates/Retro";
+import { ModernCartTemplate } from "@/templates/ModernCart";
+import { VideoStoreTemplate } from "@/templates/VideoStore";
+import { PostsFeedTemplate } from "@/templates/PostsFeed";
+import { BlankTemplate } from "@/templates/Blank";
+import type { TemplatePreviewProps } from "@/templates/types";
 
 export async function generateStaticParams() {
   try {
@@ -103,6 +109,70 @@ export default async function CreatorStorePage({
             accentColor={profile.myspace_accent_color ?? undefined}
             themeConfig={profile.store_theme_config ?? undefined}
           />
+          <StoreRareProjectConversations creator={creator} />
+          <StoreBuildRenderer builds={publishedBuilds} />
+        </div>
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
+      </>
+    );
+  }
+
+  const templateId =
+    typeof profile.store_theme_config?.templateId === "string"
+      ? profile.store_theme_config.templateId
+      : null;
+
+  const templateProps: TemplatePreviewProps = {
+    handle: profile.x_username,
+    avatar: profile.profile_picture_url ?? undefined,
+    banner: profile.banner_url ?? undefined,
+    bio: profile.bio ?? undefined,
+    products: products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      price: Number.parseFloat(product.price || "0") || 0,
+      image: product.image_url ?? undefined,
+      description: product.description ?? undefined,
+    })),
+    posts: (profile.top_posts || []).map((post) => ({
+      id: post.id,
+      text: post.text,
+    })),
+    videos: (profile.top_posts || [])
+      .filter((post) => !!post.image_url)
+      .slice(0, 6)
+      .map((post) => ({
+        id: post.id,
+        url: post.image_url || "",
+        thumbnail: post.image_url,
+      })),
+  };
+
+  if (
+    templateId === "retro" ||
+    templateId === "modern-cart" ||
+    templateId === "ai-video-store" ||
+    templateId === "latest-posts" ||
+    templateId === "blank"
+  ) {
+    const templateNode =
+      templateId === "retro" ? (
+        <RetroTemplate {...templateProps} />
+      ) : templateId === "modern-cart" ? (
+        <ModernCartTemplate {...templateProps} />
+      ) : templateId === "ai-video-store" ? (
+        <VideoStoreTemplate {...templateProps} />
+      ) : templateId === "latest-posts" ? (
+        <PostsFeedTemplate {...templateProps} />
+      ) : (
+        <BlankTemplate {...templateProps} />
+      );
+
+    return (
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          {templateNode}
           <StoreRareProjectConversations creator={creator} />
           <StoreBuildRenderer builds={publishedBuilds} />
         </div>

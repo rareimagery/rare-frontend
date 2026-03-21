@@ -77,6 +77,14 @@ const THEME_PROMPTS: Record<string, string> = {
 - Borders: 1px zinc-800 dividers, rounded-2xl cards
 - Layout: single column (600px max), timeline cards, avatar + content rows
 - Vibe: social media, familiar, content-first, conversation-threaded`,
+
+  "template-builder": `You are operating in RareImagery Template Builder mode.
+- Return ONLY valid JSON, never JSX.
+- JSON format must be: { "layoutSchemaVersion": 1, "data": { "content": [...], "root": { "props": {} } } }
+- Allowed component types in data.content: Hero, ProductGrid, DonationBar, PostsList
+- Each content item must be { "type": "<allowed>", "props": { ... } }
+- Keep copy concise and conversion-focused for creator storefronts
+- If user asks for changes, return a full updated JSON payload for the canvas`,
 };
 
 interface CreatorContext {
@@ -89,6 +97,31 @@ interface CreatorContext {
 }
 
 function getSystemPrompt(theme: string, ctx?: CreatorContext): string {
+  if (theme === "template-builder") {
+    const lines: string[] = [THEME_PROMPTS["template-builder"]];
+    if (ctx?.username) {
+      lines.push(`Creator handle: @${ctx.username}`);
+    }
+    if (ctx?.products?.length) {
+      lines.push(
+        `Known products: ${ctx.products
+          .slice(0, 8)
+          .map((p) => `${p.name}${p.price ? ` ($${p.price})` : ""}`)
+          .join(", ")}`
+      );
+    }
+    if (ctx?.topPosts?.length) {
+      lines.push(
+        `Known posts: ${ctx.topPosts
+          .slice(0, 5)
+          .map((p) => p.title ?? p.summary ?? "")
+          .filter(Boolean)
+          .join(" | ")}`
+      );
+    }
+    return lines.join("\n");
+  }
+
   const themeBlock = THEME_PROMPTS[theme] || THEME_PROMPTS.xai3;
   const base = `${BASE_RULES}\n\nStore theme: "${theme}"\n${themeBlock}`;
 
@@ -159,6 +192,8 @@ export async function POST(req: NextRequest) {
 
   let generated = "";
   try {
+    const useJsonResponse = (theme || "xai3") === "template-builder";
+
     const aiRes = await fetch(XAI_API_URL, {
       method: "POST",
       headers: {
@@ -167,6 +202,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "grok-3-mini",
+        ...(useJsonResponse ? { response_format: { type: "json_object" } } : {}),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: message },

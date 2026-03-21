@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Puck } from "@measured/puck";
 import type { Data, Config } from "@measured/puck";
+import "@measured/puck/puck.css";
 import TemplateStarterPanel from "@/components/builder/TemplateStarterPanel";
 import {
   EMPTY_CANVAS,

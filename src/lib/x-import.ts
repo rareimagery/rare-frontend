@@ -336,24 +336,31 @@ export async function fetchXData(
 export async function findProfileByUsername(
   username: string
 ): Promise<{ uuid: string; nid: number } | null> {
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(username)}`,
-    { headers: { ...drupalAuthHeaders() } }
-  );
+  const cleaned = username.trim().replace(/^@+/, "");
+  const candidates = Array.from(new Set([cleaned, cleaned.toLowerCase()].filter(Boolean)));
 
-  if (!res.ok) {
-    console.error("Drupal lookup failed:", res.status, await res.text());
-    return null;
+  for (const candidate of candidates) {
+    const res: Response = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(candidate)}`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+
+    if (!res.ok) {
+      console.error("Drupal lookup failed:", res.status, await res.text());
+      continue;
+    }
+
+    const json = await res.json();
+    const nodes = json.data ?? [];
+    if (nodes.length > 0) {
+      return {
+        uuid: nodes[0].id,
+        nid: nodes[0].attributes.drupal_internal__nid,
+      };
+    }
   }
 
-  const json = await res.json();
-  const nodes = json.data ?? [];
-  if (nodes.length === 0) return null;
-
-  return {
-    uuid: nodes[0].id,
-    nid: nodes[0].attributes.drupal_internal__nid,
-  };
+  return null;
 }
 
 export async function patchProfile(

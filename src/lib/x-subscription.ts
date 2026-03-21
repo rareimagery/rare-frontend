@@ -9,6 +9,7 @@ import { isFreeSubscriptionAllowlisted } from "@/lib/subscription-allowlist";
 
 const DEFAULT_REQUIRED_X_USERNAME = "rareimagery";
 const DRUPAL_API = process.env.DRUPAL_API_URL;
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "paid"]);
 
 function requiredUsernameFromEnv(): string {
   const raw = process.env.REQUIRED_X_CREATOR_USERNAME?.trim();
@@ -29,23 +30,53 @@ async function resolveRequiredCreatorStoreId(requiredUsername: string): Promise<
     return null;
   }
 
-  const params = new URLSearchParams({
-    "filter[field_x_username]": requiredUsername,
-  });
-
-  const res = await fetch(
-    `${DRUPAL_API}/jsonapi/node/creator_x_profile?${params.toString()}`,
-    { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+  const usernameCandidates = Array.from(
+    new Set([
+      requiredUsername,
+      requiredUsername.toLowerCase(),
+      requiredUsername.replace(/^@+/, ""),
+      requiredUsername.replace(/^@+/, "").toLowerCase(),
+    ].filter(Boolean))
   );
 
-  if (!res.ok) {
-    return null;
+  for (const candidate of usernameCandidates) {
+    const params = new URLSearchParams({
+      "filter[field_x_username]": candidate,
+    });
+
+    const res: Response = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile?${params.toString()}`,
+      { headers: { ...drupalAuthHeaders() }, next: { revalidate: 0 } }
+    );
+
+    if (!res.ok) {
+      continue;
+    }
+
+    const json = await res.json();
+    const profile = json.data?.[0];
+    const storeId = profile?.relationships?.field_linked_store?.data?.id;
+    if (typeof storeId === "string" && storeId.length > 0) {
+      return storeId;
+    }
   }
 
-  const json = await res.json();
-  const profile = json.data?.[0];
-  const storeId = profile?.relationships?.field_linked_store?.data?.id;
-  return typeof storeId === "string" && storeId.length > 0 ? storeId : null;
+  return null;
+}
+
+function buildBuyerIdentityKeys(buyerXId?: string | null, buyerUsername?: string | null): string[] {
+  const username = buyerUsername?.trim().replace(/^@+/, "") || "";
+  const lowered = username.toLowerCase();
+
+  return Array.from(
+    new Set([
+      buyerXId?.trim() || "",
+      username,
+      lowered,
+      username ? `@${username}` : "",
+      lowered ? `@${lowered}` : "",
+    ].filter(Boolean))
+  );
 }
 
 type PaidSubscriptionCheckInput = {
@@ -76,8 +107,7 @@ export async function checkRequiredPaidSubscription({
       return { subscribed: false, error: "Drupal API URL is not configured." };
     }
 
-    const normalizedUser = buyerUsername?.trim().replace(/^@+/, "") || "";
-    const buyerKeys = [buyerXId?.trim() || "", normalizedUser].filter(Boolean);
+    const buyerKeys = buildBuyerIdentityKeys(buyerXId, buyerUsername);
 
     if (buyerKeys.length === 0) {
       return { subscribed: false, error: "Missing buyer identity for subscription check." };
@@ -95,7 +125,6 @@ export async function checkRequiredPaidSubscription({
       const params = new URLSearchParams({
         "filter[field_buyer_x_id]": buyerKey,
         "filter[field_store_id]": requiredStoreId,
-        "filter[field_subscription_status]": "active",
       });
 
       const res = await fetch(
@@ -109,8 +138,13 @@ export async function checkRequiredPaidSubscription({
 
       const json = await res.json();
       const subscriptions = Array.isArray(json.data) ? json.data : [];
-      if (subscriptions.length > 0) {
-        const attrs = subscriptions[0]?.attributes || {};
+      const activeSub = subscriptions.find((sub: any) => {
+        const status = String(sub?.attributes?.field_subscription_status ?? "").toLowerCase();
+        return ACTIVE_SUBSCRIPTION_STATUSES.has(status);
+      });
+
+      if (activeSub) {
+        const attrs = activeSub?.attributes || {};
         return {
           subscribed: true,
           tier: attrs.field_tier_id ?? null,

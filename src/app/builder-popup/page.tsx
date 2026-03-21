@@ -409,7 +409,7 @@ function BuilderPopupInner() {
   ]);
 
   const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
-  const initialStarterApplied = useRef(false);
+  const initialStarterKey = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -474,8 +474,10 @@ function BuilderPopupInner() {
   }
 
   useEffect(() => {
-    if (initialStarterApplied.current) return;
     if (!previewLoaded) return;
+
+    const starterKey = `${normalizedHandle}:${initialTemplate}`;
+    if (initialStarterKey.current === starterKey) return;
 
     const starterId = mapTemplateToStarter(initialTemplate);
     const starter = TEMPLATE_STARTERS.find((item) => item.id === starterId) || TEMPLATE_STARTERS[0];
@@ -492,7 +494,7 @@ function BuilderPopupInner() {
     setData(starter.createData(input));
     setActiveStarterId(starter.id);
     setStatus(`Applied template: ${starter.name}`);
-    initialStarterApplied.current = true;
+    initialStarterKey.current = starterKey;
   }, [autoIncludeProfileMedia, banner, initialTemplate, normalizedHandle, pfp, previewLoaded, previewPayload]);
 
   async function sendToAssistant() {

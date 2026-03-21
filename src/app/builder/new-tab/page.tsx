@@ -405,7 +405,7 @@ function BuilderNewTabInner() {
     },
   ]);
 
-  const initialStarterApplied = useRef(false);
+  const initialStarterKey = useRef<string | null>(null);
   const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
 
   useEffect(() => {
@@ -471,8 +471,10 @@ function BuilderNewTabInner() {
   }
 
   useEffect(() => {
-    if (initialStarterApplied.current) return;
     if (!previewLoaded) return;
+
+    const starterKey = `${normalizedHandle}:${initialTemplate}`;
+    if (initialStarterKey.current === starterKey) return;
 
     const starterId = mapTemplateToStarter(initialTemplate);
     const starter = TEMPLATE_STARTERS.find((item) => item.id === starterId) || TEMPLATE_STARTERS[0];
@@ -489,7 +491,7 @@ function BuilderNewTabInner() {
     setData(starter.createData(input));
     setActiveStarterId(starter.id);
     setStatus(`Applied template: ${starter.name}`);
-    initialStarterApplied.current = true;
+    initialStarterKey.current = starterKey;
   }, [autoIncludeProfileMedia, banner, initialTemplate, normalizedHandle, pfp, previewLoaded, previewPayload]);
 
   async function sendToAssistant() {

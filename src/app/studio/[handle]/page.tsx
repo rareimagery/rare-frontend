@@ -74,13 +74,14 @@ export default function CreatorStudio({ params }: { params: Promise<{ handle: st
 
         <div className="w-full max-w-[420px] overflow-hidden rounded-3xl border border-zinc-800 bg-white shadow-2xl">
           <div className="flex h-12 items-center bg-black px-4 text-xs text-white">
-            rareimagery.net/@{handle || 'creator'}
+            rareimagery.net/@{handle || 'creator'} • Drag to reorder
           </div>
 
           <LiveThemePreview
             templateId={templateId}
             handle={handle}
             sections={sections}
+            setSections={setSections}
             customCSS={customCSS}
             avatar={(drupalContext as Record<string, unknown>)?.avatar as string | undefined}
             drupalContext={drupalContext as Record<string, unknown> | undefined}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RetroTemplate } from '@/templates/Retro';
 import { ModernCartTemplate } from '@/templates/ModernCart';
 import { VideoStoreTemplate } from '@/templates/VideoStore';
@@ -65,6 +65,8 @@ type Props = {
   sections?: string[];
   customCSS?: string;
   drupalContext?: Record<string, unknown>;
+  /** Pass to enable drag-to-reorder sections inside the preview */
+  setSections?: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 function ExtraPreviewSection({ componentId }: { componentId: string }) {
@@ -147,7 +149,9 @@ export function LiveThemePreview({
   sections = [],
   customCSS = '',
   drupalContext,
+  setSections,
 }: Props) {
+  const dragSrcIndex = useRef<number | null>(null);
   // drupalContext is available for section renderers that need live Drupal data
   // Merge both props so callers can use either name
   const resolvedComponents = Array.from(new Set([...extraComponents, ...sections]));
@@ -237,7 +241,24 @@ export function LiveThemePreview({
       {resolvedComponents.length > 0 ? (
         <div className="space-y-4 p-6">
           {resolvedComponents.map((componentId, index) => (
-            <ExtraPreviewSection key={`${componentId}-${index}`} componentId={componentId} />
+            <div
+              key={`${componentId}-${index}`}
+              draggable={!!setSections}
+              onDragStart={() => { dragSrcIndex.current = index; }}
+              onDragOver={(e) => { if (setSections) e.preventDefault(); }}
+              onDrop={(e) => {
+                if (!setSections || dragSrcIndex.current === null || dragSrcIndex.current === index) return;
+                e.preventDefault();
+                const next = [...resolvedComponents];
+                const [moved] = next.splice(dragSrcIndex.current, 1);
+                next.splice(index, 0, moved);
+                setSections(() => next);
+                dragSrcIndex.current = null;
+              }}
+              className={setSections ? 'cursor-grab active:cursor-grabbing' : undefined}
+            >
+              <ExtraPreviewSection componentId={componentId} />
+            </div>
           ))}
         </div>
       ) : null}

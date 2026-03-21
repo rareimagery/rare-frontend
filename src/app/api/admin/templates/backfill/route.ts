@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { drupalAuthHeaders, drupalWriteHeaders, DRUPAL_API_URL } from "@/lib/drupal";
+import { resolveTemplateId } from "@/templates/catalog";
 
 type ProfileNode = {
   id: string;
@@ -10,18 +11,6 @@ type ProfileNode = {
     field_store_theme_config?: string | null;
   };
 };
-
-const THEME_TO_TEMPLATE: Record<string, string> = {
-  myspace: "retro",
-  xai3: "modern-cart",
-  editorial: "ai-video-store",
-  xmimic: "latest-posts",
-  minimal: "blank",
-};
-
-function inferTemplateId(theme: string | null | undefined): string {
-  return THEME_TO_TEMPLATE[theme ?? ""] ?? "modern-cart";
-}
 
 function parseThemeConfig(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
@@ -86,7 +75,7 @@ export async function POST(req: NextRequest) {
           id: profile.id,
           handle: attrs.field_x_username ?? "unknown",
           theme,
-          templateId: inferTemplateId(theme),
+          templateId: resolveTemplateId(theme),
           previousConfig: parsedConfig,
         };
       })

@@ -190,11 +190,11 @@ export default async function BuildPage() {
               },
               {
                 title: "AI-Powered Setup",
-                desc: "Grok AI writes your bio, suggests products, and picks the best theme for your brand.",
+                desc: "Grok AI writes your bio, suggests products, and helps you start from the right storefront template.",
               },
               {
-                title: "5 Store Themes",
-                desc: "Choose from Default, Minimal, Neon, Editorial, or the legendary MySpace theme.",
+                title: "Template-First Builder",
+                desc: "Start from distinct storefront templates, then refine the layout and sections in the builder.",
               },
               {
                 title: "Print-on-Demand",

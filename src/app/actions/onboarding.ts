@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { updateTemplate } from '@/app/actions/template';
+import type { TemplateId } from '@/templates/catalog';
 
 type OnboardingProfile = {
   handle: string;
@@ -14,7 +15,7 @@ type OnboardingProfile = {
 
 export async function createCreatorSite(
   profile: OnboardingProfile,
-  selectedTemplate: 'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank'
+  selectedTemplate: TemplateId
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {

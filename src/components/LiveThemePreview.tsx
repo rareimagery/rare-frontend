@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { RetroTemplate } from '@/templates/Retro';
-import { ModernCartTemplate } from '@/templates/ModernCart';
-import { VideoStoreTemplate } from '@/templates/VideoStore';
-import { PostsFeedTemplate } from '@/templates/PostsFeed';
-import { BlankTemplate } from '@/templates/Blank';
+import { resolveTemplateId, type TemplateId } from '@/templates/catalog';
+import { getTemplateDefinition } from '@/templates/registry';
 import type { PreviewPost, PreviewProduct } from '@/templates/types';
 
 const mockProducts = [
@@ -56,7 +53,7 @@ type PreviewPayload = {
 };
 
 type Props = {
-  templateId: string;
+  templateId: TemplateId | string;
   handle: string;
   avatar?: string;
   bio?: string;
@@ -215,24 +212,9 @@ export function LiveThemePreview({
 
   const scaleStyle = { transform: 'scale(0.82)', transformOrigin: 'top left' as const, width: '122%' };
 
-  let previewNode;
-  switch (templateId) {
-    case 'retro':
-      previewNode = <RetroTemplate {...commonProps} />;
-      break;
-    case 'modern-cart':
-      previewNode = <ModernCartTemplate {...commonProps} />;
-      break;
-    case 'ai-video-store':
-      previewNode = <VideoStoreTemplate {...commonProps} />;
-      break;
-    case 'latest-posts':
-      previewNode = <PostsFeedTemplate {...commonProps} />;
-      break;
-    default:
-      previewNode = <BlankTemplate {...commonProps} />;
-      break;
-  }
+  const templateDefinition = getTemplateDefinition(resolveTemplateId(templateId)) || getTemplateDefinition('blank');
+  const TemplateComponent = templateDefinition?.StorefrontComponent;
+  const previewNode = TemplateComponent ? <TemplateComponent {...commonProps} /> : null;
 
   return (
     <div style={scaleStyle}>

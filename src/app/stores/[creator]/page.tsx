@@ -18,11 +18,7 @@ import StoreNav from "@/components/StoreNav";
 import BuilderGate from "@/components/builder/BuilderGate";
 import StoreBuildRenderer from "@/components/builder/StoreBuildRenderer";
 import StoreRareProjectConversations from "@/components/StoreRareProjectConversations";
-import { RetroTemplate } from "@/templates/Retro";
-import { ModernCartTemplate } from "@/templates/ModernCart";
-import { VideoStoreTemplate } from "@/templates/VideoStore";
-import { PostsFeedTemplate } from "@/templates/PostsFeed";
-import { BlankTemplate } from "@/templates/Blank";
+import { getTemplateDefinition } from "@/templates/registry";
 import type { TemplatePreviewProps } from "@/templates/types";
 
 export async function generateStaticParams() {
@@ -148,31 +144,16 @@ export default async function CreatorStorePage({
       })),
   };
 
-  if (
-    templateId === "retro" ||
-    templateId === "modern-cart" ||
-    templateId === "ai-video-store" ||
-    templateId === "latest-posts" ||
-    templateId === "blank"
-  ) {
-    const templateNode =
-      templateId === "retro" ? (
-        <RetroTemplate {...templateProps} />
-      ) : templateId === "modern-cart" ? (
-        <ModernCartTemplate {...templateProps} />
-      ) : templateId === "ai-video-store" ? (
-        <VideoStoreTemplate {...templateProps} />
-      ) : templateId === "latest-posts" ? (
-        <PostsFeedTemplate {...templateProps} />
-      ) : (
-        <BlankTemplate {...templateProps} />
-      );
+  const templateDefinition = getTemplateDefinition(templateId);
+
+  if (templateDefinition) {
+    const TemplateComponent = templateDefinition.StorefrontComponent;
 
     return (
       <>
         <StoreNav creator={creator} />
         <div className="pt-12">
-          {templateNode}
+          <TemplateComponent {...templateProps} />
           <StoreRareProjectConversations creator={creator} />
           <StoreBuildRenderer builds={publishedBuilds} />
         </div>

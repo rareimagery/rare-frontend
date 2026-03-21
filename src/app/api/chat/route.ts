@@ -8,7 +8,7 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW = 3600000; // 1 hour
 
 // ---------------------------------------------------------------------------
-// Base rules (shared across all themes)
+// Base rules shared across storefront styles.
 // ---------------------------------------------------------------------------
 
 const BASE_RULES = `You are a Next.js frontend engineer building components for RareImagery creator storefronts.
@@ -24,7 +24,7 @@ Rules:
 - If the request is unclear, default to a styled card or section component`;
 
 // ---------------------------------------------------------------------------
-// Theme-specific style instructions
+// Style-specific instructions.
 // ---------------------------------------------------------------------------
 
 const THEME_PROMPTS: Record<string, string> = {
@@ -123,7 +123,7 @@ function getSystemPrompt(theme: string, ctx?: CreatorContext): string {
   }
 
   const themeBlock = THEME_PROMPTS[theme] || THEME_PROMPTS.xai3;
-  const base = `${BASE_RULES}\n\nStore theme: "${theme}"\n${themeBlock}`;
+  const base = `${BASE_RULES}\n\nStore style: "${theme}"\n${themeBlock}`;
 
   if (!ctx?.username) return base;
 

@@ -2,6 +2,8 @@
 
 import { useConsole } from "@/components/ConsoleContext";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import { resolveTemplateId } from "@/templates/catalog";
+import { getTemplateDefinition } from "@/templates/registry";
 
 export default function SettingsPage() {
   const {
@@ -12,6 +14,7 @@ export default function SettingsPage() {
     currentTheme,
     xUsername,
   } = useConsole();
+  const activeTemplate = getTemplateDefinition(resolveTemplateId(currentTheme));
 
   if (!hasStore) {
     return (
@@ -53,9 +56,9 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-500">
-              Theme
+              Template
             </label>
-            <p className="mt-1 text-sm text-white">{currentTheme}</p>
+            <p className="mt-1 text-sm text-white">{activeTemplate?.name || currentTheme}</p>
           </div>
         </div>
       </div>

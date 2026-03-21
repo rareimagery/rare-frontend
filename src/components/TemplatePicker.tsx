@@ -3,16 +3,31 @@
 import { useEffect, useState } from 'react';
 import LiveThemePreview from './LiveThemePreview';
 import { updateTemplate } from '@/app/actions/template';
+import { TEMPLATE_DEFINITIONS } from '@/templates/registry';
+import { resolveTemplateId, type TemplateId } from '@/templates/catalog';
+import { DEFAULT_TEMPLATE_ID } from '@/templates/catalog';
 
-const templates = [
-  { id: 'retro', label: 'Memories MySpace / Old FB / AOL', emoji: '🕹️' },
-  { id: 'modern-cart', label: 'Modern Shopping Cart', emoji: '🛒' },
-  { id: 'ai-video-store', label: 'AI Video Store', emoji: '🎥' },
-  { id: 'latest-posts', label: 'Latest X Posts Feed', emoji: '📜' },
-  { id: 'blank', label: 'Blank Canvas (build your own)', emoji: '✨' },
-] as const;
+const TEMPLATE_EMOJI: Record<TemplateId, string> = {
+  retro: '🕹️',
+  'modern-cart': '🛒',
+  'ai-video-store': '🎥',
+  'latest-posts': '📜',
+  blank: '✨',
+};
 
-type TemplateId = (typeof templates)[number]['id'];
+const TEMPLATE_LABELS: Record<TemplateId, string> = {
+  retro: 'Memories MySpace / Old FB / AOL',
+  'modern-cart': 'Modern Shopping Cart',
+  'ai-video-store': 'AI Video Store',
+  'latest-posts': 'Latest X Posts Feed',
+  blank: 'Blank Canvas (build your own)',
+};
+
+const templates = TEMPLATE_DEFINITIONS.map((template) => ({
+  id: template.id,
+  label: TEMPLATE_LABELS[template.id],
+  emoji: TEMPLATE_EMOJI[template.id],
+}));
 
 type CreateThemeResult = {
   success?: boolean;
@@ -21,19 +36,8 @@ type CreateThemeResult = {
 };
 
 function normalizeCurrentTemplate(current: string): TemplateId {
-  if (templates.some((template) => template.id === current)) {
-    return current as TemplateId;
-  }
-
-  const byTheme: Record<string, TemplateId> = {
-    myspace: 'retro',
-    xai3: 'modern-cart',
-    editorial: 'ai-video-store',
-    xmimic: 'latest-posts',
-    minimal: 'blank',
-  };
-
-  return byTheme[current] || 'modern-cart';
+  const resolved = resolveTemplateId(current);
+  return templates.some((template) => template.id === resolved) ? resolved : DEFAULT_TEMPLATE_ID;
 }
 
 export default function TemplatePicker({

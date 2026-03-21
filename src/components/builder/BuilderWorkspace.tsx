@@ -13,6 +13,7 @@ import {
   type TemplateStarter,
   type TemplatePreviewPayload,
 } from "@/components/builder/templateStarters";
+import { DEFAULT_TEMPLATE_ID } from "@/templates/catalog";
 
 type ChatMessage = {
   role: "assistant" | "user";
@@ -368,7 +369,7 @@ async function streamBuilderChat(message: string, onChunk: (value: string) => vo
 
 export default function BuilderWorkspace() {
   const searchParams = useSearchParams();
-  const initialTemplate = searchParams.get("template") || "modern-cart";
+  const initialTemplate = searchParams.get("template") || DEFAULT_TEMPLATE_ID;
   const storeSlug = searchParams.get("store") || "";
   const handleParam = searchParams.get("handle") || (storeSlug ? `@${storeSlug}` : "@rareimagery");
   const handle = handleParam.startsWith("@") ? handleParam : `@${handleParam}`;

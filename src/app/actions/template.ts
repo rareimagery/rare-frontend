@@ -4,21 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { DRUPAL_API_URL, drupalWriteHeaders } from '@/lib/drupal';
-
-type TemplateId =
-  | 'retro'
-  | 'modern-cart'
-  | 'ai-video-store'
-  | 'latest-posts'
-  | 'blank';
-
-const TEMPLATE_TO_THEME: Record<TemplateId, string> = {
-  retro: 'myspace',
-  'modern-cart': 'xai3',
-  'ai-video-store': 'editorial',
-  'latest-posts': 'xmimic',
-  blank: 'minimal',
-};
+import { TEMPLATE_TO_THEME, type TemplateId } from '@/templates/catalog';
 
 async function findCreatorProfileUuidByHandle(handle: string): Promise<string | null> {
   const candidates = Array.from(new Set([handle, handle.toLowerCase()].filter(Boolean)));
@@ -129,7 +115,7 @@ export async function updateTemplate(sellerHandle: string, templateId: TemplateI
     }
 
     revalidatePath('/console');
-    revalidatePath('/console/theme');
+    revalidatePath('/console/builder');
     revalidatePath(`/stores/${sellerHandle}`);
     revalidatePath(`/shop/${sellerHandle}`);
 

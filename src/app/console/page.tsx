@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useConsole } from "@/components/ConsoleContext";
-import TemplatePicker from "@/components/TemplatePicker";
 import CostTracker from "@/components/CostTracker";
+import { resolveTemplateId } from "@/templates/catalog";
+import { getTemplateDefinition } from "@/templates/registry";
 
 export default function ConsoleDashboard() {
   const {
@@ -17,6 +18,8 @@ export default function ConsoleDashboard() {
   } = useConsole();
 
   const isAdmin = role === "admin";
+  const activeTemplateId = resolveTemplateId(currentTheme || null);
+  const activeTemplate = getTemplateDefinition(activeTemplateId);
 
   if (!hasStore) {
     return (
@@ -133,7 +136,7 @@ export default function ConsoleDashboard() {
         </Link>
 
         <Link
-          href="/console/page-building"
+          href="/console/builder"
           className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition hover:border-zinc-700"
         >
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-purple-600/20">
@@ -159,8 +162,25 @@ export default function ConsoleDashboard() {
         </Link>
       </div>
 
-      {xUsername && (
-        <TemplatePicker current={currentTheme || "xai3"} sellerHandle={xUsername} />
+      {xUsername && activeTemplate && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Active Template</p>
+              <h3 className="mt-2 text-lg font-semibold text-white">{activeTemplate.name}</h3>
+              <p className="mt-1 max-w-xl text-sm text-zinc-400">{activeTemplate.description}</p>
+            </div>
+            <Link
+              href="/console/builder"
+              className="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+            >
+              Open Builder
+            </Link>
+          </div>
+          <p className="mt-4 text-xs text-zinc-500">
+            Template changes, AI generation, and publishing now happen in the builder workspace.
+          </p>
+        </div>
       )}
 
       {xUsername && (

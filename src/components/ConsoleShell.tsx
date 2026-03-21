@@ -16,6 +16,7 @@ function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/console/categories")) return "Store Categories";
   if (pathname.startsWith("/console/builder")) return "Page Building";
   if (pathname.startsWith("/console/page-building")) return "Page Building";
+  if (pathname.startsWith("/console/theme")) return "Page Building";
   if (pathname.startsWith("/console/print-services")) return "Print Services";
   if (pathname.startsWith("/console/setup")) return "Store Setup";
   if (pathname.startsWith("/console/settings")) return "Settings";
@@ -23,7 +24,6 @@ function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/console/accounting")) return "Accounting";
   if (pathname.startsWith("/console/subscriptions")) return "Subscriptions";
   if (pathname.startsWith("/console/support")) return "Support";
-  if (pathname.startsWith("/console/theme")) return "Theme";
   if (pathname.startsWith("/console/stores")) return "Stores";
   return "Console";
 }

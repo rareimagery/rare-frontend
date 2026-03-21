@@ -1,124 +1,61 @@
 "use client";
-import { useState } from "react";
 
-const THEMES = [
-  {
-    id: "xai3",
-    name: "Xai3 (Default)",
-    description: "X-feed style center column with cart, tabs, and premium typography",
-    preview: "bg-black",
-  },
-  {
-    id: "minimal",
-    name: "Minimal",
-    description: "Clean, light design with lots of whitespace",
-    preview: "bg-gray-50",
-  },
-  {
-    id: "neon",
-    name: "Neon",
-    description: "Dark glassmorphism with purple and cyan accents",
-    preview: "bg-[#0a0a0f]",
-  },
-  {
-    id: "editorial",
-    name: "Editorial",
-    description: "Warm magazine-style with serif typography",
-    preview: "bg-[#f8f6f1]",
-  },
-  {
-    id: "myspace",
-    name: "MySpace",
-    description: "Retro 2007 nostalgia with glitter, marquees, and music",
-    preview: "bg-[#000033]",
-  },
-  {
-    id: "xmimic",
-    name: "X Profile",
-    description: "Exact X/Twitter profile clone — 3-column layout with Store tab",
-    preview: "bg-black",
-  },
-];
+import { resolveTemplateId } from "@/templates/catalog";
+import { TEMPLATE_DEFINITIONS } from "@/templates/registry";
 
 interface ThemeSelectorProps {
-  profileNodeId: string;
   currentTheme: string;
+  sellerHandle?: string;
 }
 
 export default function ThemeSelector({
-  profileNodeId,
   currentTheme,
+  sellerHandle,
 }: ThemeSelectorProps) {
-  const [selected, setSelected] = useState(currentTheme || "xai3");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
-  const save = async () => {
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch("/api/stores/select-theme", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileNodeId, theme: selected }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Save failed");
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const activeTemplateId = resolveTemplateId(currentTheme || null);
+  const normalizedHandle = sellerHandle?.replace(/^@+/, "") || "";
 
   return (
-    <div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {THEMES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSelected(t.id)}
-            className={`rounded-xl border-2 p-4 text-left transition ${
-              selected === t.id
-                ? "border-indigo-500 bg-indigo-500/10"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-600"
-            }`}
-          >
-            <div className="mb-3 flex items-center gap-3">
-              <div
-                className={`h-8 w-8 rounded-lg ${t.preview} border border-zinc-700`}
-              />
-              <span className="font-semibold text-white">{t.name}</span>
-              {selected === t.id && (
-                <span className="ml-auto text-xs text-indigo-400">
-                  Selected
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-zinc-500">{t.description}</p>
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 text-sm text-zinc-400">
+        Template changes now happen in the builder. Choose a starting template below to open the canonical editing workspace.
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={saving || selected === currentTheme}
-          className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : saved ? "Saved!" : "Apply Theme"}
-        </button>
-        {selected === currentTheme && (
-          <span className="text-xs text-zinc-500">
-            This is the current theme
-          </span>
-        )}
-        {error && <span className="text-xs text-red-400">{error}</span>}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {TEMPLATE_DEFINITIONS.map((template) => {
+          const href = normalizedHandle
+            ? `/builder/new-tab?handle=${encodeURIComponent(normalizedHandle)}&template=${template.id}`
+            : null;
+
+          return (
+            <div
+              key={template.id}
+              className={`rounded-xl border p-4 transition ${
+                activeTemplateId === template.id
+                  ? "border-indigo-500 bg-indigo-500/10"
+                  : "border-zinc-800 bg-zinc-900/60"
+              }`}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="font-semibold text-white">{template.name}</span>
+                {activeTemplateId === template.id && (
+                  <span className="text-xs font-medium text-indigo-400">Active</span>
+                )}
+              </div>
+              <p className="min-h-10 text-xs text-zinc-500">{template.description}</p>
+              {href ? (
+                <a
+                  href={href}
+                  className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+                >
+                  Open in Builder
+                </a>
+              ) : (
+                <p className="mt-4 text-xs text-zinc-500">Link an X handle to launch this template in the builder.</p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import TemplatePicker from '@/components/TemplatePicker';
 import { createCreatorSite } from '@/app/actions/onboarding';
+import { DEFAULT_TEMPLATE_ID, type TemplateId } from '@/templates/catalog';
 
 type WizardProfile = {
   handle: string;
@@ -15,7 +16,7 @@ type WizardProfile = {
 export default function OnboardingWizard() {
   const { data: session } = useSession();
   const [step, setStep] = useState(1);
-  const [selectedTemplate, setSelectedTemplate] = useState<'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank'>('modern-cart');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE_ID);
   const [profile, setProfile] = useState<WizardProfile>({
     handle: '',
     name: '',
@@ -38,7 +39,7 @@ export default function OnboardingWizard() {
 
   const handleConfirmProfile = () => setStep(2);
 
-  const handleCreateTheme = async (templateId: 'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank') => {
+  const handleCreateTheme = async (templateId: TemplateId) => {
     setSelectedTemplate(templateId);
     await createCreatorSite(effectiveProfile, templateId);
     return {
@@ -89,7 +90,7 @@ export default function OnboardingWizard() {
 
         {step === 2 && (
           <div className="space-y-8">
-            <h2 className="text-3xl font-semibold">Step 2: Pick Your Store Theme</h2>
+            <h2 className="text-3xl font-semibold">Step 2: Pick Your Store Template</h2>
             <TemplatePicker
               current={selectedTemplate}
               sellerHandle={effectiveProfile.handle}
@@ -99,7 +100,7 @@ export default function OnboardingWizard() {
               onCreateTheme={handleCreateTheme}
             />
             <p className="text-center text-sm text-zinc-400">
-              Clicking Create This Theme launches your new builder tab with your profile elements and AI helper.
+              Choosing a template launches your builder tab with your profile elements and AI helper.
             </p>
           </div>
         )}

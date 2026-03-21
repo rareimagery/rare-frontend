@@ -3,57 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConsole } from "@/components/ConsoleContext";
+import { TEMPLATE_LAUNCH_CARDS } from "@/templates/registry";
 
 interface InsightsVisualData {
   profilePictureUrl: string | null;
   bannerUrl: string | null;
   topPosts: Array<{ image_url?: string }>;
 }
-
-const STYLE_OPTIONS = [
-  {
-    templateId: "modern-cart",
-    title: "Luxury Pulse",
-    previewClassName: "bg-[radial-gradient(circle_at_top,rgba(244,244,245,0.18),transparent_45%),linear-gradient(135deg,#111827,#09090b)]",
-    prompt:
-      "Build a modern luxury storefront landing section for my creator store. Use a cinematic hero, premium typography, disciplined spacing, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel expensive and editorial, not generic SaaS.",
-  },
-  {
-    templateId: "modern-cart",
-    title: "Minimal Frame",
-    previewClassName: "bg-[linear-gradient(180deg,#fafaf9,#e7e5e4)]",
-    prompt:
-      "Create a modern minimal fashion storefront section with oversized type, neutral tones, crisp spacing, restrained product cards, and a strong grid. It should feel like a contemporary boutique brand launch page.",
-  },
-  {
-    templateId: "ai-video-store",
-    title: "Drop Zone",
-    previewClassName: "bg-[linear-gradient(135deg,#18181b,#111827_50%,#1d4ed8)]",
-    prompt:
-      "Build a modern streetwear drop section with aggressive typography, countdown energy, limited-release product cards, campaign-style callouts, and high-contrast layout. It should feel like a live drop, not a normal shop page.",
-  },
-  {
-    templateId: "latest-posts",
-    title: "Editorial Drift",
-    previewClassName: "bg-[linear-gradient(135deg,#f5f5f4,#d6d3d1)]",
-    prompt:
-      "Design an editorial storefront section that feels like a luxury campaign spread. Use serif-forward typography, asymmetric layout, immersive storytelling blocks, and product placement that feels curated instead of crowded.",
-  },
-  {
-    templateId: "retro",
-    title: "MySpace Flash",
-    previewClassName: "bg-[linear-gradient(135deg,#ec4899,#60a5fa_45%,#22d3ee)]",
-    prompt:
-      "Build a chaotic MySpace 2008 style storefront section with glitter accents, custom profile energy, loud gradients, badges, stickers, marquee text, and stacked content boxes. Keep it usable on mobile but let it feel nostalgic, messy, and intentionally overdesigned.",
-  },
-  {
-    templateId: "latest-posts",
-    title: "Moodboard Night",
-    previewClassName: "bg-[linear-gradient(180deg,#1f2937,#111827)]",
-    prompt:
-      "Create a Tumblr 2012 inspired storefront section with moody editorial typography, image-first storytelling, quote-style blocks, soft spacing, and an artsy indie internet feel. Prioritize atmosphere and visual identity over pure ecommerce utility.",
-  },
-];
 
 export default function ConsoleBuilderPage() {
   const { hasStore, storeSlug } = useConsole();
@@ -62,7 +18,7 @@ export default function ConsoleBuilderPage() {
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
   const [launchingTitle, setLaunchingTitle] = useState<string | null>(null);
 
-  const dynamicOptions = STYLE_OPTIONS.map((option) => {
+  const dynamicOptions = TEMPLATE_LAUNCH_CARDS.map((option) => {
     const promptContext = [
       option.prompt,
       "Use a template-first structure and keep code valid for Next.js + Tailwind.",
@@ -155,7 +111,7 @@ export default function ConsoleBuilderPage() {
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-white">Pick a template to start in popup</h2>
+              <h2 className="text-base font-semibold text-white">Pick a template to start building</h2>
               <p className="text-xs text-zinc-500">Click any large preview to open the full AI editing workspace.</p>
             </div>
             <span className="text-xs text-zinc-500">{dynamicOptions.length} templates</span>
@@ -200,7 +156,7 @@ export default function ConsoleBuilderPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between px-1 pt-2 pb-1">
-                    <span className="text-xs text-zinc-400">Open full builder workspace</span>
+                  <span className="text-xs text-zinc-400">Open full builder workspace</span>
                   <span className="text-xs font-medium text-zinc-200 transition group-hover:text-white">Select</span>
                 </div>
               </button>

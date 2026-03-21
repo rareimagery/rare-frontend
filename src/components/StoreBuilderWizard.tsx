@@ -513,22 +513,22 @@ export default function StoreBuilderWizard({
         </div>
       )}
 
-      {/* Step 2: Choose Theme */}
+      {/* Step 2: Choose Template */}
       {step === 2 && (
         <div className={sectionClass}>
-          <h2 className="mb-2 text-xl font-bold">Choose Your Theme</h2>
+          <h2 className="mb-2 text-xl font-bold">Choose Your Template</h2>
           <p className="mb-6 text-sm text-zinc-400">
-            Pick a look for your store. You can change this anytime.
+            The builder is now the canonical place to pick a template and shape the layout.
           </p>
 
           {profileNodeId ? (
             <ThemeSelector
-              profileNodeId={profileNodeId}
               currentTheme={recommendedTheme}
+              sellerHandle={xUsernameField}
             />
           ) : (
             <p className="text-sm text-zinc-500">
-              Theme selection will be available once your X profile is linked.
+              Template selection will be available once your X profile is linked.
             </p>
           )}
 

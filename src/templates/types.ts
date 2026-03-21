@@ -18,6 +18,11 @@ export type PreviewPost = {
   linkedProduct?: string;
 };
 
+export type BuilderPreviewPost = {
+  id: string;
+  text: string;
+};
+
 export type TemplatePreviewProps = {
   products: PreviewProduct[];
   videos: PreviewVideo[];

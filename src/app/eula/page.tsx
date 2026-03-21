@@ -56,7 +56,7 @@ export default function EulaPage() {
           </Section>
 
           <Section title="4. Creator Stores — Rights and Obligations">
-            <p>All Stores are subject to review and approval. Creators may sell physical goods (including print-on-demand via Printful), digital downloads, and handmade/custom items. Creators are solely responsible for product listing accuracy, order fulfillment, and customer service. Store themes may be modified or reset if they violate this Agreement.</p>
+            <p>All Stores are subject to review and approval. Creators may sell physical goods (including print-on-demand via Printful), digital downloads, and handmade/custom items. Creators are solely responsible for product listing accuracy, order fulfillment, and customer service. Store templates and storefront builds may be modified or reset if they violate this Agreement.</p>
           </Section>
 
           <Section title="5. Fees, Payments, and Subscriptions">

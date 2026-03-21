@@ -80,7 +80,7 @@ Raw content themes: ${xData.metrics.top_themes.join(", ") || "none detected"}
 Recent posts:
 ${postSummary || "(no posts available)"}
 
-Available store themes: "xai3" (dark premium X-inspired, default), "default" (clean white e-commerce), "minimal" (simple & elegant), "neon" (dark with neon accents), "editorial" (magazine-style), "myspace" (retro social page)
+Available storefront styles: "xai3" (dark premium X-inspired, default), "default" (clean white e-commerce), "minimal" (simple & elegant), "neon" (dark with neon accents), "editorial" (magazine-style), "myspace" (retro social page)
 
 Return a JSON object with exactly these fields:
 {

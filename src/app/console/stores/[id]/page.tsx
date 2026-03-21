@@ -104,24 +104,17 @@ export default async function StoreDetailPage({
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
         <h2 className="mb-4 text-lg font-semibold text-zinc-300">
-          Store Theme
+          Store Template
         </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          Template selection and layout edits now happen in the builder. The current template is shown here for reference.
+        </p>
         <ThemeSelector
-          profileNodeId={xProfile?.id ?? ""}
           currentTheme={
             xProfile?.attributes?.field_store_theme ?? "default"
           }
+          sellerHandle={xProfile?.attributes?.field_x_username ?? ""}
         />
-        {xProfile?.attributes?.field_store_theme === "myspace" && (
-          <div className="mt-4">
-            <Link
-              href={`/console/stores/${id}/theme`}
-              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-500"
-            >
-              🎨 Customize MySpace Theme
-            </Link>
-          </div>
-        )}
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

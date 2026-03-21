@@ -25,6 +25,22 @@ if (X_OAUTH_CLIENT_ID && X_OAUTH_CLIENT_ID === X_OAUTH_CLIENT_SECRET) {
   );
 }
 
+async function findProfileByXUserId(xUserId: string): Promise<boolean> {
+  if (!DRUPAL_API || !xUserId) return false;
+
+  try {
+    const res: Response = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile?filter[field_x_user_id]=${encodeURIComponent(xUserId)}&page[limit]=1`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+    if (!res.ok) return false;
+    const json = await res.json();
+    return Array.isArray(json.data) && json.data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Authenticate a store owner against Drupal */
 async function authenticateDrupalUser(
   email: string,
@@ -143,15 +159,26 @@ export const authOptions: NextAuthOptions = {
 
       const xUsername =
         (profile as any)?.screen_name ??
+        (profile as any)?.username ??
         (profile as any)?.data?.username ??
         "";
+      const normalizedXUsername = xUsername.trim().replace(/^@+/, "").toLowerCase();
 
-      if (!xUsername) {
+      if (!normalizedXUsername) {
         return "/signup?error=MissingXProfile";
       }
 
-      const existing = await findProfileByUsername(xUsername);
-      if (existing) {
+      const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "")
+        .toLowerCase()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (adminXUsernames.includes(normalizedXUsername)) {
+        return true;
+      }
+
+      const existingByUsername = await findProfileByUsername(normalizedXUsername);
+      if (existingByUsername) {
         return true;
       }
 
@@ -160,11 +187,21 @@ export const authOptions: NextAuthOptions = {
         return "/signup?error=MissingXProfile";
       }
 
+      const existingByXUserId = await findProfileByXUserId(xUserId);
+      if (existingByXUserId) {
+        return true;
+      }
+
       const check = await checkRequiredPaidSubscription({
         buyerXId: xUserId,
-        buyerUsername: xUsername,
+        buyerUsername: normalizedXUsername,
       });
       if (!check.subscribed) {
+        const infraFailure = /configured|failed|missing|drupal|api/i.test(check.error || "");
+        if (infraFailure) {
+          // Fail open when gate infrastructure is unavailable to avoid locking out real creators.
+          return true;
+        }
         return "/signup?error=PaidSubscriptionRequired";
       }
 

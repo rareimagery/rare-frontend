@@ -591,7 +591,7 @@ export default function BuilderWorkspace() {
         throw new Error(json?.error || "Could not save builder state.");
       }
 
-      setStatus(`Build saved for ${handle}.`);
+      setStatus(`Build saved and published for ${handle}.`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -626,7 +626,7 @@ export default function BuilderWorkspace() {
               disabled={saving || !saveLabel.trim()}
               className="rounded-full bg-white px-6 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save Build"}
+              {saving ? "Saving..." : "Save & Publish"}
             </button>
           </div>
         </div>

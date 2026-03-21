@@ -17,7 +17,6 @@ export default function BuildLibrary({
 }) {
   const [builds, setBuilds] = useState<Build[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/builds")
@@ -33,26 +32,6 @@ export default function BuildLibrary({
       body: JSON.stringify({ id }),
     });
     setBuilds((prev) => prev.filter((b) => b.id !== id));
-  }
-
-  async function handleTogglePublish(build: Build) {
-    setToggling(build.id);
-    try {
-      const res = await fetch("/api/builds", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: build.id, published: !build.published }),
-      });
-      if (res.ok) {
-        setBuilds((prev) =>
-          prev.map((b) =>
-            b.id === build.id ? { ...b, published: !b.published } : b
-          )
-        );
-      }
-    } finally {
-      setToggling(null);
-    }
   }
 
   function handleDownload(build: Build) {
@@ -96,9 +75,7 @@ export default function BuildLibrary({
               <BuildRow
                 key={b.id}
                 build={b}
-                toggling={toggling === b.id}
                 onLoad={onLoad}
-                onTogglePublish={handleTogglePublish}
                 onDelete={handleDelete}
                 onDownload={handleDownload}
               />
@@ -120,9 +97,7 @@ export default function BuildLibrary({
               <BuildRow
                 key={b.id}
                 build={b}
-                toggling={toggling === b.id}
                 onLoad={onLoad}
-                onTogglePublish={handleTogglePublish}
                 onDelete={handleDelete}
                 onDownload={handleDownload}
               />
@@ -136,16 +111,12 @@ export default function BuildLibrary({
 
 function BuildRow({
   build,
-  toggling,
   onLoad,
-  onTogglePublish,
   onDelete,
   onDownload,
 }: {
   build: Build;
-  toggling: boolean;
   onLoad: (code: string) => void;
-  onTogglePublish: (build: Build) => void;
   onDelete: (id: string) => void;
   onDownload: (build: Build) => void;
 }) {
@@ -173,21 +144,13 @@ function BuildRow({
         </button>
       </div>
       <div className="flex gap-1.5">
-        <button
-          onClick={() => onTogglePublish(build)}
-          disabled={toggling}
-          className={`flex-1 py-1.5 text-xs font-medium rounded transition cursor-pointer disabled:opacity-50 ${
-            build.published
-              ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
-              : "bg-indigo-600 text-white hover:bg-indigo-700"
+        <div
+          className={`flex-1 py-1.5 px-2 text-center text-xs font-medium rounded ${
+            build.published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
           }`}
         >
-          {toggling
-            ? "Saving..."
-            : build.published
-            ? "Live - click to unpublish"
-            : "Publish to store"}
-        </button>
+          {build.published ? "Live now (auto-published)" : "Draft snapshot"}
+        </div>
         <button
           onClick={() => onDownload(build)}
           className="px-2 py-1.5 text-xs bg-gray-100 text-gray-500 rounded hover:bg-gray-200 cursor-pointer"

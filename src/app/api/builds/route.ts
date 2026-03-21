@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import type { JWT } from "next-auth/jwt";
 import { getBuilds, saveBuilds } from "@/lib/drupalBuilds";
@@ -71,9 +72,17 @@ export async function POST(req: NextRequest) {
     label,
     code,
     createdAt: new Date().toISOString(),
+    published: true,
   };
-  const updated = [...builds, newBuild];
-  await saveBuilds(slug, updated);
+
+  // Auto-publish model: latest save becomes the only live build.
+  const updated = [...(builds as StoredBuild[]).map((b) => ({ ...b, published: false })), newBuild];
+  const ok = await saveBuilds(slug, updated);
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to persist build" }, { status: 500 });
+  }
+
+  revalidatePath(`/stores/${slug}`);
 
   return NextResponse.json({ build: newBuild });
 }
@@ -99,10 +108,18 @@ export async function PATCH(req: NextRequest) {
   }
 
   const builds = await getBuilds(slug);
-  const updated = (builds as StoredBuild[]).map((b) =>
-    b.id === id ? { ...b, published } : b
-  );
-  await saveBuilds(slug, updated);
+  const updated = (builds as StoredBuild[]).map((b) => {
+    if (published) {
+      return b.id === id ? { ...b, published: true } : { ...b, published: false };
+    }
+    return b.id === id ? { ...b, published: false } : b;
+  });
+  const ok = await saveBuilds(slug, updated);
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to update publish state" }, { status: 500 });
+  }
+
+  revalidatePath(`/stores/${slug}`);
 
   return NextResponse.json({ ok: true });
 }
@@ -122,7 +139,12 @@ export async function DELETE(req: NextRequest) {
   const { id } = await req.json();
   const builds = await getBuilds(slug);
   const updated = (builds as StoredBuild[]).filter((b) => b.id !== id);
-  await saveBuilds(slug, updated);
+  const ok = await saveBuilds(slug, updated);
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete build" }, { status: 500 });
+  }
+
+  revalidatePath(`/stores/${slug}`);
 
   return NextResponse.json({ ok: true });
 }

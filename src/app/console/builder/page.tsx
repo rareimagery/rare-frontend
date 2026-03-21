@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useConsole } from "@/components/ConsoleContext";
 
 interface InsightsVisualData {
@@ -50,10 +51,10 @@ const STYLE_OPTIONS = [
 
 export default function ConsoleBuilderPage() {
   const { hasStore, storeSlug } = useConsole();
+  const router = useRouter();
 
   const [visuals, setVisuals] = useState<InsightsVisualData | null>(null);
   const [launchingTitle, setLaunchingTitle] = useState<string | null>(null);
-  const [lastSavedBuild, setLastSavedBuild] = useState<{ label: string; at: number } | null>(null);
 
   const dynamicOptions = STYLE_OPTIONS.map((option) => {
     const promptContext = [
@@ -100,24 +101,6 @@ export default function ConsoleBuilderPage() {
     };
   }, [hasStore]);
 
-  useEffect(() => {
-    function onPopupMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      if (!event.data || typeof event.data !== "object") return;
-
-      const payload = event.data as { type?: string; label?: string };
-      if (payload.type !== "ri-builder-build-saved") return;
-
-      setLastSavedBuild({
-        label: payload.label || "Untitled Build",
-        at: Date.now(),
-      });
-    }
-
-    window.addEventListener("message", onPopupMessage);
-    return () => window.removeEventListener("message", onPopupMessage);
-  }, []);
-
   function launchWorkspace(title: string, prompt: string) {
     setLaunchingTitle(title);
     const params = new URLSearchParams({
@@ -128,15 +111,7 @@ export default function ConsoleBuilderPage() {
       params.set("store", storeSlug);
     }
 
-    const popup = window.open(`/builder-popup?${params.toString()}`, "ri-builder-workspace", "width=1360,height=900");
-    if (!popup) {
-      setLaunchingTitle(null);
-      window.alert("Builder popup was blocked. Allow pop-ups for RareImagery and try again.");
-      return;
-    }
-
-    popup.focus();
-    setTimeout(() => setLaunchingTitle(null), 200);
+    router.push(`/builder/new-tab?${params.toString()}`);
   }
 
   if (!hasStore) {
@@ -175,7 +150,7 @@ export default function ConsoleBuilderPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-white">Pick a template to start in popup</h2>
-              <p className="text-xs text-zinc-500">Click any large preview to open the AI editing workspace.</p>
+              <p className="text-xs text-zinc-500">Click any large preview to open the full AI editing workspace.</p>
             </div>
             <span className="text-xs text-zinc-500">{dynamicOptions.length} templates</span>
           </div>
@@ -219,7 +194,7 @@ export default function ConsoleBuilderPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between px-1 pt-2 pb-1">
-                  <span className="text-xs text-zinc-400">Open AI popup workspace</span>
+                    <span className="text-xs text-zinc-400">Open full builder workspace</span>
                   <span className="text-xs font-medium text-zinc-200 transition group-hover:text-white">Select</span>
                 </div>
               </button>
@@ -231,15 +206,10 @@ export default function ConsoleBuilderPage() {
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 text-sm text-zinc-300">
         <p className="font-medium text-zinc-100">New flow</p>
         <p className="mt-1 text-xs text-zinc-400">
-          Pick a template above to launch the full popup workspace. Prompt edits, AI refinement, generation, preview, and save actions now happen in the popup window.
+          Pick a template above to launch the full builder workspace. Prompt edits, AI refinement, generation, preview, and save actions now happen in the same flow.
         </p>
         {launchingTitle && (
           <p className="mt-2 text-xs text-indigo-300">Opening {launchingTitle} workspace...</p>
-        )}
-        {lastSavedBuild && (
-          <p className="mt-2 text-xs text-emerald-300">
-            Last popup save: {lastSavedBuild.label} at {new Date(lastSavedBuild.at).toLocaleTimeString()}.
-          </p>
         )}
       </div>
     </div>

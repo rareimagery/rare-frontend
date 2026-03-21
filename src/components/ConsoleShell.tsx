@@ -14,6 +14,7 @@ function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/console/orders/")) return "Order Details";
   if (pathname.startsWith("/console/orders")) return "Orders";
   if (pathname.startsWith("/console/categories")) return "Store Categories";
+  if (pathname.startsWith("/console/builder")) return "Page Building";
   if (pathname.startsWith("/console/page-building")) return "Page Building";
   if (pathname.startsWith("/console/print-services")) return "Print Services";
   if (pathname.startsWith("/console/setup")) return "Store Setup";
@@ -79,7 +80,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     return [
       { href: "/console", label: "Home", icon: "M3 10.5l9-7.5 9 7.5V21a1 1 0 01-1 1h-5.5v-7h-5v7H4a1 1 0 01-1-1V10.5z" },
       { href: "/console/categories", label: "Catalog", icon: "M3 7.5l9-4.5 9 4.5m-18 0l9 4.5m9-4.5v9L12 21l-9-4.5v-9" },
-      { href: "/console/page-building", label: "Build", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" },
+      { href: "/console/builder", label: "Build", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" },
       { href: "/console/orders", label: "Orders", icon: "M3 3h2l.4 2M7 13h10l4-8H5.4" },
     ];
   }, [hasStore, role]);

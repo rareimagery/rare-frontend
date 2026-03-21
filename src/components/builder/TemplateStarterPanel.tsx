@@ -12,6 +12,8 @@ type Props = {
   starters: TemplateStarter[];
   activeStarterId: string;
   onSelectStarter: (starter: TemplateStarter) => void;
+  autoIncludeProfileMedia: boolean;
+  onAutoIncludeProfileMediaChange: (enabled: boolean) => void;
   chatHistory: ChatMessage[];
   message: string;
   sending: boolean;
@@ -26,6 +28,8 @@ export default function TemplateStarterPanel({
   starters,
   activeStarterId,
   onSelectStarter,
+  autoIncludeProfileMedia,
+  onAutoIncludeProfileMediaChange,
   chatHistory,
   message,
   sending,
@@ -68,6 +72,16 @@ export default function TemplateStarterPanel({
         <p className="mt-1 text-xs text-zinc-400">
           Ask AI to generate or edit sections with creator data.
         </p>
+
+        <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/70 px-3 py-2 text-xs text-zinc-200">
+          <input
+            type="checkbox"
+            checked={autoIncludeProfileMedia}
+            onChange={(event) => onAutoIncludeProfileMediaChange(event.target.checked)}
+            className="h-4 w-4 rounded border-zinc-500 bg-zinc-900 text-emerald-400 focus:ring-emerald-400"
+          />
+          Auto-include profile avatar + banner
+        </label>
 
         <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1 text-xs">
           {chatHistory.map((entry, index) => (

@@ -301,6 +301,7 @@ function BuilderPopupInner() {
   const [status, setStatus] = useState("");
   const [previewPayload, setPreviewPayload] = useState<TemplatePreviewPayload | null>(null);
   const [activeStarterId, setActiveStarterId] = useState<string>("blank");
+  const [autoIncludeProfileMedia, setAutoIncludeProfileMedia] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -309,6 +310,24 @@ function BuilderPopupInner() {
   ]);
 
   const activeBanner = useMemo(() => ({ backgroundImage: `url(${banner})`, backgroundSize: "cover" }), [banner]);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("ri:autoIncludeProfileMedia");
+      if (saved === "true") setAutoIncludeProfileMedia(true);
+      if (saved === "false") setAutoIncludeProfileMedia(false);
+    } catch {
+      // Ignore storage access failures (e.g., private mode restrictions).
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("ri:autoIncludeProfileMedia", autoIncludeProfileMedia ? "true" : "false");
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [autoIncludeProfileMedia]);
 
   useEffect(() => {
     let mounted = true;
@@ -338,8 +357,8 @@ function BuilderPopupInner() {
     const input = {
       handle: normalizedHandle,
       bio: previewPayload?.bio || "",
-      avatar: previewPayload?.avatar || pfp,
-      banner: previewPayload?.banner || banner,
+      avatar: autoIncludeProfileMedia ? previewPayload?.avatar || pfp : "",
+      banner: autoIncludeProfileMedia ? previewPayload?.banner || banner : "",
       products: previewPayload?.products || [],
       posts: previewPayload?.posts || [],
     };
@@ -367,6 +386,9 @@ function BuilderPopupInner() {
       `Preferred JSON format: { \"layoutSchemaVersion\": ${LAYOUT_SCHEMA_VERSION}, \"data\": { \"content\": [...] } }.`,
       "Backward-compatible format with top-level content array is accepted but not preferred.",
       `Creator handle: ${handle}.`,
+      autoIncludeProfileMedia
+        ? `Profile avatar URL: ${previewPayload?.avatar || pfp}. Profile banner URL: ${previewPayload?.banner || banner}. Include these automatically in hero and branding sections unless user asks otherwise.`
+        : "Do not automatically include avatar or banner unless the user explicitly asks for them.",
       `Known products: ${(previewPayload?.products || []).map((p) => p.title).join(", ") || "none"}`,
       `Known posts: ${(previewPayload?.posts || []).map((p) => p.text).join(" | ") || "none"}`,
     ].join(" ");
@@ -465,7 +487,14 @@ function BuilderPopupInner() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-6">
           <div className="flex items-center gap-4">
-            <Image src={pfp} alt="Profile" width={32} height={32} unoptimized className="h-8 w-8 rounded-full" />
+            <Image
+              src={previewPayload?.avatar || pfp}
+              alt="Profile"
+              width={32}
+              height={32}
+              unoptimized
+              className="h-8 w-8 rounded-full"
+            />
             <div className="text-xl font-bold">{handle} Builder</div>
           </div>
 
@@ -504,6 +533,8 @@ function BuilderPopupInner() {
         starters={TEMPLATE_STARTERS}
         activeStarterId={activeStarterId}
         onSelectStarter={applyStarter}
+        autoIncludeProfileMedia={autoIncludeProfileMedia}
+        onAutoIncludeProfileMediaChange={setAutoIncludeProfileMedia}
         chatHistory={chatHistory}
         message={message}
         sending={sending}

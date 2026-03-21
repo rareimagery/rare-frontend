@@ -157,6 +157,47 @@ async function uploadImageToProfileField(
   };
 }
 
+async function patchProfileSourceUrls(
+  profileId: string,
+  avatarUrl: string | null,
+  bannerUrl: string | null,
+  writeHeaders: Record<string, string>
+): Promise<{ ok: boolean; status?: number; details?: string }> {
+  const attributes: Record<string, string> = {};
+  if (avatarUrl) attributes.field_x_avatar_url = avatarUrl;
+  if (bannerUrl) attributes.field_x_banner_url = bannerUrl;
+
+  if (Object.keys(attributes).length === 0) {
+    return { ok: true };
+  }
+
+  const res = await fetch(`${DRUPAL_API_URL}/jsonapi/node/creator_x_profile/${profileId}`, {
+    method: "PATCH",
+    headers: {
+      ...writeHeaders,
+      "Content-Type": "application/vnd.api+json",
+      Accept: "application/vnd.api+json",
+    },
+    body: JSON.stringify({
+      data: {
+        type: "node--creator_x_profile",
+        id: profileId,
+        attributes,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      details: (await res.text()).slice(0, 220),
+    };
+  }
+
+  return { ok: true };
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -247,6 +288,20 @@ export async function POST(req: NextRequest) {
           writeHeaders,
           dryRun
         );
+
+        if (!dryRun && (avatarUrl || bannerUrl)) {
+          const patchResult = await patchProfileSourceUrls(
+            profile.id,
+            avatarUrl,
+            bannerUrl,
+            writeHeaders
+          );
+          if (!patchResult.ok) {
+            result.errors.push(
+              `source-url-patch-failed:${patchResult.status}:${patchResult.details || "unknown"}`
+            );
+          }
+        }
       } catch (error) {
         result.errors.push(error instanceof Error ? error.message : String(error));
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 
 interface MatchedCreator {
@@ -29,11 +29,7 @@ export default function XSeedImport({
   const [message, setMessage] = useState("");
   const [resultMessage, setResultMessage] = useState("");
 
-  useEffect(() => {
-    fetchMatches();
-  }, []);
-
-  async function fetchMatches() {
+  const fetchMatches = useCallback(async () => {
     try {
       const res = await fetch("/api/social/seed-from-x");
       if (!res.ok) {
@@ -54,7 +50,12 @@ export default function XSeedImport({
     } catch {
       setState("error");
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchMatches();
+  }, [fetchMatches]);
 
   function toggleCreator(storeId: string) {
     setSelected((prev) => {

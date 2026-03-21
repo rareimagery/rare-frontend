@@ -365,7 +365,7 @@ export async function findProfileByUsername(
 
 export async function patchProfile(
   uuid: string,
-  attributes: Record<string, any>
+  attributes: Record<string, unknown>
 ): Promise<void> {
   const writeHeaders = await drupalWriteHeaders();
   const res = await fetch(
@@ -542,8 +542,9 @@ export async function uploadImageToDrupal(
 
     const uploadJson = await uploadRes.json();
     return uploadJson.data?.id ?? null;
-  } catch (err: any) {
-    console.error(`Image upload error for ${fieldName}:`, err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Image upload error for ${fieldName}:`, message);
     return null;
   }
 }
@@ -574,7 +575,7 @@ export async function syncXDataToDrupal(
       console.warn("[x-sync] Grok enhancement skipped:", err);
     }
 
-    const attributes: Record<string, any> = {
+    const attributes: Record<string, unknown> = {
       field_follower_count: enhanced.followerCount,
       field_bio_description: { value: enhanced.bio, format: "basic_html" },
       field_top_posts: enhanced.topPosts.map((p) => JSON.stringify(p)),

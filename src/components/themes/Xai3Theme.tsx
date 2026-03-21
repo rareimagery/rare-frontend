@@ -138,11 +138,12 @@ function Xai3ProductCard({
 
 function Xai3PostCard({ post }: { post: TopPost }) {
   const ago = (dateStr: string) => {
-    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-    if (diff < 60) return `${Math.floor(diff)}s`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}d`;
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
   };
   return (
     <div className="xai3-post-card">

@@ -5,6 +5,14 @@ import { verifyStoreOwnership } from "@/lib/ownership";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+type JsonApiEntityRef = { id: string };
+
+type JsonApiEntity = {
+  id: string;
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, { data?: JsonApiEntityRef | null }>;
+};
+
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
   if (!token) {
@@ -35,7 +43,7 @@ export async function GET(req: NextRequest) {
       `?${filters.join("&")}`,
       `&include=order_id,shipping_method`,
       `&sort=-created`,
-      `&page[offset]=${parseInt(page) * 20}&page[limit]=20`,
+      `&page[offset]=${parseInt(page, 10) * 20}&page[limit]=20`,
     ].join("");
 
     const res = await fetch(url, {
@@ -50,34 +58,39 @@ export async function GET(req: NextRequest) {
     }
 
     const json = await res.json();
-    const included = json.included || [];
+    const included: JsonApiEntity[] = json.included || [];
 
-    const shipments = (json.data || []).map((shipment: any) => {
+    const shipments = ((json.data as JsonApiEntity[]) || []).map((shipment) => {
       const orderRef = shipment.relationships?.order_id?.data;
-      const order = orderRef ? included.find((i: any) => i.id === orderRef.id) : null;
+      const order = orderRef ? included.find((i) => i.id === (orderRef as JsonApiEntityRef).id) : null;
       const methodRef = shipment.relationships?.shipping_method?.data;
-      const method = methodRef ? included.find((i: any) => i.id === methodRef.id) : null;
+      const method = methodRef ? included.find((i) => i.id === (methodRef as JsonApiEntityRef).id) : null;
+
+      const shipmentAttrs = shipment.attributes || {};
+      const amount = (shipmentAttrs["amount"] as Record<string, unknown> | undefined) || {};
+      const packageType = (shipmentAttrs["package_type"] as Record<string, unknown> | undefined) || {};
+      const orderAttrs = (order?.attributes as Record<string, unknown> | undefined) || {};
 
       return {
         id: shipment.id,
-        drupalId: shipment.attributes?.drupal_internal__shipment_id,
-        state: shipment.attributes?.state,
-        trackingCode: shipment.attributes?.tracking_code || null,
-        amount: shipment.attributes?.amount?.number,
-        currency: shipment.attributes?.amount?.currency_code,
-        shippingMethod: method?.attributes?.name || null,
-        shippingAddress: shipment.attributes?.shipping_profile?.address || null,
-        packageType: shipment.attributes?.package_type?.label || null,
-        weight: shipment.attributes?.weight || null,
-        createdAt: shipment.attributes?.created,
-        shippedAt: shipment.attributes?.shipped || null,
+        drupalId: shipmentAttrs["drupal_internal__shipment_id"],
+        state: shipmentAttrs["state"],
+        trackingCode: shipmentAttrs["tracking_code"] || null,
+        amount: amount["number"],
+        currency: amount["currency_code"],
+        shippingMethod: method?.attributes?.["name"] || null,
+        shippingAddress: (shipmentAttrs["shipping_profile"] as Record<string, unknown> | undefined)?.["address"] || null,
+        packageType: packageType["label"] || null,
+        weight: shipmentAttrs["weight"] || null,
+        createdAt: shipmentAttrs["created"],
+        shippedAt: shipmentAttrs["shipped"] || null,
         order: order
           ? {
               id: order.id,
-              orderNumber: order.attributes?.order_number,
-              email: order.attributes?.mail,
-              total: order.attributes?.total_price?.number,
-              currency: order.attributes?.total_price?.currency_code,
+              orderNumber: orderAttrs["order_number"],
+              email: orderAttrs["mail"],
+              total: (orderAttrs["total_price"] as Record<string, unknown> | undefined)?.["number"],
+              currency: (orderAttrs["total_price"] as Record<string, unknown> | undefined)?.["currency_code"],
             }
           : null,
       };
@@ -86,7 +99,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       shipments,
       total: json.meta?.count || shipments.length,
-      page: parseInt(page),
+      page: parseInt(page, 10),
     });
   } catch (err) {
     console.error("Shipping API error:", err);
@@ -108,7 +121,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const writeHeaders = await drupalWriteHeaders();
-    const attributes: Record<string, any> = {};
+    const attributes: Record<string, unknown> = {};
     if (trackingCode !== undefined) attributes.tracking_code = trackingCode;
     if (state !== undefined) attributes.state = state;
 

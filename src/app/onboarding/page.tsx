@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import TemplatePicker from '@/components/TemplatePicker';
 import { createCreatorSite } from '@/app/actions/onboarding';
@@ -23,29 +23,26 @@ export default function OnboardingWizard() {
     verified: false,
   });
 
-  useEffect(() => {
-    const sessionData = session as typeof session & {
-      xUsername?: string;
-      xBio?: string;
-      xVerified?: boolean;
-    };
+  const sessionData = session as typeof session & {
+    xUsername?: string;
+    xBio?: string;
+    xVerified?: boolean;
+  };
 
-    setProfile((prev) => ({
-      ...prev,
-      handle: sessionData?.xUsername || prev.handle,
-      name: session?.user?.name || prev.name,
-      bio: sessionData?.xBio || prev.bio,
-      verified: Boolean(sessionData?.xVerified),
-    }));
-  }, [session]);
+  const effectiveProfile: WizardProfile = {
+    handle: profile.handle || sessionData?.xUsername || '',
+    name: profile.name || session?.user?.name || '',
+    bio: profile.bio || sessionData?.xBio || '',
+    verified: profile.verified || Boolean(sessionData?.xVerified),
+  };
 
   const handleConfirmProfile = () => setStep(2);
 
   const handleCreateTheme = async (templateId: 'retro' | 'modern-cart' | 'ai-video-store' | 'latest-posts' | 'blank') => {
     setSelectedTemplate(templateId);
-    await createCreatorSite(profile, templateId);
+    await createCreatorSite(effectiveProfile, templateId);
     return {
-      builderUrl: `/builder/new-tab?handle=${encodeURIComponent(profile.handle)}&template=${encodeURIComponent(templateId)}`,
+      builderUrl: `/builder/new-tab?handle=${encodeURIComponent(effectiveProfile.handle)}&template=${encodeURIComponent(templateId)}`,
     };
   };
 
@@ -64,18 +61,18 @@ export default function OnboardingWizard() {
             <h2 className="text-3xl font-semibold">Step 1: Verify Your X Info</h2>
             <div className="space-y-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-8">
               <div className="text-lg font-medium text-zinc-200">
-                @{profile.handle || 'yourhandle'}{' '}
-                <span className="text-[#1DA1F2]">{profile.verified ? 'Verified' : ''}</span>
+                @{effectiveProfile.handle || 'yourhandle'}{' '}
+                <span className="text-[#1DA1F2]">{effectiveProfile.verified ? 'Verified' : ''}</span>
               </div>
               <input
                 className={inputClass}
-                value={profile.name}
+                value={effectiveProfile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                 placeholder="Display Name"
               />
               <input
                 className={inputClass}
-                value={profile.bio}
+                value={effectiveProfile.bio}
                 onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                 placeholder="Short bio (shows on your profile)"
               />
@@ -95,9 +92,9 @@ export default function OnboardingWizard() {
             <h2 className="text-3xl font-semibold">Step 2: Pick Your Store Theme</h2>
             <TemplatePicker
               current={selectedTemplate}
-              sellerHandle={profile.handle}
+              sellerHandle={effectiveProfile.handle}
               xAvatar={session?.user?.image ?? undefined}
-              xBio={profile.bio}
+              xBio={effectiveProfile.bio}
               onChange={setSelectedTemplate}
               onCreateTheme={handleCreateTheme}
             />

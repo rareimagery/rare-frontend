@@ -51,18 +51,16 @@ function formatCurrency(amount: string | null, currency = "USD") {
 }
 
 export default function OrdersPage() {
-  const { hasStore, storeDrupalId, storeId } = useConsole();
+  const { hasStore, storeId } = useConsole();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!storeId) return;
-    setLoading(true);
-    setError(null);
 
     const params = new URLSearchParams({
       storeId,
@@ -76,9 +74,12 @@ export default function OrdersPage() {
         if (data.error) throw new Error(data.error);
         setOrders(data.orders || []);
         setTotal(data.total || 0);
+        setLoaded(true);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        setError(e.message);
+        setLoaded(true);
+      });
   }, [storeId, filter, page]);
 
   if (!hasStore || !storeId) {
@@ -107,7 +108,11 @@ export default function OrdersPage() {
           {FILTERS.map((f) => (
             <button
               key={f.value}
-              onClick={() => { setFilter(f.value); setPage(0); }}
+              onClick={() => {
+                setError(null);
+                setFilter(f.value);
+                setPage(0);
+              }}
               className={`min-h-10 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
                 filter === f.value
                   ? "bg-zinc-700 text-white"
@@ -122,7 +127,7 @@ export default function OrdersPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-        {loading ? (
+        {!loaded && !error ? (
           <div className="py-16 text-center text-zinc-500">Loading orders…</div>
         ) : error ? (
           <div className="py-16 text-center text-red-400">{error}</div>
@@ -208,14 +213,20 @@ export default function OrdersPage() {
           </p>
           <div className="flex gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => {
+                setError(null);
+                setPage((p) => Math.max(0, p - 1));
+              }}
               disabled={page === 0}
               className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >
               Previous
             </button>
             <button
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => {
+                setError(null);
+                setPage((p) => p + 1);
+              }}
               disabled={(page + 1) * 20 >= total}
               className="min-h-10 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-40"
             >

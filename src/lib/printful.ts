@@ -94,14 +94,14 @@ export interface PrintfulSyncVariant {
     name: string;
   };
   files: PrintfulFile[];
-  options: { id: string; value: any }[];
+  options: { id: string; value: unknown }[];
 }
 
 export interface PrintfulFile {
   type: string;
   id: number;
   url: string;
-  options: { id: string; value: any }[];
+  options: { id: string; value: unknown }[];
   hash: string | null;
   filename: string | null;
   mime_type: string | null;
@@ -178,7 +178,7 @@ export interface PrintfulOrder {
   created: number;
   updated: number;
   recipient: PrintfulRecipient;
-  items: any[];
+  items: PrintfulOrderItem[];
   costs: {
     currency: string;
     subtotal: string;
@@ -425,8 +425,8 @@ export async function getCatalogVariant(
 
 export async function getProductSizes(
   productId: number
-): Promise<any> {
-  const res = await printfulPublicFetch(`/products/${productId}/sizes`);
+): Promise<unknown> {
+  const res = await printfulPublicFetch<unknown>(`/products/${productId}/sizes`);
   return res.result;
 }
 
@@ -624,8 +624,8 @@ export async function getTaxRates(
 
 export async function getTaxCountries(
   apiKey: string
-): Promise<any[]> {
-  const res = await printfulFetch<any[]>("/tax/countries", apiKey);
+): Promise<unknown[]> {
+  const res = await printfulFetch<unknown[]>("/tax/countries", apiKey);
   return res.result;
 }
 
@@ -647,16 +647,16 @@ export async function setupWebhooks(
   apiKey: string,
   webhookUrl: string,
   events: PrintfulWebhookEvent[] = RECOMMENDED_EVENTS
-): Promise<any> {
-  const res = await printfulFetch("/webhooks", apiKey, {
+): Promise<unknown> {
+  const res = await printfulFetch<unknown>("/webhooks", apiKey, {
     method: "POST",
     body: JSON.stringify({ url: webhookUrl, types: events }),
   });
   return res.result;
 }
 
-export async function getWebhooks(apiKey: string): Promise<any> {
-  const res = await printfulFetch("/webhooks", apiKey);
+export async function getWebhooks(apiKey: string): Promise<unknown> {
+  const res = await printfulFetch<unknown>("/webhooks", apiKey);
   return res.result;
 }
 
@@ -675,7 +675,7 @@ export async function createMockupTask(
   variantIds?: number[],
   format?: "jpg" | "png"
 ): Promise<{ task_key: string }> {
-  const body: Record<string, any> = { files };
+  const body: Record<string, unknown> = { files };
   if (variantIds?.length) body.variant_ids = variantIds;
   if (format) body.format = format;
 
@@ -701,8 +701,8 @@ export async function getMockupTaskResult(
 export async function getPrintfileInfo(
   apiKey: string,
   productId: number
-): Promise<any> {
-  const res = await printfulFetch(
+): Promise<unknown> {
+  const res = await printfulFetch<unknown>(
     `/mockup-generator/printfiles/${productId}`,
     apiKey
   );
@@ -712,8 +712,8 @@ export async function getPrintfileInfo(
 export async function getMockupTemplates(
   apiKey: string,
   productId: number
-): Promise<any> {
-  const res = await printfulFetch(
+): Promise<unknown> {
+  const res = await printfulFetch<unknown>(
     `/mockup-generator/templates/${productId}`,
     apiKey
   );
@@ -751,8 +751,8 @@ export async function getFile(
 // Store Info API (auth required)
 // ---------------------------------------------------------------------------
 
-export async function getStoreInfo(apiKey: string): Promise<any> {
-  const res = await printfulFetch("/store", apiKey);
+export async function getStoreInfo(apiKey: string): Promise<unknown> {
+  const res = await printfulFetch<unknown>("/store", apiKey);
   return res.result;
 }
 
@@ -765,8 +765,8 @@ export async function updatePackingSlip(
     logo_url?: string;
     store_name?: string;
   }
-): Promise<any> {
-  const res = await printfulFetch("/store/packing-slip", apiKey, {
+): Promise<unknown> {
+  const res = await printfulFetch<unknown>("/store/packing-slip", apiKey, {
     method: "POST",
     body: JSON.stringify(slip),
   });

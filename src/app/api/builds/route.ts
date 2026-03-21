@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import type { JWT } from "next-auth/jwt";
 import { getBuilds, saveBuilds } from "@/lib/drupalBuilds";
 import { randomUUID } from "crypto";
 
-function getStoreSlug(token: any): string | null {
+type StoreJWT = JWT & {
+  storeSlug?: string | null;
+  xUsername?: string | null;
+};
+
+type StoredBuild = {
+  id: string;
+  label: string;
+  code: string;
+  createdAt: string;
+  published?: boolean;
+};
+
+function getStoreSlug(token: StoreJWT): string | null {
   return token.storeSlug || token.xUsername || null;
 }
 
 // GET — fetch all saved builds for the authenticated user's store
 export async function GET(req: NextRequest) {
-  const token = await getToken({ req });
+  const token = (await getToken({ req })) as StoreJWT | null;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -25,7 +39,7 @@ export async function GET(req: NextRequest) {
 
 // POST — save a new build
 export async function POST(req: NextRequest) {
-  const token = await getToken({ req });
+  const token = (await getToken({ req })) as StoreJWT | null;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -52,7 +66,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const newBuild = {
+  const newBuild: StoredBuild = {
     id: randomUUID(),
     label,
     code,
@@ -66,7 +80,7 @@ export async function POST(req: NextRequest) {
 
 // PATCH — toggle published state for a build
 export async function PATCH(req: NextRequest) {
-  const token = await getToken({ req });
+  const token = (await getToken({ req })) as StoreJWT | null;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -85,7 +99,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const builds = await getBuilds(slug);
-  const updated = builds.map((b) => (b.id === id ? { ...b, published } : b));
+  const updated = (builds as StoredBuild[]).map((b) =>
+    b.id === id ? { ...b, published } : b
+  );
   await saveBuilds(slug, updated);
 
   return NextResponse.json({ ok: true });
@@ -93,7 +109,7 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE — remove a build by id
 export async function DELETE(req: NextRequest) {
-  const token = await getToken({ req });
+  const token = (await getToken({ req })) as StoreJWT | null;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -105,7 +121,7 @@ export async function DELETE(req: NextRequest) {
 
   const { id } = await req.json();
   const builds = await getBuilds(slug);
-  const updated = builds.filter((b) => b.id !== id);
+  const updated = (builds as StoredBuild[]).filter((b) => b.id !== id);
   await saveBuilds(slug, updated);
 
   return NextResponse.json({ ok: true });

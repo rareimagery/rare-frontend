@@ -678,7 +678,7 @@ function mapProductDetail(
   // Store info
   let storeName = "Unknown Store";
   let storeSlug = "";
-  let storeLogo: string | null = null;
+  const storeLogo: string | null = null;
   const storeRef = rels.stores?.data?.[0];
   if (storeRef) {
     const store = included.find((inc: any) => inc.id === storeRef.id);

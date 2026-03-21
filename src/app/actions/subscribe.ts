@@ -19,6 +19,13 @@ type CreateSubscriptionResult = {
   provider?: 'xmoney' | 'stripe';
 };
 
+type JsonApiIncludedEntry = {
+  id: string;
+  attributes?: {
+    field_x_user_id?: string | null;
+  };
+};
+
 function getProvider(provider: 'xmoney' | 'stripe') {
   return provider === 'xmoney' ? new XMoneyProvider() : new StripeProvider();
 }
@@ -43,7 +50,7 @@ export async function createSubscription({
   const included = Array.isArray(storeData?.included) ? storeData.included : [];
   const linkedProfileRef = store?.relationships?.field_linked_x_profile?.data;
   const linkedProfile = linkedProfileRef
-    ? included.find((entry: any) => entry.id === linkedProfileRef.id)
+    ? (included.find((entry: JsonApiIncludedEntry) => entry.id === linkedProfileRef.id) || null)
     : null;
 
   if (!store?.id) {

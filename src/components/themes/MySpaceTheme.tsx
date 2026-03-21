@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { CreatorProfile, TopPost, TopFollower, Product } from "@/lib/drupal";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
@@ -19,6 +20,14 @@ const TILE_PATTERNS: Record<string, string> = {
   hearts: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ctext y='20' font-size='16'%3E💗%3C/text%3E%3C/svg%3E")`,
   skulls: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ctext y='20' font-size='16'%3E💀%3C/text%3E%3C/svg%3E")`,
 };
+
+function stableHash(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
 
 export interface ThemeConfig {
   bgColor: string;
@@ -253,9 +262,11 @@ function MusicPlayer({
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {pfpUrl && (
-          <img
+          <Image
             src={pfpUrl}
             alt=""
+            width={40}
+            height={40}
             style={{
               width: 40,
               height: 40,
@@ -357,9 +368,10 @@ export default function MySpaceTheme({
   // themeConfig.songUrl overrides the musicUrl prop
   const effectiveMusicUrl = theme.songUrl || musicUrl;
 
-  const [visitorCount] = useState(
-    theme.visitorCount + Math.floor(Math.random() * 50)
-  );
+  const [visitorCount] = useState(() => {
+    const seed = profile.x_username || profile.display_name || "rareimagery";
+    return theme.visitorCount + (stableHash(seed) % 50);
+  });
 
   useCursorTrail(theme.cursorTrail);
 
@@ -521,9 +533,11 @@ export default function MySpaceTheme({
                 }}
               >
                 {profile.profile_picture_url ? (
-                  <img
+                  <Image
                     src={profile.profile_picture_url}
                     alt={profile.x_username}
+                    width={100}
+                    height={100}
                     style={{
                       width: 100,
                       height: 100,
@@ -718,9 +732,11 @@ export default function MySpaceTheme({
                           style={{ textAlign: "center", fontSize: "0.7em" }}
                         >
                           {f.profile_image_url ? (
-                            <img
+                            <Image
                               src={f.profile_image_url}
                               alt={f.username}
+                              width={44}
+                              height={44}
                               style={{
                                 width: 44,
                                 height: 44,
@@ -774,6 +790,9 @@ export default function MySpaceTheme({
                     "XO XO",
                     "2000s BABY",
                   ].map((txt) => (
+                    (() => {
+                      const blinkRate = 0.5 + (stableHash(txt) % 80) / 100;
+                      return (
                     <span
                       key={txt}
                       style={{
@@ -782,12 +801,14 @@ export default function MySpaceTheme({
                         padding: "2px 6px",
                         fontSize: "0.65em",
                         fontWeight: "bold",
-                        animation: `blink ${0.5 + Math.random() * 0.8}s step-start infinite`,
+                        animation: `blink ${blinkRate}s step-start infinite`,
                         border: "1px solid #fff",
                       }}
                     >
                       {txt}
                     </span>
+                      );
+                    })()
                   ))}
                 </div>
               </Panel>
@@ -825,9 +846,11 @@ export default function MySpaceTheme({
                             }}
                           >
                             {product.image_url ? (
-                              <img
+                              <Image
                                 src={product.image_url}
                                 alt={product.title}
+                                width={600}
+                                height={600}
                                 style={{
                                   width: "100%",
                                   aspectRatio: "1",
@@ -925,9 +948,11 @@ export default function MySpaceTheme({
                               }}
                             >
                               {post.image_url && (
-                                <img
+                                <Image
                                   src={post.image_url}
                                   alt=""
+                                  width={800}
+                                  height={100}
                                   style={{
                                     width: "100%",
                                     height: 100,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 /**
  * Wraps content that should only be visible to subscribers of a store.
@@ -22,13 +23,9 @@ export default function SubscriberGate({
 }) {
   const { data: session } = useSession();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [tierName, setTierName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session) {
-      setHasAccess(false);
-      return;
-    }
+    if (!session) return;
 
     fetch(`/api/subscriptions/status?storeId=${storeId}`)
       .then((r) => r.json())
@@ -37,13 +34,34 @@ export default function SubscriberGate({
           // If minTier is specified, check tier level
           // For now, any active subscription grants access
           setHasAccess(true);
-          setTierName(data.tierName);
         } else {
           setHasAccess(false);
         }
       })
       .catch(() => setHasAccess(false));
   }, [session, storeId]);
+
+  if (!session) {
+    if (fallback) return <>{fallback}</>;
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-zinc-700">
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 backdrop-blur-sm">
+          <div className="max-w-sm text-center">
+            <h3 className="text-lg font-bold text-white">Subscriber-Only Content</h3>
+            <p className="mt-1 text-sm text-zinc-400">
+              Sign in to subscribe and unlock this content.
+            </p>
+            <Link
+              href={`/login?callbackUrl=/stores/${storeSlug}`}
+              className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            >
+              Sign In to Subscribe
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (hasAccess === null) {
@@ -97,21 +115,12 @@ export default function SubscriberGate({
               ? `This content requires a "${minTier}" subscription or higher.`
               : "Subscribe to this creator to unlock exclusive content."}
           </p>
-          {!session ? (
-            <a
-              href={`/login?callbackUrl=/stores/${storeSlug}`}
-              className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
-            >
-              Sign In to Subscribe
-            </a>
-          ) : (
-            <a
-              href={`/stores/${storeSlug}#subscribe`}
-              className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
-            >
-              View Subscription Plans
-            </a>
-          )}
+          <Link
+            href={`/stores/${storeSlug}#subscribe`}
+            className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+          >
+            View Subscription Plans
+          </Link>
         </div>
       </div>
     </div>

@@ -233,7 +233,7 @@ function PostItem({
         <div className="xm-post-text">{post.text}</div>
         {post.image_url && (
           <div className="xm-post-media">
-            <img src={post.image_url} alt="" className="xm-post-media-img" />
+            <Image src={post.image_url} alt="" width={1200} height={675} className="xm-post-media-img" />
           </div>
         )}
         <div className="xm-post-actions">
@@ -278,9 +278,11 @@ function ProductCard({
     <div className="xm-product-card">
       <div className="xm-product-img-wrap">
         {product.image_url ? (
-          <img
+          <Image
             src={product.image_url}
             alt={product.title}
+            width={600}
+            height={600}
             className="xm-product-img"
           />
         ) : (
@@ -326,9 +328,11 @@ function WhoToFollow({ followers }: { followers: TopFollower[] }) {
         <div key={f.username || i} className="xm-whotf-row">
           <div className="xm-whotf-pfp-wrap">
             {f.profile_image_url ? (
-              <img
+              <Image
                 src={f.profile_image_url}
                 alt={f.display_name}
+                width={40}
+                height={40}
                 className="xm-whotf-pfp"
               />
             ) : (
@@ -622,9 +626,11 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
                       .filter((p) => p.image_url)
                       .map((p, i) => (
                         <div key={p.id || i} className="xm-media-item">
-                          <img
+                          <Image
                             src={p.image_url!}
                             alt=""
+                            width={900}
+                            height={900}
                             className="xm-media-img"
                           />
                         </div>
@@ -721,9 +727,11 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
                   >
                     <div className="xm-sidebar-product-img-wrap">
                       {p.image_url ? (
-                        <img
+                        <Image
                           src={p.image_url}
                           alt={p.title}
+                          width={120}
+                          height={120}
                           className="xm-sidebar-product-img"
                         />
                       ) : (
@@ -753,11 +761,11 @@ export default function XMimicTheme({ profile, products }: XMimicThemeProps) {
 
             {/* Footer links */}
             <div className="xm-right-footer">
-              <a href="/">RareImagery</a>
+              <Link href="/">RareImagery</Link>
               <span>&middot;</span>
-              <a href="/">Terms</a>
+              <Link href="/">Terms</Link>
               <span>&middot;</span>
-              <a href="/">Privacy</a>
+              <Link href="/">Privacy</Link>
               <span>&middot;</span>
               <span>&copy; 2026</span>
             </div>

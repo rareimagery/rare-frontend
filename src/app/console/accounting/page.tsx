@@ -111,13 +111,10 @@ export default function AccountingPage() {
   const { hasStore, storeId } = useConsole();
   const [data, setData] = useState<AccountingData | null>(null);
   const [period, setPeriod] = useState("30");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!storeId) return;
-    setLoading(true);
-    setError(null);
 
     const params = new URLSearchParams({ storeId, period });
     fetch(`/api/accounting?${params}`)
@@ -126,8 +123,7 @@ export default function AccountingPage() {
         if (d.error) throw new Error(d.error);
         setData(d);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => setError(e.message));
   }, [storeId, period]);
 
   if (!hasStore || !storeId) {
@@ -151,7 +147,10 @@ export default function AccountingPage() {
             {PERIODS.map((p) => (
               <button
                 key={p.value}
-                onClick={() => setPeriod(p.value)}
+                onClick={() => {
+                  setError(null);
+                  setPeriod(p.value);
+                }}
                 className={`min-h-10 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
                   period === p.value
                     ? "bg-zinc-700 text-white"
@@ -171,7 +170,7 @@ export default function AccountingPage() {
         </a>
       </div>
 
-      {loading ? (
+      {!data && !error ? (
         <div className="py-16 text-center text-zinc-500">Loading accounting data…</div>
       ) : error ? (
         <div className="py-16 text-center text-red-400">{error}</div>

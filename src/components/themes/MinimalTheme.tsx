@@ -1,6 +1,8 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics, Product, DRUPAL_API_URL } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Product, DRUPAL_API_URL } from "@/lib/drupal";
+import Image from "next/image";
+import Link from "next/link";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
 import MyPicks from "@/components/MyPicks";
@@ -115,9 +117,11 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
           }}
         >
           {profile.profile_picture_url ? (
-            <img
+            <Image
               src={profile.profile_picture_url}
               alt={profile.x_username}
+              width={120}
+              height={120}
               style={{
                 width: 120,
                 height: 120,
@@ -222,7 +226,7 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
                       className="hover:shadow-md"
                     >
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover" }} />
+                        <Image src={product.image_url} alt={product.title} width={800} height={200} style={{ width: "100%", height: 200, objectFit: "cover" }} />
                       ) : (
                         <div style={{ width: "100%", height: 200, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🛍️</div>
                       )}
@@ -252,7 +256,7 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
                   {profile.top_posts.map((post: TopPost, i: number) => (
                     <div key={post.id || i} className="minimal-card" style={{ overflow: "hidden" }}>
                       {post.image_url && (
-                        <img src={post.image_url} alt="" style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block", borderBottom: "1px solid #e5e5e5" }} />
+                        <Image src={post.image_url} alt="" width={1200} height={675} style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block", borderBottom: "1px solid #e5e5e5", height: "auto" }} />
                       )}
                       <div style={{ padding: 16 }}>
                         <p style={{ fontSize: 14, color: "#333", margin: "0 0 10px", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.text}</p>
@@ -312,9 +316,11 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
                   }}
                 >
                   {f.profile_image_url ? (
-                    <img
+                    <Image
                       src={f.profile_image_url}
                       alt={f.display_name}
+                      width={48}
+                      height={48}
                       style={{
                         width: 48,
                         height: 48,
@@ -522,7 +528,7 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
         >
           <p style={{ fontSize: 13, color: "#bbb", margin: 0 }}>
             Powered by{" "}
-            <a
+            <Link
               href="/"
               style={{
                 color: "#999",
@@ -531,7 +537,7 @@ export default function MinimalTheme({ profile, products = [] }: MinimalThemePro
               }}
             >
               RareImagery
-            </a>
+            </Link>
           </p>
         </footer>
       </div>

@@ -5,11 +5,21 @@ import { getConsoleProfiles, getConsoleProfilesByEmail } from "@/lib/drupal";
 
 const COOKIE_NAME = "ri_active_store_id";
 
+type ConsoleSession = {
+  xUsername?: string;
+  storeSlug?: string;
+  user?: {
+    email?: string | null;
+  };
+};
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const consoleSession = session as ConsoleSession;
 
   const body = await req.json().catch(() => ({}));
   const requestedStoreId = String(body?.storeId || "").trim();
@@ -17,11 +27,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "storeId is required" }, { status: 400 });
   }
 
-  const xUsername = (session as any).xUsername || (session as any).storeSlug || null;
+  const xUsername = consoleSession.xUsername || consoleSession.storeSlug || null;
 
   let stores = xUsername ? await getConsoleProfiles(xUsername) : [];
-  if (!stores.length && session.user?.email) {
-    stores = await getConsoleProfilesByEmail(session.user.email);
+  if (!stores.length && consoleSession.user?.email) {
+    stores = await getConsoleProfilesByEmail(consoleSession.user.email);
   }
 
   const ownsRequestedStore = stores.some((store) => store.storeId === requestedStoreId);

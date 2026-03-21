@@ -1,4 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
+import type { Session, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import TwitterProvider from "next-auth/providers/twitter";
 
@@ -11,6 +13,66 @@ const X_OAUTH_CLIENT_ID =
   process.env.X_CLIENT_ID || process.env.X_CONSUMER_KEY || "";
 const X_OAUTH_CLIENT_SECRET =
   process.env.X_CLIENT_SECRET || process.env.X_CONSUMER_SECRET || "";
+
+type JsonApiIncludedEntity = {
+  id?: string;
+  attributes?: Record<string, unknown>;
+};
+
+type XProfile = {
+  screen_name?: string;
+  username?: string;
+  id_str?: string;
+  profile_image_url_https?: string;
+  profile_banner_url?: string | null;
+  verified?: boolean;
+  description?: string;
+  data?: {
+    username?: string;
+    id?: string;
+    profile_image_url?: string;
+    verified?: boolean;
+    description?: string;
+  };
+};
+
+type AuthUser = User & {
+  role?: string;
+  shopName?: string | null;
+  storeSlug?: string | null;
+};
+
+type AppToken = JWT & {
+  xUsername?: string | null;
+  handle?: string | null;
+  xId?: string | null;
+  xImage?: string | null;
+  xBannerUrl?: string | null;
+  xVerified?: boolean;
+  verified?: boolean;
+  xBio?: string | null;
+  bio?: string | null;
+  xAccessToken?: string | null;
+  xAccessTokenSecret?: string | null;
+  role?: string | null;
+  shopName?: string | null;
+  storeSlug?: string | null;
+};
+
+type AppSession = Session & {
+  xUsername?: string | null;
+  handle?: string | null;
+  xId?: string | null;
+  xAccessToken?: string | null;
+  xBannerUrl?: string | null;
+  xBio?: string | null;
+  bio?: string | null;
+  xVerified?: boolean;
+  verified?: boolean;
+  role?: string | null;
+  shopName?: string | null;
+  storeSlug?: string | null;
+};
 
 if (!X_OAUTH_CLIENT_ID || !X_OAUTH_CLIENT_SECRET) {
   console.warn(
@@ -77,12 +139,12 @@ async function authenticateDrupalUser(
     );
     if (!authRes.ok) return null;
 
-    const included = lookupData?.included || [];
+    const included: JsonApiIncludedEntity[] = lookupData?.included || [];
     const storeRef = drupalUser.relationships?.field_store?.data;
     const store = storeRef
-      ? included.find((inc: any) => inc.id === storeRef.id)
+      ? included.find((inc) => inc.id === storeRef.id)
       : null;
-    const storeSlug = store?.attributes?.field_store_slug || "";
+    const storeSlug = (store?.attributes?.["field_store_slug"] as string | undefined) || "";
     const shopName =
       drupalUser.attributes.field_shop_name || username;
 
@@ -122,12 +184,13 @@ export const authOptions: NextAuthOptions = {
           credentials?.email === process.env.CONSOLE_ADMIN_EMAIL &&
           credentials?.password === process.env.CONSOLE_ADMIN_PASSWORD
         ) {
-          return {
+          const adminUser: AuthUser = {
             id: "1",
             name: "Admin",
             email: credentials!.email,
             role: "admin",
-          } as any;
+          };
+          return adminUser;
         }
 
         if (credentials?.email && credentials?.password) {
@@ -136,14 +199,15 @@ export const authOptions: NextAuthOptions = {
             credentials.password
           );
           if (drupalUser) {
-            return {
+            const storeOwnerUser: AuthUser = {
               id: drupalUser.id,
               name: drupalUser.name,
               email: drupalUser.email,
               role: "store_owner",
               shopName: drupalUser.shopName,
               storeSlug: drupalUser.storeSlug,
-            } as any;
+            };
+            return storeOwnerUser;
           }
         }
 
@@ -157,10 +221,12 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
+      const xProfile = (profile || {}) as XProfile;
+
       const xUsername =
-        (profile as any)?.screen_name ??
-        (profile as any)?.username ??
-        (profile as any)?.data?.username ??
+        xProfile.screen_name ??
+        xProfile.username ??
+        xProfile.data?.username ??
         "";
       const normalizedXUsername = xUsername.trim().replace(/^@+/, "").toLowerCase();
 
@@ -208,42 +274,44 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, account, profile, user }) {
+      const appToken = token as AppToken;
       if (account?.provider === "twitter" && profile) {
-        token.xUsername =
-          (profile as any).screen_name ??
-          (profile as any).data?.username ??
+        const xProfile = profile as XProfile;
+        appToken.xUsername =
+          xProfile.screen_name ??
+          xProfile.data?.username ??
           "";
-        token.handle = token.xUsername;
-        token.xId =
-          (profile as any).id_str ??
-          (profile as any).data?.id ??
+        appToken.handle = appToken.xUsername;
+        appToken.xId =
+          xProfile.id_str ??
+          xProfile.data?.id ??
           account.providerAccountId;
-        token.xImage =
-          (profile as any).profile_image_url_https ??
-          (profile as any).data?.profile_image_url ??
-          token.picture;
-        token.xBannerUrl =
-          (profile as any).profile_banner_url ?? null;
-        token.xVerified =
-          (profile as any).verified ??
-          (profile as any).data?.verified ??
+        appToken.xImage =
+          xProfile.profile_image_url_https ??
+          xProfile.data?.profile_image_url ??
+          (typeof appToken.picture === "string" ? appToken.picture : null);
+        appToken.xBannerUrl =
+          xProfile.profile_banner_url ?? null;
+        appToken.xVerified =
+          xProfile.verified ??
+          xProfile.data?.verified ??
           false;
-        token.verified = token.xVerified;
-        token.xBio =
-          (profile as any).description ??
-          (profile as any).data?.description ??
+        appToken.verified = appToken.xVerified;
+        appToken.xBio =
+          xProfile.description ??
+          xProfile.data?.description ??
           "";
-        token.bio = token.xBio;
-        token.xAccessToken = account.access_token ?? account.oauth_token ?? null;
-        token.xAccessTokenSecret = account.oauth_token_secret ?? null;
+        appToken.bio = appToken.xBio;
+        appToken.xAccessToken = account.access_token ?? account.oauth_token ?? null;
+        appToken.xAccessTokenSecret = account.oauth_token_secret ?? null;
 
         const adminXUsernames = (process.env.ADMIN_X_USERNAMES || "").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
-        const xUser = (token.xUsername as string || "").toLowerCase();
-        token.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
+        const xUser = (appToken.xUsername || "").toLowerCase();
+        appToken.role = adminXUsernames.includes(xUser) ? "admin" : "creator";
 
         // Auto-sync X profile data to Drupal
-        if (account.access_token && token.xId && token.xUsername) {
-          const xUser = token.xUsername as string;
+        if (account.access_token && appToken.xId && appToken.xUsername) {
+          const xUser = appToken.xUsername;
           (async () => {
             // Auto-provision profile if it doesn't exist yet
             const existing = await findProfileByUsername(xUser);
@@ -278,54 +346,57 @@ export const authOptions: NextAuthOptions = {
             }
             await syncXDataToDrupal(
               account.access_token!,
-              token.xId as string,
+              appToken.xId as string,
               xUser
             );
           })().catch((err) =>
-            console.error(`[auth] X sync failed for @${token.xUsername}:`, err)
+            console.error(`[auth] X sync failed for @${appToken.xUsername}:`, err)
           );
         }
       }
       if (account?.provider === "credentials" && user) {
-        token.role = (user as any).role || "admin";
-        token.shopName = (user as any).shopName || null;
-        token.storeSlug = (user as any).storeSlug || null;
-        token.xUsername = (user as any).storeSlug || null;
+        const authUser = user as AuthUser;
+        appToken.role = authUser.role || "admin";
+        appToken.shopName = authUser.shopName || null;
+        appToken.storeSlug = authUser.storeSlug || null;
+        appToken.xUsername = authUser.storeSlug || null;
       }
 
       // Keep auth simple for X users: if X identity exists, default to creator role.
-      if (token.xUsername && !token.role) {
-        token.role = "creator";
+      if (appToken.xUsername && !appToken.role) {
+        appToken.role = "creator";
       }
 
-      return token;
+      return appToken;
     },
     async session({ session, token }) {
-      (session as any).xUsername = token.xUsername ?? null;
-      (session as any).handle = token.handle ?? token.xUsername ?? null;
-      (session as any).xId = token.xId ?? null;
-      (session as any).xAccessToken = token.xAccessToken ?? null;
-      (session as any).xBannerUrl = token.xBannerUrl ?? null;
-      (session as any).xBio = token.xBio ?? token.bio ?? null;
-      (session as any).bio = token.bio ?? token.xBio ?? null;
-      (session as any).xVerified = token.xVerified ?? token.verified ?? false;
-      (session as any).verified = token.verified ?? token.xVerified ?? false;
-      (session as any).role = token.role ?? "creator";
-      (session as any).shopName = token.shopName ?? null;
-      (session as any).storeSlug = token.storeSlug ?? null;
+      const appSession = session as AppSession;
+      const appToken = token as AppToken;
+      appSession.xUsername = appToken.xUsername ?? null;
+      appSession.handle = appToken.handle ?? appToken.xUsername ?? null;
+      appSession.xId = appToken.xId ?? null;
+      appSession.xAccessToken = appToken.xAccessToken ?? null;
+      appSession.xBannerUrl = appToken.xBannerUrl ?? null;
+      appSession.xBio = appToken.xBio ?? appToken.bio ?? null;
+      appSession.bio = appToken.bio ?? appToken.xBio ?? null;
+      appSession.xVerified = appToken.xVerified ?? appToken.verified ?? false;
+      appSession.verified = appToken.verified ?? appToken.xVerified ?? false;
+      appSession.role = appToken.role ?? "creator";
+      appSession.shopName = appToken.shopName ?? null;
+      appSession.storeSlug = appToken.storeSlug ?? null;
       if (session.user) {
         (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).handle =
-          (token.handle as string | undefined) ??
-          (token.xUsername as string | undefined) ??
+          appToken.handle ??
+          appToken.xUsername ??
           undefined;
         (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).bio =
-          (token.bio as string | undefined) ??
-          (token.xBio as string | undefined) ??
+          appToken.bio ??
+          appToken.xBio ??
           undefined;
         (session.user as typeof session.user & { handle?: string; bio?: string; verified?: boolean }).verified =
-          Boolean(token.verified ?? token.xVerified ?? false);
+          Boolean(appToken.verified ?? appToken.xVerified ?? false);
       }
-      return session;
+      return appSession;
     },
   },
   pages: {

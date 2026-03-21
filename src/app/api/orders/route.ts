@@ -5,6 +5,16 @@ import { verifyStoreOwnership } from "@/lib/ownership";
 
 const DRUPAL_API = process.env.DRUPAL_API_URL;
 
+type JsonApiEntity = {
+  id: string;
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, { data?: JsonApiEntityRef | JsonApiEntityRef[] | null }>;
+};
+
+type JsonApiEntityRef = {
+  id: string;
+};
+
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
   if (!token) {
@@ -35,7 +45,7 @@ export async function GET(req: NextRequest) {
       `?${filters.join("&")}`,
       `&include=order_items,billing_profile`,
       `&sort=-placed`,
-      `&page[offset]=${parseInt(page) * 20}&page[limit]=20`,
+      `&page[offset]=${parseInt(page, 10) * 20}&page[limit]=20`,
     ].join("");
 
     const res = await fetch(url, {
@@ -50,43 +60,45 @@ export async function GET(req: NextRequest) {
     }
 
     const json = await res.json();
-    const included = json.included || [];
-
-    const orders = (json.data || []).map((order: any) => {
+    const included: JsonApiEntity[] = json.included || [];
+    const orders = ((json.data as JsonApiEntity[]) || []).map((order) => {
       const billingProfileRef = order.relationships?.billing_profile?.data;
       const billingProfile = billingProfileRef
-        ? included.find((i: any) => i.id === billingProfileRef.id)
+        ? included.find((i) => i.id === (billingProfileRef as JsonApiEntityRef).id)
         : null;
 
-      const itemRefs = order.relationships?.order_items?.data || [];
-      const items = itemRefs.map((ref: any) =>
-        included.find((i: any) => i.id === ref.id)
+      const itemRefs = (order.relationships?.order_items?.data as JsonApiEntityRef[] | undefined) || [];
+      const items = itemRefs.map((ref) =>
+        included.find((i) => i.id === ref.id)
       ).filter(Boolean);
+
+      const orderAttributes = order.attributes || {};
+      const billingAddress = (billingProfile?.attributes?.["address"] as Record<string, unknown> | undefined) || null;
 
       return {
         id: order.id,
-        drupalId: order.attributes?.drupal_internal__order_id,
-        orderNumber: order.attributes?.order_number,
-        state: order.attributes?.state,
-        email: order.attributes?.mail,
-        placedAt: order.attributes?.placed,
-        completedAt: order.attributes?.completed,
-        total: order.attributes?.total_price?.number,
-        currency: order.attributes?.total_price?.currency_code,
+        drupalId: orderAttributes["drupal_internal__order_id"],
+        orderNumber: orderAttributes["order_number"],
+        state: orderAttributes["state"],
+        email: orderAttributes["mail"],
+        placedAt: orderAttributes["placed"],
+        completedAt: orderAttributes["completed"],
+        total: (orderAttributes["total_price"] as Record<string, unknown> | undefined)?.["number"],
+        currency: (orderAttributes["total_price"] as Record<string, unknown> | undefined)?.["currency_code"],
         subtotal: null,
-        billingAddress: billingProfile?.attributes?.address || null,
+        billingAddress,
         customerName: [
-          billingProfile?.attributes?.address?.given_name,
-          billingProfile?.attributes?.address?.family_name,
-        ].filter(Boolean).join(" ") || order.attributes?.mail || "Unknown",
+          billingAddress?.["given_name"],
+          billingAddress?.["family_name"],
+        ].filter(Boolean).join(" ") || String(orderAttributes["mail"] || "Unknown"),
         itemCount: items.length,
-        items: items.map((item: any) => ({
+        items: items.map((item) => ({
           id: item.id,
-          title: item.attributes?.title,
-          quantity: item.attributes?.quantity,
-          unitPrice: item.attributes?.unit_price?.number,
-          totalPrice: item.attributes?.total_price?.number,
-          currency: item.attributes?.total_price?.currency_code,
+          title: item.attributes?.["title"],
+          quantity: item.attributes?.["quantity"],
+          unitPrice: (item.attributes?.["unit_price"] as Record<string, unknown> | undefined)?.["number"],
+          totalPrice: (item.attributes?.["total_price"] as Record<string, unknown> | undefined)?.["number"],
+          currency: (item.attributes?.["total_price"] as Record<string, unknown> | undefined)?.["currency_code"],
         })),
       };
     });
@@ -94,7 +106,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       orders,
       total: json.meta?.count || orders.length,
-      page: parseInt(page),
+      page: parseInt(page, 10),
     });
   } catch (err) {
     console.error("Orders API error:", err);

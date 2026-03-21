@@ -67,14 +67,15 @@ async function probeEndpoint(
       live,
       latencyMs: Date.now() - start,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Network error";
     return {
       label,
       url,
       status: null,
       live: false,
       latencyMs: Date.now() - start,
-      error: err?.message || "Network error",
+      error: message,
     };
   }
 }

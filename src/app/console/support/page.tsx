@@ -36,19 +36,17 @@ export default function ConsoleSupportPage() {
   const [tier, setTier] = useState(xSubscriptionTier || "none");
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(!xUsername);
 
   useEffect(() => {
-    if (!xUsername) {
-      setLoading(false);
-      return;
-    }
+    if (!xUsername) return;
+
     fetch(`/api/x-subscription?xUsername=${xUsername}`)
       .then((r) => r.json())
       .then((data) => {
         setTier(data.tier || "none");
       })
-      .finally(() => setLoading(false));
+      .finally(() => setLoaded(true));
   }, [xUsername]);
 
   async function handleClaim() {
@@ -83,7 +81,7 @@ export default function ConsoleSupportPage() {
         Subscribe to @RareImagery on X to unlock exclusive platform perks.
       </p>
 
-      {loading ? (
+      {!loaded ? (
         <p className="text-zinc-500">Checking subscription status...</p>
       ) : isSubscribed ? (
         /* Active subscriber view */

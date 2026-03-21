@@ -4,6 +4,19 @@
 
 import { drupalWriteHeaders, DRUPAL_API_URL } from "@/lib/drupal";
 
+interface JsonApiEntity {
+  id?: string;
+  type?: string;
+  attributes?: Record<string, unknown>;
+}
+
+interface FollowFlagging {
+  id?: string;
+  attributes?: {
+    field_follower_store_id?: string;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -65,14 +78,20 @@ export async function getStoreByXUsername(
   const storeRef = node.relationships?.field_linked_store?.data;
   if (!storeRef) return null;
 
-  const storeEntity = (json.included ?? []).find(
-    (inc: any) => inc.id === storeRef.id
+  const storeEntity = ((json.included ?? []) as JsonApiEntity[]).find(
+    (inc) => inc.id === storeRef.id
   );
+
+  const storeInternalIdRaw = storeEntity?.attributes?.["drupal_internal__store_id"];
+  const storeNameRaw = storeEntity?.attributes?.["name"];
 
   return {
     storeId: storeRef.id,
-    storeInternalId: storeEntity?.attributes?.drupal_internal__store_id?.toString() ?? "",
-    storeName: storeEntity?.attributes?.name ?? xUsername,
+    storeInternalId:
+      typeof storeInternalIdRaw === "string" || typeof storeInternalIdRaw === "number"
+        ? String(storeInternalIdRaw)
+        : "",
+    storeName: typeof storeNameRaw === "string" ? storeNameRaw : xUsername,
   };
 }
 
@@ -99,8 +118,8 @@ export async function checkFollowStatus(
 
   // Look for a flagging from the follower's perspective
   // Since we use admin auth, we need to store follower info in the flagging
-  const flagging = (json.data ?? []).find(
-    (f: any) => f.attributes?.field_follower_store_id === followerStoreId
+  const flagging = ((json.data ?? []) as FollowFlagging[]).find(
+    (f) => f.attributes?.field_follower_store_id === followerStoreId
   );
 
   if (flagging) {
@@ -313,7 +332,7 @@ export async function getFollowers(
 
     const profileRef = store.relationships?.field_linked_x_profile?.data;
     const profile = profileRef
-      ? (storeJson.included ?? []).find((inc: any) => inc.id === profileRef.id)
+      ? ((storeJson.included ?? []) as JsonApiEntity[]).find((inc) => inc.id === profileRef.id)
       : null;
 
     // Check if mutual follow
@@ -377,7 +396,7 @@ export async function getFollowing(
 
     const profileRef = store.relationships?.field_linked_x_profile?.data;
     const profile = profileRef
-      ? (storeJson.included ?? []).find((inc: any) => inc.id === profileRef.id)
+      ? ((storeJson.included ?? []) as JsonApiEntity[]).find((inc) => inc.id === profileRef.id)
       : null;
 
     // Check mutual
@@ -434,8 +453,8 @@ export async function seedFromX(
     const storeRef = node.relationships?.field_linked_store?.data;
     if (!storeRef) continue;
 
-    const storeEntity = (json.included ?? []).find(
-      (inc: any) => inc.id === storeRef.id
+    const storeEntity = ((json.included ?? []) as JsonApiEntity[]).find(
+      (inc) => inc.id === storeRef.id
     );
     if (!storeEntity) continue;
 
@@ -443,11 +462,12 @@ export async function seedFromX(
     let pfpUrl: string | null = null;
     const pfpRef = node.relationships?.field_profile_picture?.data;
     if (pfpRef) {
-      const fileEntity = (json.included ?? []).find(
-        (inc: any) => inc.id === pfpRef.id && inc.type === "file--file"
+      const fileEntity = ((json.included ?? []) as JsonApiEntity[]).find(
+        (inc) => inc.id === pfpRef.id && inc.type === "file--file"
       );
-      if (fileEntity?.attributes?.uri?.url) {
-        const path = fileEntity.attributes.uri.url;
+      const uri = fileEntity?.attributes?.["uri"] as { url?: string } | undefined;
+      if (uri?.url) {
+        const path = uri.url;
         pfpUrl = path.startsWith("http") ? path : `${DRUPAL_API_URL}${path}`;
       }
     }

@@ -14,6 +14,16 @@ type AttributionRow = {
   revenue: number;
 };
 
+type DrupalOrder = {
+  id: string;
+  attributes?: {
+    total_price?: { number?: string };
+    placed?: string;
+    order_number?: string;
+    mail?: string;
+  };
+};
+
 async function getStripeAttribution(storeId: string, sinceTs: number): Promise<AttributionRow[]> {
   if (!process.env.STRIPE_SECRET_KEY) return [];
 
@@ -165,15 +175,15 @@ export async function GET(req: NextRequest) {
     const firstSaleJson = firstSaleRes.ok ? await firstSaleRes.json() : { data: [] };
     const storeJson = storeRes.ok ? await storeRes.json() : { data: null };
 
-    const completedOrders: any[] = completedJson.data || [];
-    const pendingOrders: any[] = pendingJson.data || [];
-    const firstSale = (firstSaleJson.data || [])[0];
+    const completedOrders: DrupalOrder[] = completedJson.data || [];
+    const pendingOrders: DrupalOrder[] = pendingJson.data || [];
+    const firstSale: DrupalOrder | undefined = (firstSaleJson.data || [])[0];
     const storeData = storeJson.data;
 
     // Aggregate revenue metrics
     let grossRevenue = 0;
     let platformFees = 0;
-    let orderCount = completedOrders.length;
+    const orderCount = completedOrders.length;
     const dailyRevenue: Record<string, number> = {};
 
     for (const order of completedOrders) {
@@ -217,7 +227,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Pending orders value
-    const pendingValue = pendingOrders.reduce((sum: number, o: any) => {
+    const pendingValue = pendingOrders.reduce((sum: number, o: DrupalOrder) => {
       return sum + parseFloat(o.attributes?.total_price?.number || "0");
     }, 0);
 
@@ -232,7 +242,7 @@ export async function GET(req: NextRequest) {
       pendingOrderCount: pendingOrders.length,
       pendingValue: parseFloat(pendingValue.toFixed(2)),
       chartData,
-      recentOrders: completedOrders.slice(0, 5).map((o: any) => ({
+      recentOrders: completedOrders.slice(0, 5).map((o: DrupalOrder) => ({
         id: o.id,
         orderNumber: o.attributes?.order_number,
         email: o.attributes?.mail,

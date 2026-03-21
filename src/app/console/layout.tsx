@@ -11,6 +11,15 @@ import ConsoleShell from "@/components/ConsoleShell";
 
 const ACTIVE_STORE_COOKIE = "ri_active_store_id";
 
+type ConsoleSession = {
+  role?: ConsoleContextValue["role"];
+  xUsername?: string;
+  storeSlug?: string;
+  user?: {
+    email?: string | null;
+  };
+};
+
 export default async function ConsoleLayout({
   children,
 }: {
@@ -19,14 +28,15 @@ export default async function ConsoleLayout({
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const role = ((session as any).role ||
-    "creator") as ConsoleContextValue["role"];
+  const consoleSession = session as ConsoleSession;
+
+  const role = (consoleSession.role || "creator") as ConsoleContextValue["role"];
   const xUsername =
-    (session as any).xUsername || (session as any).storeSlug || null;
+    consoleSession.xUsername || consoleSession.storeSlug || null;
 
   let stores = xUsername ? await getConsoleProfiles(xUsername) : [];
-  if (!stores.length && session.user?.email) {
-    stores = await getConsoleProfilesByEmail(session.user.email);
+  if (!stores.length && consoleSession.user?.email) {
+    stores = await getConsoleProfilesByEmail(consoleSession.user.email);
   }
 
   const cookieStore = await cookies();

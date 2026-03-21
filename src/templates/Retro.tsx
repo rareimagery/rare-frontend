@@ -97,8 +97,8 @@ export function RetroTemplate({ handle, avatar, bio, products }: TemplatePreview
       <section className="border-t border-white/15 bg-black/35 px-5 py-4 text-xs text-pink-100/85">
         <p className="font-semibold uppercase tracking-[0.16em]">Fan quotes</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <p className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">"Best creator merch UI I have seen this month."</p>
-          <p className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">"Easy to browse, clear tiers, and fast checkout flow."</p>
+          <p className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">&quot;Best creator merch UI I have seen this month.&quot;</p>
+          <p className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">&quot;Easy to browse, clear tiers, and fast checkout flow.&quot;</p>
         </div>
       </section>
     </div>

@@ -3,6 +3,8 @@
  * Each instance tracks requests by key (userId or IP).
  */
 
+import { NextResponse } from "next/server";
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -63,15 +65,14 @@ export function createRateLimiter(opts: {
 /** Helper to get client IP from request */
 export function getClientIP(req: Request): string {
   const forwarded =
-    (req.headers as any).get?.("x-forwarded-for") ??
-    (req.headers as any).get?.("x-real-ip");
+    req.headers.get("x-forwarded-for") ??
+    req.headers.get("x-real-ip");
   if (forwarded) return forwarded.split(",")[0].trim();
   return "unknown";
 }
 
 /** Return a 429 response with Retry-After header */
 export function rateLimitResponse(retryAfterMs: number) {
-  const { NextResponse } = require("next/server");
   return NextResponse.json(
     { error: "Too many requests" },
     {

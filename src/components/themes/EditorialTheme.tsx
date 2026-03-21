@@ -1,6 +1,8 @@
 "use client";
 
-import { CreatorProfile, TopPost, TopFollower, Metrics, Product, DRUPAL_API_URL } from "@/lib/drupal";
+import { CreatorProfile, TopPost, TopFollower, Product, DRUPAL_API_URL } from "@/lib/drupal";
+import Image from "next/image";
+import Link from "next/link";
 import FollowButton from "@/components/FollowButton";
 import ShoutoutWall from "@/components/ShoutoutWall";
 import MyPicks from "@/components/MyPicks";
@@ -56,9 +58,11 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
 
           <div className="flex items-center justify-center gap-4 text-sm text-neutral-500">
             {profile.profile_picture_url ? (
-              <img
+              <Image
                 src={profile.profile_picture_url}
                 alt={profile.x_username}
+                width={64}
+                height={64}
                 className="w-16 h-16 rounded-full object-cover border border-neutral-200"
               />
             ) : (
@@ -118,7 +122,7 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
                 {products.map((product: Product) => (
                   <div key={product.id} style={{ borderBottom: "2px solid #1a1a1a", paddingBottom: 16 }}>
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.title} style={{ width: "100%", height: 200, objectFit: "cover", marginBottom: 12 }} />
+                      <Image src={product.image_url} alt={product.title} width={800} height={200} style={{ width: "100%", height: 200, objectFit: "cover", marginBottom: 12 }} />
                     ) : (
                       <div style={{ width: "100%", height: 200, background: "#efe9dd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>🛍️</div>
                     )}
@@ -144,7 +148,7 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
             {featuredPost && (
               <div style={{ marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid #e5e0d5" }}>
                 {featuredPost.image_url && (
-                  <img src={featuredPost.image_url} alt="" style={{ width: "100%", borderRadius: 8, objectFit: "cover", marginBottom: 12, maxHeight: 240 }} />
+                  <Image src={featuredPost.image_url} alt="" width={1200} height={675} style={{ width: "100%", borderRadius: 8, objectFit: "cover", marginBottom: 12, maxHeight: 240, height: "auto" }} />
                 )}
                 <p style={{ fontFamily: SERIF, fontSize: 16, color: "#1f2937", lineHeight: 1.7, marginBottom: 8 }}>{featuredPost.text}</p>
                 <div className="flex gap-3 text-xs tracking-widest uppercase text-neutral-400" style={{ letterSpacing: "0.08em" }}>
@@ -200,9 +204,11 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
                 className="py-4 flex items-center gap-4"
               >
                 {f.profile_image_url ? (
-                  <img
+                  <Image
                     src={f.profile_image_url}
                     alt={f.display_name}
+                    width={40}
+                    height={40}
                     className="w-10 h-10 rounded-full object-cover"
                   />
                 ) : (
@@ -370,13 +376,13 @@ export default function EditorialTheme({ profile, products = [] }: EditorialThem
         <hr className="border-t border-neutral-300 mb-6" />
         <p className="text-center text-sm italic text-neutral-400">
           Published on{" "}
-          <a
+          <Link
             href="/"
             className="underline hover:text-neutral-600 transition-colors"
             style={{ color: "#b45309" }}
           >
             RareImagery X Marketplace
-          </a>
+          </Link>
         </p>
       </footer>
     </div>

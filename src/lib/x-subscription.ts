@@ -85,6 +85,13 @@ type PaidSubscriptionCheckInput = {
   requiredUsername?: string;
 };
 
+type StoreSubscriptionNode = {
+  attributes?: {
+    field_subscription_status?: string;
+    field_tier_id?: string | null;
+  };
+};
+
 export async function checkRequiredPaidSubscription({
   buyerXId,
   buyerUsername,
@@ -137,8 +144,8 @@ export async function checkRequiredPaidSubscription({
       }
 
       const json = await res.json();
-      const subscriptions = Array.isArray(json.data) ? json.data : [];
-      const activeSub = subscriptions.find((sub: any) => {
+      const subscriptions: StoreSubscriptionNode[] = Array.isArray(json.data) ? json.data : [];
+      const activeSub = subscriptions.find((sub) => {
         const status = String(sub?.attributes?.field_subscription_status ?? "").toLowerCase();
         return ACTIVE_SUBSCRIPTION_STATUSES.has(status);
       });
@@ -158,9 +165,10 @@ export async function checkRequiredPaidSubscription({
       storeId: requiredStoreId,
       error: `Active paid subscription required for @${requiredUsername}.`,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Subscription check failed.";
     console.error("Paid subscription check error:", err);
-    return { subscribed: false, error: err?.message || "Subscription check failed." };
+    return { subscribed: false, error: message };
   }
 }
 
@@ -239,8 +247,9 @@ export async function checkXSubscription(
     }
 
     return { subscribed: false };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "X subscription check failed";
     console.error("X subscription check error:", err);
-    return { subscribed: false, error: err.message };
+    return { subscribed: false, error: message };
   }
 }

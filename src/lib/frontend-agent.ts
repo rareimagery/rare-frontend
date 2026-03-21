@@ -95,8 +95,9 @@ async function checkStorePage(username: string): Promise<{
       status: res.status,
       accessible: res.status >= 200 && res.status < 400,
     };
-  } catch (err: any) {
-    return { status: null, accessible: false, error: err.message };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Request failed";
+    return { status: null, accessible: false, error: message };
   }
 }
 
@@ -128,13 +129,14 @@ async function checkApiRoute(path: string): Promise<ApiRouteCheck> {
       ok: res.status < 500,
       latencyMs: Date.now() - start,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Request failed";
     return {
       path,
       status: null,
       ok: false,
       latencyMs: Date.now() - start,
-      error: err.message,
+      error: message,
     };
   }
 }
@@ -147,13 +149,13 @@ async function processBatch<T, R>(
   items: T[],
   fn: (item: T) => Promise<R>,
   batchSize: number
-): Promise<R[]> {
-  const results: R[] = [];
+): Promise<Array<R | undefined>> {
+  const results: Array<R | undefined> = [];
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     const batchResults = await Promise.allSettled(batch.map(fn));
     for (const r of batchResults) {
-      results.push(r.status === "fulfilled" ? r.value : (undefined as any));
+      results.push(r.status === "fulfilled" ? r.value : undefined);
     }
   }
   return results;
@@ -190,12 +192,13 @@ export async function runAgent(): Promise<HealthReport> {
   let profiles: CreatorProfile[] = [];
   try {
     profiles = await getAllCreatorProfiles();
-  } catch (err: any) {
-    issues.push(`CRITICAL: Failed to fetch creator profiles: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    issues.push(`CRITICAL: Failed to fetch creator profiles: ${message}`);
   }
 
   // 3. Check each store page + product counts (batched)
-  const storeChecks: StoreCheck[] = await processBatch(
+  const storeChecksRaw = await processBatch(
     profiles,
     async (profile): Promise<StoreCheck> => {
       const [pageResult, productCount] = await Promise.all([
@@ -238,6 +241,7 @@ export async function runAgent(): Promise<HealthReport> {
     },
     BATCH_SIZE
   );
+  const storeChecks: StoreCheck[] = storeChecksRaw.filter((check): check is StoreCheck => Boolean(check));
 
   // 4. Check critical API routes
   const apiRouteChecks = await Promise.all(

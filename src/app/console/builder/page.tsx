@@ -12,36 +12,42 @@ interface InsightsVisualData {
 
 const STYLE_OPTIONS = [
   {
+    templateId: "modern-cart",
     title: "Luxury Pulse",
     previewClassName: "bg-[radial-gradient(circle_at_top,rgba(244,244,245,0.18),transparent_45%),linear-gradient(135deg,#111827,#09090b)]",
     prompt:
       "Build a modern luxury storefront landing section for my creator store. Use a cinematic hero, premium typography, disciplined spacing, featured product cards, subtle motion, and a polished mobile-first feel. Make it feel expensive and editorial, not generic SaaS.",
   },
   {
+    templateId: "modern-cart",
     title: "Minimal Frame",
     previewClassName: "bg-[linear-gradient(180deg,#fafaf9,#e7e5e4)]",
     prompt:
       "Create a modern minimal fashion storefront section with oversized type, neutral tones, crisp spacing, restrained product cards, and a strong grid. It should feel like a contemporary boutique brand launch page.",
   },
   {
+    templateId: "ai-video-store",
     title: "Drop Zone",
     previewClassName: "bg-[linear-gradient(135deg,#18181b,#111827_50%,#1d4ed8)]",
     prompt:
       "Build a modern streetwear drop section with aggressive typography, countdown energy, limited-release product cards, campaign-style callouts, and high-contrast layout. It should feel like a live drop, not a normal shop page.",
   },
   {
+    templateId: "latest-posts",
     title: "Editorial Drift",
     previewClassName: "bg-[linear-gradient(135deg,#f5f5f4,#d6d3d1)]",
     prompt:
       "Design an editorial storefront section that feels like a luxury campaign spread. Use serif-forward typography, asymmetric layout, immersive storytelling blocks, and product placement that feels curated instead of crowded.",
   },
   {
+    templateId: "retro",
     title: "MySpace Flash",
     previewClassName: "bg-[linear-gradient(135deg,#ec4899,#60a5fa_45%,#22d3ee)]",
     prompt:
       "Build a chaotic MySpace 2008 style storefront section with glitter accents, custom profile energy, loud gradients, badges, stickers, marquee text, and stacked content boxes. Keep it usable on mobile but let it feel nostalgic, messy, and intentionally overdesigned.",
   },
   {
+    templateId: "latest-posts",
     title: "Moodboard Night",
     previewClassName: "bg-[linear-gradient(180deg,#1f2937,#111827)]",
     prompt:
@@ -101,10 +107,10 @@ export default function ConsoleBuilderPage() {
     };
   }, [hasStore]);
 
-  function launchWorkspace(title: string, prompt: string) {
+  function launchWorkspace(templateId: string, title: string, prompt: string) {
     setLaunchingTitle(title);
     const params = new URLSearchParams({
-      template: title,
+      template: templateId,
       prompt,
     });
     if (storeSlug) {
@@ -160,7 +166,7 @@ export default function ConsoleBuilderPage() {
               <button
                 key={option.title}
                 type="button"
-                onClick={() => launchWorkspace(option.title, option.prompt)}
+                onClick={() => launchWorkspace(option.templateId, option.title, option.prompt)}
                 className="group rounded-2xl border border-zinc-800 bg-zinc-950/70 p-2 text-left transition hover:-translate-y-0.5 hover:border-zinc-600 hover:bg-zinc-900"
               >
                 <div

@@ -476,48 +476,67 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
 export async function getCreatorProfile(
   username: string
 ): Promise<CreatorProfile | null> {
-  const params = new URLSearchParams({
-    "filter[field_x_username]": username,
-    include:
-      "field_linked_store,field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
-  });
+  const includeCandidates = [
+    "field_linked_store,field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
+    "field_linked_store,field_profile_picture,field_background_banner",
+  ];
 
-  const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
+  for (const include of includeCandidates) {
+    const params = new URLSearchParams({
+      "filter[field_x_username]": username,
+      include,
+    });
 
-  const res = await fetch(url, { next: { revalidate: 60 } });
+    const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
+    const res = await fetch(url, { next: { revalidate: 60 } });
 
-  if (!res.ok) {
-    console.error(`Drupal API error: ${res.status} ${res.statusText}`);
-    return null;
+    if (!res.ok) {
+      if (res.status === 400) {
+        continue;
+      }
+      console.error(`Drupal API error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+
+    const json = await res.json();
+    const nodes = json.data;
+    if (!nodes || nodes.length === 0) return null;
+
+    return mapCreatorProfile(nodes[0], json.included ?? []);
   }
 
-  const json = await res.json();
-  const nodes = json.data;
-  if (!nodes || nodes.length === 0) return null;
-
-  return mapCreatorProfile(nodes[0], json.included ?? []);
+  console.error("Drupal API error: all creator profile include variants failed");
+  return null;
 }
 
 export async function getAllCreatorProfiles(): Promise<CreatorProfile[]> {
-  const params = new URLSearchParams({
-    include:
-      "field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
-  });
+  const includeCandidates = [
+    "field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
+    "field_profile_picture,field_background_banner",
+  ];
 
-  const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
+  for (const include of includeCandidates) {
+    const params = new URLSearchParams({ include });
+    const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
+    const res = await fetch(url, { next: { revalidate: 60 } });
 
-  const res = await fetch(url, { next: { revalidate: 60 } });
+    if (!res.ok) {
+      if (res.status === 400) {
+        continue;
+      }
+      console.error(`Drupal API error: ${res.status} ${res.statusText}`);
+      return [];
+    }
 
-  if (!res.ok) {
-    console.error(`Drupal API error: ${res.status} ${res.statusText}`);
-    return [];
+    const json = await res.json();
+    const nodes = json.data ?? [];
+    const included = json.included ?? [];
+
+    return nodes.map((n: any) => mapCreatorProfile(n, included));
   }
 
-  const json = await res.json();
-  const nodes = json.data ?? [];
-  const included = json.included ?? [];
-
-  return nodes.map((node: any) => mapCreatorProfile(node, included));
+  console.error("Drupal API error: all creator profile include variants failed");
+  return [];
 }
 
 export async function getCreatorStore(storeId: string): Promise<any | null> {

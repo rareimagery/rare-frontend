@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSafeImageUrl } from "@/lib/ownership";
+import { drupalWriteHeaders } from "@/lib/drupal";
 
 const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
@@ -37,45 +38,6 @@ function buildBasicAuthHeader(): string {
     throw new Error("DRUPAL_API_USER and DRUPAL_API_PASS must be set");
   }
   return `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
-}
-
-async function getDrupalSession(): Promise<{ cookie: string; csrfToken: string }> {
-  const user = process.env.DRUPAL_API_USER;
-  const pass = process.env.DRUPAL_API_PASS;
-  if (!user || !pass) {
-    throw new Error("DRUPAL_API_USER and DRUPAL_API_PASS must be set");
-  }
-
-  const loginRes = await fetch(`${DRUPAL_API_URL}/user/login?_format=json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ name: user, pass }),
-  });
-
-  if (!loginRes.ok) {
-    throw new Error(`Drupal login failed: ${loginRes.status}`);
-  }
-
-  const setCookieHeader = loginRes.headers.get("set-cookie") || "";
-  const cookieMatch = setCookieHeader.match(/(S?SESS[^=]+=[^;]+)/);
-  if (!cookieMatch) {
-    throw new Error("No Drupal session cookie found");
-  }
-
-  const csrfRes = await fetch(`${DRUPAL_API_URL}/session/token`, {
-    headers: { Cookie: cookieMatch[1] },
-  });
-  if (!csrfRes.ok) {
-    throw new Error(`Drupal CSRF token failed: ${csrfRes.status}`);
-  }
-
-  return {
-    cookie: cookieMatch[1],
-    csrfToken: await csrfRes.text(),
-  };
 }
 
 async function findProfileByHandle(handle: string): Promise<ProfileNode | null> {
@@ -145,7 +107,7 @@ async function uploadImageToProfileField(
   profileId: string,
   fieldName: "field_profile_picture" | "field_background_banner",
   filenamePrefix: string,
-  session: { cookie: string; csrfToken: string },
+  writeHeaders: Record<string, string>,
   dryRun: boolean
 ): Promise<Record<string, unknown>> {
   if (!sourceUrl) {
@@ -173,8 +135,7 @@ async function uploadImageToProfileField(
     {
       method: "POST",
       headers: {
-        Cookie: session.cookie,
-        "X-CSRF-Token": session.csrfToken,
+        ...writeHeaders,
         "Content-Type": "application/octet-stream",
         "Content-Disposition": `file; filename=\"${filenamePrefix}.${ext}\"`,
         Accept: "application/vnd.api+json",
@@ -227,7 +188,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = dryRun ? null : await getDrupalSession();
+    const writeHeaders = dryRun ? {} : await drupalWriteHeaders();
     const results: BackfillResult[] = [];
 
     for (const handle of handles) {
@@ -274,7 +235,7 @@ export async function POST(req: NextRequest) {
           profile.id,
           "field_profile_picture",
           `${handle}-pfp-backfill`,
-          session || { cookie: "", csrfToken: "" },
+          writeHeaders,
           dryRun
         );
 
@@ -283,7 +244,7 @@ export async function POST(req: NextRequest) {
           profile.id,
           "field_background_banner",
           `${handle}-banner-backfill`,
-          session || { cookie: "", csrfToken: "" },
+          writeHeaders,
           dryRun
         );
       } catch (error) {

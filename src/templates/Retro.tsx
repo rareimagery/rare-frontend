@@ -31,7 +31,7 @@ export function RetroTemplate({ handle, avatar, bio, products }: TemplatePreview
           <button className="rounded-full border border-pink-200/70 bg-pink-300/20 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-pink-300/35">
             Subscribe
           </button>
-        )}
+        </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.25fr,1fr]">
           <div className="rounded-2xl border border-white/25 bg-black/30 p-5">

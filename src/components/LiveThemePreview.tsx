@@ -61,6 +61,8 @@ type Props = {
   avatar?: string;
   bio?: string;
   extraComponents?: string[];
+  /** Alias for extraComponents — pass either or both; they are merged */
+  sections?: string[];
   customCSS?: string;
 };
 
@@ -141,8 +143,11 @@ export function LiveThemePreview({
   avatar,
   bio,
   extraComponents = [],
+  sections = [],
   customCSS = '',
 }: Props) {
+  // Merge both props so callers can use either name
+  const resolvedComponents = Array.from(new Set([...extraComponents, ...sections]));
   const [liveData, setLiveData] = useState<PreviewPayload | null>(null);
 
   const normalizedHandle = handle.toLowerCase();
@@ -226,9 +231,9 @@ export function LiveThemePreview({
     <div style={scaleStyle}>
       {customCSS.trim() ? <style>{customCSS}</style> : null}
       {previewNode}
-      {extraComponents.length > 0 ? (
+      {resolvedComponents.length > 0 ? (
         <div className="space-y-4 p-6">
-          {extraComponents.map((componentId, index) => (
+          {resolvedComponents.map((componentId, index) => (
             <ExtraPreviewSection key={`${componentId}-${index}`} componentId={componentId} />
           ))}
         </div>

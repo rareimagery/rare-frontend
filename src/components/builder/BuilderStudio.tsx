@@ -485,6 +485,12 @@ export default function BuilderStudio({
         const fieldBanner = typeof data?.summary?.diagnostics?.profileFieldIds?.backgroundBanner === "string"
           ? data.summary.diagnostics.profileFieldIds.backgroundBanner
           : "none";
+        const mediaUrlPfp = typeof data?.summary?.diagnostics?.mediaUrls?.profilePicture === "string"
+          ? data.summary.diagnostics.mediaUrls.profilePicture
+          : "none";
+        const mediaUrlBanner = typeof data?.summary?.diagnostics?.mediaUrls?.backgroundBanner === "string"
+          ? data.summary.diagnostics.mediaUrls.backgroundBanner
+          : "none";
 
         importedAvatarUrl = typeof data?.summary?.diagnostics?.mediaUrls?.profilePicture === "string"
           ? data.summary.diagnostics.mediaUrls.profilePicture
@@ -493,7 +499,7 @@ export default function BuilderStudio({
           ? data.summary.diagnostics.mediaUrls.backgroundBanner
           : null;
 
-        diagnosticsNotice = ` Sync diagnostics: upload(profile=${uploadPfp}, banner=${uploadBanner}); fields(profile=${fieldPfp}, banner=${fieldBanner}).`;
+        diagnosticsNotice = ` Sync diagnostics: upload(profile=${uploadPfp}, banner=${uploadBanner}); fields(profile=${fieldPfp}, banner=${fieldBanner}); urls(profile=${mediaUrlPfp}, banner=${mediaUrlBanner}).`;
         importSucceeded = true;
       } else {
         if (response.status === 401) {

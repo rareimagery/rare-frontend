@@ -137,6 +137,9 @@ const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop" | "sunset" | "forest"
   },
 ];
 
+type StarterLayoutId = (typeof STARTER_LAYOUTS)[number]["id"];
+type ThemePresetId = (typeof THEME_PRESETS)[number]["id"] | "custom";
+
 const BLOCK_LIBRARY: Array<{ type: BuilderBlockType; label: string; description: string }> = [
   { type: "top-menu", label: "Top menu", description: "Navigation pills across the top of the page." },
   { type: "profile-header", label: "Profile header", description: "Banner, avatar, intro, and CTA." },
@@ -333,9 +336,12 @@ export default function BuilderStudio({
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [wizardProgress, setWizardProgress] = useState({
     stylePicked: false,
-    aiGenerated: false,
+    layoutArranged: false,
     published: false,
   });
+  const [selectedStarterLayout, setSelectedStarterLayout] = useState<StarterLayoutId | null>(null);
+  const [selectedThemePreset, setSelectedThemePreset] = useState<ThemePresetId | null>(null);
+  const [gridDragOverIndex, setGridDragOverIndex] = useState<number | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -356,6 +362,7 @@ export default function BuilderStudio({
   const activeHandle = useMemo(() => normalizeHandle(searchParams.get("handle") || document.meta.handle || defaultHandle || defaultStoreSlug), [searchParams, document.meta.handle, defaultHandle, defaultStoreSlug]);
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
   const isGuidedMode = builderMode === "beginner";
+  const styleReady = !!selectedStarterLayout && !!selectedThemePreset;
 
   const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
 
@@ -617,6 +624,7 @@ export default function BuilderStudio({
       return { ...current, blocks };
     });
     setSelectedBlockId(nextBlock.id);
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
   }
 
   function moveBlock(blockId: string, targetIndex: number) {
@@ -630,6 +638,7 @@ export default function BuilderStudio({
       blocks.splice(normalizedIndex, 0, moved);
       return { ...current, blocks };
     });
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
   }
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>, index: number) {
@@ -645,6 +654,13 @@ export default function BuilderStudio({
     if (existingId) {
       moveBlock(existingId, index);
     }
+
+    setGridDragOverIndex(null);
+  }
+
+  function continueFromGridStep() {
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setWizardStep(3);
   }
 
   async function persistDocument(published: boolean) {
@@ -821,7 +837,7 @@ export default function BuilderStudio({
     }
   }
 
-  function applyStarterLayout(layoutId: "minimal" | "social" | "shop" | "story" | "members") {
+  function applyStarterLayout(layoutId: StarterLayoutId) {
     const selected = STARTER_LAYOUTS.find((layout) => layout.id === layoutId) || STARTER_LAYOUTS[0];
     const blocks = selected.blocks.map((type) => createBlock(type));
 
@@ -835,17 +851,41 @@ export default function BuilderStudio({
     }));
 
     setSelectedBlockId(blocks[0]?.id ?? null);
+    setSelectedStarterLayout(selected.id);
     setPersistMessage(`Started from ${selected.title} layout.`);
-    setWizardProgress((current) => ({ ...current, stylePicked: true }));
-    advanceWizard(2);
+    setWizardProgress((current) => ({ ...current, stylePicked: !!selectedThemePreset }));
   }
 
-  function applyThemePreset(presetId: "night" | "cream" | "pop" | "sunset" | "forest" | "mono") {
+  function applyThemePreset(presetId: Exclude<ThemePresetId, "custom">) {
     const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
     updateDocument((current) => ({ ...current, theme: selected.theme }));
+    setSelectedThemePreset(selected.id);
     setPersistMessage(`Applied ${selected.label} theme.`);
+    setWizardProgress((current) => ({ ...current, stylePicked: !!selectedStarterLayout }));
+  }
+
+  function updateThemeField(field: keyof BuilderTheme, value: string) {
+    updateDocument((current) => ({
+      ...current,
+      theme: {
+        ...current.theme,
+        [field]: value,
+      },
+    }));
+    setSelectedThemePreset("custom");
+    setWizardProgress((current) => ({ ...current, stylePicked: !!selectedStarterLayout }));
+    setPersistMessage("Custom colors updated.");
+  }
+
+  function continueFromStyleStep() {
+    const styleReady = !!selectedStarterLayout && !!selectedThemePreset;
+    if (!styleReady) {
+      setPersistMessage("Select both a starter layout and a color scheme before continuing.");
+      return;
+    }
+
     setWizardProgress((current) => ({ ...current, stylePicked: true }));
-    advanceWizard(2);
+    setWizardStep(2);
   }
 
   function applyAiActions(actions: AiAction[]) {
@@ -978,7 +1018,7 @@ export default function BuilderStudio({
 
       if (actions.length > 0) {
         applyAiActions(actions);
-        setWizardProgress((current) => ({ ...current, aiGenerated: true }));
+        setWizardProgress((current) => ({ ...current, layoutArranged: true }));
         advanceWizard(3);
       }
 
@@ -1075,14 +1115,21 @@ export default function BuilderStudio({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">3-Step Wizard</p>
-            <p className="mt-2 text-sm text-zinc-300">Step {wizardStep} of 3. Pick style, let AI generate, then publish.</p>
+            <p className="mt-2 text-sm text-zinc-300">Step {wizardStep} of 3. Choose style, arrange your grid, then publish.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {[1, 2, 3].map((step) => (
               <button
                 key={step}
                 type="button"
-                onClick={() => setWizardStep(step as 1 | 2 | 3)}
+                onClick={() => {
+                  const requested = step as 1 | 2 | 3;
+                  if (requested > 1 && !styleReady) {
+                    setPersistMessage("Pick both a starter layout and a color scheme before opening the next step.");
+                    return;
+                  }
+                  setWizardStep(requested);
+                }}
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${wizardStep === step ? "bg-cyan-400 text-slate-950" : "border border-zinc-700 text-zinc-300"}`}
               >
                 Step {step}
@@ -1094,21 +1141,22 @@ export default function BuilderStudio({
         <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">What Happens Next</p>
           <div className="mt-2 space-y-2 text-sm text-zinc-300">
-            <ChecklistItem done={wizardProgress.stylePicked} label="1. Pick a starter layout or theme" />
-            <ChecklistItem done={wizardProgress.aiGenerated} label="2. Run AI once to generate your first draft" />
+            <ChecklistItem done={wizardProgress.stylePicked} label="1. Pick a starter layout and color scheme" />
+            <ChecklistItem done={wizardProgress.layoutArranged} label="2. Arrange your component grid with drag and drop" />
             <ChecklistItem done={wizardProgress.published} label="3. Save draft, then publish live" />
           </div>
         </div>
 
         {wizardStep === 1 ? (
           <>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">1) Pick a starter base</p>
+            <div className="mt-2 grid gap-3 md:grid-cols-3">
               {STARTER_LAYOUTS.map((layout) => (
                 <button
                   key={layout.id}
                   type="button"
                   onClick={() => applyStarterLayout(layout.id)}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition hover:border-zinc-600"
+                  className={`rounded-2xl border px-4 py-3 text-left transition hover:border-zinc-600 ${selectedStarterLayout === layout.id ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-800 bg-zinc-950/70"}`}
                 >
                   <p className="text-sm font-semibold text-white">Start {layout.title}</p>
                   <p className="mt-1 text-xs text-zinc-500">{layout.blocks.join(" • ")}</p>
@@ -1116,27 +1164,43 @@ export default function BuilderStudio({
               ))}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">2) Pick a color scheme</p>
+            <div className="mt-2 flex flex-wrap gap-2">
               {THEME_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => applyThemePreset(preset.id)}
-                  className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+                  className={`rounded-full border px-3 py-1 text-xs transition ${selectedThemePreset === preset.id ? "border-cyan-400 bg-cyan-500/10 text-cyan-200" : "border-zinc-700 text-zinc-200 hover:border-zinc-500 hover:text-white"}`}
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
 
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {THEME_FIELDS.map((field) => (
+                <label key={field.key} className="rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
+                  <span className="block pb-2">{field.label}</span>
+                  <input
+                    type="color"
+                    value={document.theme[field.key]}
+                    onChange={(event) => updateThemeField(field.key, event.target.value)}
+                    className="h-9 w-full cursor-pointer rounded border border-zinc-700 bg-zinc-900"
+                  />
+                </label>
+              ))}
+            </div>
+
             <div className="mt-4">
-              <p className="mb-2 text-xs text-zinc-500">Next action: pick one layout card above.</p>
+              <p className="mb-2 text-xs text-zinc-500">Next action: choose both a starter and a color scheme.</p>
               <button
                 type="button"
-                onClick={() => setWizardStep(2)}
-                className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                onClick={continueFromStyleStep}
+                disabled={!selectedStarterLayout || !selectedThemePreset}
+                className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Continue to AI
+                Continue to Grid Builder
               </button>
             </div>
           </>
@@ -1144,53 +1208,77 @@ export default function BuilderStudio({
 
         {wizardStep === 2 ? (
           <>
-            <p className="mt-4 text-xs text-zinc-500">Next action: run AI once to generate your first draft.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void importFromX({ includeProducts: false })}
-                className="rounded-full border border-sky-500/50 px-3 py-1 text-xs font-semibold text-sky-200 transition hover:border-sky-400 hover:text-sky-100"
-              >
-                Sync avatar/banner
-              </button>
-              <button
-                type="button"
-                onClick={() => void importFromX({ includeProducts: true })}
-                className="rounded-full border border-emerald-500/50 px-3 py-1 text-xs font-semibold text-emerald-200 transition hover:border-emerald-400 hover:text-emerald-100"
-              >
-                Seed products from X data
-              </button>
-            </div>
-            <div className="mt-4 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
-              {aiMessages.map((entry, index) => (
-                <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
-                  <span className={`inline-block max-w-[90%] rounded-2xl px-3 py-2 text-xs ${entry.role === "user" ? "bg-cyan-500 text-slate-950" : "bg-zinc-800 text-zinc-200"}`}>
-                    {entry.content}
-                  </span>
+            <p className="mt-4 text-xs text-zinc-500">Add components from the library, then drag cards inside the grid to reorder the layout.</p>
+            <div className="mt-4 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Components</p>
+                <div className="space-y-2">
+                  {BLOCK_LIBRARY.map((item) => (
+                    <div
+                      key={`wizard-grid-${item.type}`}
+                      draggable
+                      onDragStart={(event) => event.dataTransfer.setData("application/x-builder-new", item.type)}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-white">{item.label}</p>
+                          <p className="text-[11px] text-zinc-500">{item.description}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => insertBlock(item.type)}
+                          className="rounded-full border border-zinc-700 px-2 py-1 text-[11px] text-zinc-200 transition hover:border-zinc-500"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="mt-3 flex gap-2">
-              <input
-                value={aiPrompt}
-                onChange={(event) => setAiPrompt(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void runAiCopilot(aiPrompt || helperPrompt);
-                  }
+              <div
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setGridDragOverIndex(document.blocks.length);
                 }}
-                placeholder="Describe your ideal site. Example: social homepage with strong creator branding"
-                className="min-w-0 flex-1 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-sm text-white outline-none focus:border-zinc-600"
-              />
-              <button
-                type="button"
-                onClick={() => void runAiCopilot(aiPrompt || helperPrompt)}
-                disabled={aiLoading}
-                className="rounded-2xl bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                onDrop={(event) => handleDrop(event, document.blocks.length)}
+                className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3"
               >
-                {aiLoading ? "Generating..." : "Generate"}
-              </button>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">12-Column Grid</p>
+                <div className="grid min-h-[320px] grid-cols-12 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2">
+                  {document.blocks.map((block, index) => {
+                    const label = BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
+                    const colStart = (index % 3) * 4 + 1;
+
+                    return (
+                      <div
+                        key={`wizard-block-${block.id}`}
+                        draggable
+                        onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setGridDragOverIndex(index);
+                        }}
+                        onDrop={(event) => handleDrop(event, index)}
+                        onClick={() => setSelectedBlockId(block.id)}
+                        style={{ gridColumn: `${colStart} / span 4` }}
+                        className={`rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
+                      >
+                        <p className="text-xs font-semibold text-white">{label}</p>
+                        <p className="mt-1 text-[11px] text-zinc-500">Drag to move • type: {block.type}</p>
+                      </div>
+                    );
+                  })}
+
+                  {document.blocks.length === 0 ? (
+                    <div className="col-span-12 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/70 px-4 py-6 text-center text-xs text-zinc-500">
+                      Drag a component here to start your layout.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -1203,7 +1291,7 @@ export default function BuilderStudio({
               </button>
               <button
                 type="button"
-                onClick={() => setWizardStep(3)}
+                onClick={continueFromGridStep}
                 className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950"
               >
                 Continue to Publish

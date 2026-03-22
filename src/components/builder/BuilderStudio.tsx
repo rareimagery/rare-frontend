@@ -164,51 +164,7 @@ const THEME_FIELDS: Array<{ key: keyof BuilderTheme; label: string }> = [
   { key: "textSecondary", label: "Secondary text" },
   { key: "border", label: "Border" },
 ];
-
-const GRID_COLUMN_START_CLASS: Record<number, string> = {
-  1: "lg:col-start-1",
-  2: "lg:col-start-2",
-  3: "lg:col-start-3",
-  4: "lg:col-start-4",
-  5: "lg:col-start-5",
-  6: "lg:col-start-6",
-  7: "lg:col-start-7",
-  8: "lg:col-start-8",
-  9: "lg:col-start-9",
-  10: "lg:col-start-10",
-  11: "lg:col-start-11",
-  12: "lg:col-start-12",
-};
-
-const GRID_SPAN_CLASS: Record<number, string> = {
-  1: "lg:col-span-1",
-  2: "lg:col-span-2",
-  3: "lg:col-span-3",
-  4: "lg:col-span-4",
-  5: "lg:col-span-5",
-  6: "lg:col-span-6",
-  7: "lg:col-span-7",
-  8: "lg:col-span-8",
-  9: "lg:col-span-9",
-  10: "lg:col-span-10",
-  11: "lg:col-span-11",
-  12: "lg:col-span-12",
-};
-
-const GRID_ROW_START_CLASS: Record<number, string> = {
-  1: "lg:row-start-1",
-  2: "lg:row-start-2",
-  3: "lg:row-start-3",
-  4: "lg:row-start-4",
-  5: "lg:row-start-5",
-  6: "lg:row-start-6",
-  7: "lg:row-start-7",
-  8: "lg:row-start-8",
-  9: "lg:row-start-9",
-  10: "lg:row-start-10",
-  11: "lg:row-start-11",
-  12: "lg:row-start-12",
-};
+const GRID_EDITOR_ROWS = 8;
 
 function normalizeHandle(value: string | null | undefined): string {
   return (value || "").replace(/^@+/, "").trim();
@@ -389,6 +345,7 @@ export default function BuilderStudio({
   const [selectedStarterLayout, setSelectedStarterLayout] = useState<StarterLayoutId | null>(null);
   const [selectedThemePreset, setSelectedThemePreset] = useState<ThemePresetId | null>(null);
   const [gridDragOverIndex, setGridDragOverIndex] = useState<number | null>(null);
+  const [gridDragOverCell, setGridDragOverCell] = useState<string | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -717,6 +674,60 @@ export default function BuilderStudio({
     }
 
     setGridDragOverIndex(null);
+  }
+
+  function moveBlockToGridCell(blockId: string, gridRow: number, gridColumn: number) {
+    updateDocument((current) => {
+      const blocks = current.blocks.map((block) => {
+        if (block.id !== blockId) return block;
+        const safeSpan = Math.max(1, Math.min(12, block.gridSpan));
+        return {
+          ...block,
+          gridRow: Math.max(1, gridRow),
+          gridColumn: Math.max(1, Math.min(13 - safeSpan, gridColumn)),
+        };
+      });
+
+      return { ...current, blocks: normalizeBuilderBlocks(blocks) };
+    });
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+  }
+
+  function addBlockToGridCell(type: BuilderBlockType, gridRow: number, gridColumn: number) {
+    const nextBlock = createBlock(type);
+    const safeSpan = Math.max(1, Math.min(12, nextBlock.gridSpan));
+
+    updateDocument((current) => {
+      const blocks = [
+        ...current.blocks,
+        {
+          ...nextBlock,
+          gridRow: Math.max(1, gridRow),
+          gridColumn: Math.max(1, Math.min(13 - safeSpan, gridColumn)),
+        },
+      ];
+      return { ...current, blocks: normalizeBuilderBlocks(blocks) };
+    });
+
+    setSelectedBlockId(nextBlock.id);
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+  }
+
+  function handleGridCellDrop(event: React.DragEvent<HTMLDivElement>, gridRow: number, gridColumn: number) {
+    event.preventDefault();
+    const newType = event.dataTransfer.getData("application/x-builder-new");
+    const existingId = event.dataTransfer.getData("application/x-builder-existing");
+
+    if (newType) {
+      addBlockToGridCell(newType as BuilderBlockType, gridRow, gridColumn);
+    } else if (existingId) {
+      moveBlockToGridCell(existingId, gridRow, gridColumn);
+      setSelectedBlockId(existingId);
+    }
+
+    setGridDragOverCell(null);
+    setGridDragOverIndex(null);
+    setPersistMessage(`Placed block at row ${gridRow}, column ${gridColumn}.`);
   }
 
   function continueFromGridStep() {
@@ -1354,12 +1365,9 @@ export default function BuilderStudio({
                 className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3"
               >
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">12-Column Grid</p>
-                <div className="grid min-h-[320px] grid-cols-1 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2 lg:grid-cols-12">
+                <div className="grid min-h-[320px] grid-cols-1 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2 lg:grid-cols-12 lg:auto-rows-min">
                   {document.blocks.map((block, index) => {
                     const label = BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
-                    const colClass = GRID_COLUMN_START_CLASS[block.gridColumn] || "lg:col-start-1";
-                    const spanClass = GRID_SPAN_CLASS[block.gridSpan] || "lg:col-span-4";
-                    const rowClass = GRID_ROW_START_CLASS[block.gridRow] || "lg:row-start-1";
 
                     return (
                       <div
@@ -1372,7 +1380,11 @@ export default function BuilderStudio({
                         }}
                         onDrop={(event) => handleDrop(event, index)}
                         onClick={() => setSelectedBlockId(block.id)}
-                        className={`${colClass} ${spanClass} ${rowClass} rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
+                        style={{
+                          gridColumn: `${block.gridColumn} / span ${block.gridSpan}`,
+                          gridRow: block.gridRow,
+                        }}
+                        className={`rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
                       >
                         <p className="text-xs font-semibold text-white">{label}</p>
                         <p className="mt-1 text-[11px] text-zinc-500">Drag to move • row {block.gridRow} • col {block.gridColumn} • span {block.gridSpan}</p>
@@ -1385,6 +1397,31 @@ export default function BuilderStudio({
                       Drag a component here to start your layout.
                     </div>
                   ) : null}
+                </div>
+
+                <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Drop Target Matrix</p>
+                <div className="grid grid-cols-6 gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-2 lg:grid-cols-12">
+                  {Array.from({ length: GRID_EDITOR_ROWS * 12 }).map((_, cellIndex) => {
+                    const gridRow = Math.floor(cellIndex / 12) + 1;
+                    const gridColumn = (cellIndex % 12) + 1;
+                    const cellKey = `${gridRow}-${gridColumn}`;
+                    const isActive = gridDragOverCell === cellKey;
+
+                    return (
+                      <div
+                        key={`grid-cell-${cellKey}`}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setGridDragOverCell(cellKey);
+                        }}
+                        onDrop={(event) => handleGridCellDrop(event, gridRow, gridColumn)}
+                        className={`h-7 rounded border text-center text-[10px] leading-7 transition ${isActive ? "border-cyan-400 bg-cyan-500/20 text-cyan-200" : "border-zinc-700 bg-zinc-950 text-zinc-500"}`}
+                        title={`Drop at row ${gridRow}, col ${gridColumn}`}
+                      >
+                        {gridRow}:{gridColumn}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

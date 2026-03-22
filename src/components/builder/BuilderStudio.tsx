@@ -137,6 +137,52 @@ function extractJsonObject(raw: string): unknown {
   throw new Error("No JSON object found in AI response.");
 }
 
+function extractAiPayload(raw: string): { summary?: string; actions?: AiAction[] } | null {
+  try {
+    return extractJsonObject(raw) as { summary?: string; actions?: AiAction[] };
+  } catch {
+    const fenceMatch = raw.match(/```json\s*([\s\S]*?)```/i);
+    if (fenceMatch?.[1]) {
+      try {
+        return JSON.parse(fenceMatch[1]) as { summary?: string; actions?: AiAction[] };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+function buildFallbackActionsFromPrompt(prompt: string): AiAction[] {
+  const text = prompt.toLowerCase();
+  const actions: AiAction[] = [];
+
+  if (text.includes("friend")) {
+    actions.push({ type: "add_block", blockType: "friends-list" });
+  }
+  if (text.includes("post") || text.includes("feed") || text.includes("timeline")) {
+    actions.push({ type: "add_block", blockType: "post-feed" });
+  }
+  if (text.includes("shop") || text.includes("product") || text.includes("store")) {
+    actions.push({ type: "add_block", blockType: "product-grid" });
+  }
+  if (text.includes("sidebar")) {
+    actions.push({ type: "add_block", blockType: "sidebar" });
+  }
+  if (text.includes("menu") || text.includes("nav")) {
+    actions.push({ type: "add_block", blockType: "top-menu" });
+  }
+  if (text.includes("music") || text.includes("media") || text.includes("spotify") || text.includes("youtube")) {
+    actions.push({ type: "add_block", blockType: "media-widget" });
+  }
+  if (text.includes("bright") || text.includes("light")) {
+    actions.push({ type: "set_theme", field: "pageBg", value: "#f6f0e6" });
+    actions.push({ type: "set_theme", field: "textPrimary", value: "#1f2937" });
+  }
+
+  return actions;
+}
+
 function mapFriends(value: unknown): BuilderPreviewData["friends"] {
   if (!Array.isArray(value)) return [];
 
@@ -414,6 +460,20 @@ export default function BuilderStudio({
         throw new Error(typeof data.error === "string" ? data.error : "Build persistence failed.");
       }
 
+      const payload = await response.json().catch(() => null) as { build?: { id?: string } } | null;
+
+      if (published && payload?.build?.id) {
+        const publishRes = await fetch("/api/builds", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: payload.build.id, published: true }),
+        });
+        if (!publishRes.ok) {
+          const data = await publishRes.json().catch(() => ({}));
+          throw new Error(typeof data.error === "string" ? data.error : "Publish confirmation failed.");
+        }
+      }
+
       setPersistMessage(published ? "Published to your live store." : "Draft saved successfully.");
       if (published) {
         setWizardProgress((current) => ({ ...current, published: true }));
@@ -610,8 +670,9 @@ export default function BuilderStudio({
       }
 
       const raw = await response.text();
-      const parsed = extractJsonObject(raw) as { summary?: string; actions?: AiAction[] };
-      const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+      const parsed = extractAiPayload(raw);
+      const aiActions = Array.isArray(parsed?.actions) ? parsed?.actions : [];
+      const actions = aiActions.length > 0 ? aiActions : buildFallbackActionsFromPrompt(trimmed);
 
       if (actions.length > 0) {
         applyAiActions(actions);
@@ -623,7 +684,7 @@ export default function BuilderStudio({
         ...prev,
         {
           role: "assistant",
-          content: parsed.summary || (actions.length > 0 ? `Applied ${actions.length} AI actions.` : "I reviewed your request but did not apply changes."),
+          content: parsed?.summary || (actions.length > 0 ? `Applied ${actions.length} AI actions.` : "I reviewed your request but could not map it to safe changes. Try mentioning specific blocks like menu, friends, posts, or shop."),
         },
       ]);
     } catch (error) {
@@ -838,8 +899,8 @@ export default function BuilderStudio({
         ) : null}
       </div>
 
-      <div className={`grid gap-6 ${isGuidedMode && wizardStep < 3 ? "xl:grid-cols-[minmax(0,1fr)]" : "xl:grid-cols-[320px_minmax(0,1fr)_340px]"}`}>
-        {!isGuidedMode || wizardStep >= 3 ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
+      <div className={`grid gap-6 ${isGuidedMode ? "xl:grid-cols-[minmax(0,1fr)]" : "xl:grid-cols-[320px_minmax(0,1fr)_340px]"}`}>
+        {!isGuidedMode ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Block Library</h2>
@@ -994,7 +1055,7 @@ export default function BuilderStudio({
           </div>
         </section>
 
-        {!isGuidedMode || wizardStep >= 3 ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
+        {!isGuidedMode ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
           <section>
             <h2 className="text-sm font-semibold text-white">AI Copilot</h2>
             <p className="mt-2 text-xs text-zinc-500">Describe what you want and AI will apply safe block and style edits.</p>
@@ -1156,6 +1217,19 @@ export default function BuilderStudio({
           </section>
         </aside> : null}
       </div>
+
+      {isGuidedMode && wizardStep >= 3 ? (
+        <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4 text-sm text-zinc-300">
+          <p>Need more control? Switch to <span className="font-semibold text-white">Pro</span> mode to unlock full block library and inspector.</p>
+          <button
+            type="button"
+            onClick={() => selectBuilderMode("pro")}
+            className="mt-3 rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-100 transition hover:border-zinc-500"
+          >
+            Open Pro Editor
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

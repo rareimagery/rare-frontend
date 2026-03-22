@@ -22,6 +22,23 @@ import { getTemplateDefinition } from "@/templates/registry";
 import type { TemplatePreviewProps } from "@/templates/types";
 import { parseStoredBuilderDocument, type BuilderPreviewData } from "@/lib/builderDocument";
 
+async function getTemplatePreviewMedia(handle: string): Promise<{ avatar: string | null; banner: string | null }> {
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "rareimagery.net";
+  const url = `https://${baseDomain}/api/template-preview/${encodeURIComponent(handle.toLowerCase())}`;
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return { avatar: null, banner: null };
+    const json = await res.json();
+    return {
+      avatar: typeof json?.avatar === "string" ? json.avatar : null,
+      banner: typeof json?.banner === "string" ? json.banner : null,
+    };
+  } catch {
+    return { avatar: null, banner: null };
+  }
+}
+
 export async function generateStaticParams() {
   try {
     const profiles = await getAllCreatorProfiles();
@@ -52,10 +69,11 @@ export default async function CreatorStorePage({
 }) {
   const { creator } = await params;
   const normalizedCreator = creator.toLowerCase();
-  const [profile, products, publishedBuilds] = await Promise.all([
+  const [profile, products, publishedBuilds, previewMedia] = await Promise.all([
     getCreatorProfile(normalizedCreator),
     getProductsByStoreSlug(normalizedCreator),
     getPublishedBuilds(normalizedCreator),
+    getTemplatePreviewMedia(normalizedCreator),
   ]);
 
   if (!profile) {
@@ -122,8 +140,8 @@ export default async function CreatorStorePage({
 
   const templateProps: TemplatePreviewProps = {
     handle: profile.x_username,
-    avatar: profile.profile_picture_url ?? undefined,
-    banner: profile.banner_url ?? undefined,
+    avatar: profile.profile_picture_url ?? previewMedia.avatar ?? undefined,
+    banner: profile.banner_url ?? previewMedia.banner ?? undefined,
     bio: profile.bio ?? undefined,
     products: products.map((product) => ({
       id: product.id,
@@ -149,8 +167,8 @@ export default async function CreatorStorePage({
   const builderPreviewData: BuilderPreviewData = {
     handle: profile.x_username,
     bio: profile.bio ?? "",
-    avatar: profile.profile_picture_url ?? null,
-    banner: profile.banner_url ?? null,
+    avatar: profile.profile_picture_url ?? previewMedia.avatar ?? null,
+    banner: profile.banner_url ?? previewMedia.banner ?? null,
     followerCount: profile.follower_count ?? 0,
     friends: (profile.top_followers || []).map((friend, index) => ({
       id: `${friend.username || "friend"}-${index}`,

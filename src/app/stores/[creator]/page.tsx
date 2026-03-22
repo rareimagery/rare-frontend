@@ -37,7 +37,7 @@ export async function generateMetadata({
   params: Promise<{ creator: string }>;
 }) {
   const { creator } = await params;
-  const profile = await getCreatorProfile(creator);
+  const profile = await getCreatorProfile(creator.toLowerCase());
   if (!profile) return { title: "Creator Not Found" };
   return {
     title: `@${profile.x_username} Store | RareImagery X Marketplace`,
@@ -51,10 +51,11 @@ export default async function CreatorStorePage({
   params: Promise<{ creator: string }>;
 }) {
   const { creator } = await params;
+  const normalizedCreator = creator.toLowerCase();
   const [profile, products, publishedBuilds] = await Promise.all([
-    getCreatorProfile(creator),
-    getProductsByStoreSlug(creator),
-    getPublishedBuilds(creator),
+    getCreatorProfile(normalizedCreator),
+    getProductsByStoreSlug(normalizedCreator),
+    getPublishedBuilds(normalizedCreator),
   ]);
 
   if (!profile) {
@@ -248,7 +249,7 @@ export default async function CreatorStorePage({
   }
 
   if (profile.store_theme === "xmimic") {
-    const data = await fetchCreatorData(creator);
+    const data = await fetchCreatorData(normalizedCreator);
     return (
       <>
         <div className="bg-black text-white min-h-screen flex">

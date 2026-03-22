@@ -126,25 +126,17 @@ export function drupalAuthHeaders(): Record<string, string> {
   return {};
 }
 
-/** Get auth headers for write operations (POST/PATCH/DELETE) using cookie auth */
+/** Get auth headers for write operations (POST/PATCH/DELETE) - use Basic Auth directly */
 export async function drupalWriteHeaders(): Promise<Record<string, string>> {
-  try {
-    const session = await getDrupalSession();
-    return {
-      Cookie: session.cookie,
-      "X-CSRF-Token": session.csrfToken,
-    };
-  } catch (error) {
-    const fallbackHeaders = drupalAuthHeaders();
-    if (Object.keys(fallbackHeaders).length > 0) {
-      console.warn(
-        `[drupal] Falling back to Basic/Bearer auth for write request because session login failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-      return fallbackHeaders;
-    }
-
-    throw error;
+  // Use Basic Auth / Bearer Token directly for writes (proven to work via API tests)
+  // Session cookie auth adds unnecessary complexity
+  const headers = drupalAuthHeaders();
+  if (Object.keys(headers).length === 0) {
+    throw new Error(
+      "No auth credentials available: set DRUPAL_API_USER+DRUPAL_API_PASS or DRUPAL_API_TOKEN"
+    );
   }
+  return headers;
 }
 
 // ---------------------------------------------------------------------------

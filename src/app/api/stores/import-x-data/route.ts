@@ -6,6 +6,7 @@ import {
   findProfileByUsername,
   patchProfile,
   uploadImageToDrupal,
+  getProfileMediaFieldState,
   createImportSnapshot,
   updateImportSnapshot,
   findLatestSnapshot,
@@ -133,26 +134,30 @@ export async function POST(req: NextRequest) {
   // 7. Upload profile picture and banner to Drupal
   let pfpUploaded = false;
   let bannerUploaded = false;
+  let pfpUploadId: string | null = null;
+  let bannerUploadId: string | null = null;
 
   if (xData.profileImageUrl) {
-    const pfpId = await uploadImageToDrupal(
+    pfpUploadId = await uploadImageToDrupal(
       xData.profileImageUrl,
       profile.uuid,
       "field_profile_picture",
       `${xUsername}-pfp`
     );
-    pfpUploaded = pfpId !== null;
+    pfpUploaded = pfpUploadId !== null;
   }
 
   if (xData.bannerUrl) {
-    const bannerId = await uploadImageToDrupal(
+    bannerUploadId = await uploadImageToDrupal(
       xData.bannerUrl,
       profile.uuid,
       "field_background_banner",
       `${xUsername}-banner`
     );
-    bannerUploaded = bannerId !== null;
+    bannerUploaded = bannerUploadId !== null;
   }
+
+  const fieldState = await getProfileMediaFieldState(profile.uuid);
 
   if (snapshotUuid) {
     await updateImportSnapshot(snapshotUuid, {
@@ -190,6 +195,16 @@ export async function POST(req: NextRequest) {
       bannerUrl: xData.bannerUrl,
       pfpUploaded,
       bannerUploaded,
+      diagnostics: {
+        uploadIds: {
+          profilePicture: pfpUploadId,
+          backgroundBanner: bannerUploadId,
+        },
+        profileFieldIds: {
+          profilePicture: fieldState?.profilePictureFileId ?? null,
+          backgroundBanner: fieldState?.backgroundBannerFileId ?? null,
+        },
+      },
       verified: xData.verified,
     },
   });

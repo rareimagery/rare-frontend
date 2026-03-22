@@ -66,6 +66,11 @@ export interface XImportSnapshotInput {
   storeUuid?: string;
 }
 
+export interface ProfileMediaFieldState {
+  profilePictureFileId: string | null;
+  backgroundBannerFileId: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -545,6 +550,33 @@ export async function uploadImageToDrupal(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`Image upload error for ${fieldName}:`, message);
+    return null;
+  }
+}
+
+export async function getProfileMediaFieldState(
+  nodeUuid: string
+): Promise<ProfileMediaFieldState | null> {
+  try {
+    const params = new URLSearchParams({
+      include: "field_profile_picture,field_background_banner",
+    });
+
+    const res = await fetch(
+      `${DRUPAL_API}/jsonapi/node/creator_x_profile/${nodeUuid}?${params.toString()}`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const relationships = json?.data?.relationships || {};
+
+    return {
+      profilePictureFileId: relationships?.field_profile_picture?.data?.id ?? null,
+      backgroundBannerFileId: relationships?.field_background_banner?.data?.id ?? null,
+    };
+  } catch {
     return null;
   }
 }

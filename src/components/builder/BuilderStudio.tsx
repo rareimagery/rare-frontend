@@ -464,12 +464,27 @@ export default function BuilderStudio({
     setSyncMessage(options.includeProducts ? "Importing profile + product context from X..." : "Importing latest profile media from X...");
 
     let importNotice = "";
+    let diagnosticsNotice = "";
     let importSucceeded = false;
     try {
       const { response, data } = await fetchJsonWithTimeout("/api/stores/import-x-data", { method: "POST" }, 25000);
       if (response.ok) {
         const postsImported = typeof data?.summary?.postsImported === "number" ? data.summary.postsImported : 0;
         importNotice = `Imported X profile data (${postsImported} posts analyzed).`;
+        const uploadPfp = typeof data?.summary?.diagnostics?.uploadIds?.profilePicture === "string"
+          ? data.summary.diagnostics.uploadIds.profilePicture
+          : "none";
+        const uploadBanner = typeof data?.summary?.diagnostics?.uploadIds?.backgroundBanner === "string"
+          ? data.summary.diagnostics.uploadIds.backgroundBanner
+          : "none";
+        const fieldPfp = typeof data?.summary?.diagnostics?.profileFieldIds?.profilePicture === "string"
+          ? data.summary.diagnostics.profileFieldIds.profilePicture
+          : "none";
+        const fieldBanner = typeof data?.summary?.diagnostics?.profileFieldIds?.backgroundBanner === "string"
+          ? data.summary.diagnostics.profileFieldIds.backgroundBanner
+          : "none";
+
+        diagnosticsNotice = ` Sync diagnostics: upload(profile=${uploadPfp}, banner=${uploadBanner}); fields(profile=${fieldPfp}, banner=${fieldBanner}).`;
         importSucceeded = true;
       } else {
         if (response.status === 401) {
@@ -485,8 +500,9 @@ export default function BuilderStudio({
     const synced = await loadPreviewData();
     const productCount = synced?.products.length ?? previewData.products.length;
     const successSuffix = options.includeProducts ? ` Products ready: ${productCount}.` : "";
-    const finalMessage = `${importNotice}${successSuffix}`.trim();
+    const finalMessage = `${importNotice}${successSuffix}${diagnosticsNotice}`.trim();
 
+    setSyncMessage(finalMessage || "Import complete.");
     setPersistMessage(finalMessage || "Import complete.");
     setAiMessages((prev) => [
       ...prev,

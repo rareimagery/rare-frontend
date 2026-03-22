@@ -370,7 +370,7 @@ export default function BuilderStudio({
         return;
       }
 
-      const nextBuilds = Array.isArray(data.builds) ? data.builds : [];
+      const nextBuilds = Array.isArray(data?.builds) ? data.builds : [];
       setBuilds(nextBuilds);
 
       const live = [...nextBuilds].reverse().find((build) => build?.published === true);
@@ -406,26 +406,9 @@ export default function BuilderStudio({
   }
 
   useEffect(() => {
-    try {
-      const savedMode = window.localStorage.getItem("ri:builderMode:v1");
-      if (savedMode === "pro" || savedMode === "beginner") {
-        selectBuilderMode(savedMode);
-      }
-    } catch {
-      // ignore localStorage access issues
-    }
-
     void loadPreviewData();
     void loadBuilds();
   }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("ri:builderMode:v1", builderMode);
-    } catch {
-      // ignore localStorage access issues
-    }
-  }, [builderMode]);
 
   useEffect(() => {
     if (!selectedBlockId && document.blocks[0]) {
@@ -828,22 +811,26 @@ export default function BuilderStudio({
           >
             Refresh X Data
           </button>
-          <button
-            type="button"
-            onClick={() => void persistDocument(false)}
-            disabled={persisting !== null}
-            className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {persisting === "draft" ? "Saving..." : "Save Draft"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void persistDocument(true)}
-            disabled={persisting !== null}
-            className="rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {persisting === "publish" ? "Publishing..." : "Publish"}
-          </button>
+          {builderMode === "pro" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void persistDocument(false)}
+                disabled={persisting !== null}
+                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {persisting === "draft" ? "Saving..." : "Save Draft"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void persistDocument(true)}
+                disabled={persisting !== null}
+                className="rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {persisting === "publish" ? "Publishing..." : "Publish"}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -974,6 +961,9 @@ export default function BuilderStudio({
 
         {wizardStep === 3 ? (
           <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-sm text-zinc-300">
+              {persistMessage}
+            </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
               <span>Review preview, save draft, then publish when ready.</span>
               <button

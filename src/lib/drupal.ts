@@ -1,5 +1,11 @@
 export const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
+const DRUPAL_PUBLIC_ASSET_BASE =
+  process.env.DRUPAL_PUBLIC_URL ||
+  (process.env.NEXT_PUBLIC_BASE_DOMAIN
+    ? `https://${process.env.NEXT_PUBLIC_BASE_DOMAIN}`
+    : null);
+
 // ---------------------------------------------------------------------------
 // Auth helper — Cookie session auth for JSON:API (Basic Auth fails on writes)
 // ---------------------------------------------------------------------------
@@ -302,8 +308,25 @@ export interface CreatorProfile {
 
 export function drupalAbsoluteUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
-  return `${DRUPAL_API_URL}${path}`;
+
+  const raw = path.startsWith("http") ? path : `${DRUPAL_API_URL}${path}`;
+
+  try {
+    const resolved = new URL(raw);
+    const apiHost = new URL(DRUPAL_API_URL).host;
+    const isIpHost = /^\d+\.\d+\.\d+\.\d+$/.test(resolved.hostname);
+    const isDrupalApiHost = resolved.host === apiHost;
+
+    if (DRUPAL_PUBLIC_ASSET_BASE && (isIpHost || isDrupalApiHost)) {
+      const publicBase = new URL(DRUPAL_PUBLIC_ASSET_BASE);
+      resolved.protocol = publicBase.protocol;
+      resolved.host = publicBase.host;
+    }
+
+    return resolved.toString();
+  } catch {
+    return raw;
+  }
 }
 
 function withAssetVersion(url: string | null, version: string | number | null | undefined): string | null {

@@ -188,6 +188,11 @@ export default function BuilderStudio({
   const [persistMessage, setPersistMessage] = useState("Drafts are private until you publish.");
   const [isGuidedMode, setIsGuidedMode] = useState(true);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [wizardProgress, setWizardProgress] = useState({
+    stylePicked: false,
+    aiGenerated: false,
+    published: false,
+  });
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -385,6 +390,9 @@ export default function BuilderStudio({
       }
 
       setPersistMessage(published ? "Published to your live store." : "Draft saved successfully.");
+      if (published) {
+        setWizardProgress((current) => ({ ...current, published: true }));
+      }
       await loadBuilds();
     } catch (error) {
       setPersistMessage(error instanceof Error ? error.message : "Build persistence failed.");
@@ -468,6 +476,7 @@ export default function BuilderStudio({
 
     setSelectedBlockId(blocks[0]?.id ?? null);
     setPersistMessage(`Started from ${selected.title} layout.`);
+    setWizardProgress((current) => ({ ...current, stylePicked: true }));
     advanceWizard(2);
   }
 
@@ -475,6 +484,7 @@ export default function BuilderStudio({
     const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
     updateDocument((current) => ({ ...current, theme: selected.theme }));
     setPersistMessage(`Applied ${selected.label} theme.`);
+    setWizardProgress((current) => ({ ...current, stylePicked: true }));
     advanceWizard(2);
   }
 
@@ -580,6 +590,7 @@ export default function BuilderStudio({
 
       if (actions.length > 0) {
         applyAiActions(actions);
+        setWizardProgress((current) => ({ ...current, aiGenerated: true }));
         advanceWizard(3);
       }
 
@@ -665,6 +676,15 @@ export default function BuilderStudio({
           </div>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">What Happens Next</p>
+          <div className="mt-2 space-y-2 text-sm text-zinc-300">
+            <ChecklistItem done={wizardProgress.stylePicked} label="1. Pick a starter layout or theme" />
+            <ChecklistItem done={wizardProgress.aiGenerated} label="2. Run AI once to generate your first draft" />
+            <ChecklistItem done={wizardProgress.published} label="3. Save draft, then publish live" />
+          </div>
+        </div>
+
         {wizardStep === 1 ? (
           <>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -695,6 +715,7 @@ export default function BuilderStudio({
             </div>
 
             <div className="mt-4">
+              <p className="mb-2 text-xs text-zinc-500">Next action: pick one layout card above.</p>
               <button
                 type="button"
                 onClick={() => setWizardStep(2)}
@@ -708,6 +729,7 @@ export default function BuilderStudio({
 
         {wizardStep === 2 ? (
           <>
+            <p className="mt-4 text-xs text-zinc-500">Next action: run AI once to generate your first draft.</p>
             <div className="mt-4 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
               {aiMessages.map((entry, index) => (
                 <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
@@ -1137,5 +1159,16 @@ function ToggleField({ label, checked, onChange }: { label: string; checked: boo
       <span>{label}</span>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 rounded border-zinc-700 bg-zinc-900" />
     </label>
+  );
+}
+
+function ChecklistItem({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${done ? "bg-emerald-500 text-emerald-950" : "border border-zinc-600 text-zinc-400"}`}>
+        {done ? "✓" : "-"}
+      </span>
+      <span className={done ? "text-zinc-200" : "text-zinc-400"}>{label}</span>
+    </div>
   );
 }

@@ -70,7 +70,7 @@ export default async function CreatorStorePage({
   const { creator } = await params;
   const normalizedCreator = creator.toLowerCase();
   const [profile, products, publishedBuilds, previewMedia] = await Promise.all([
-    getCreatorProfile(normalizedCreator),
+    getCreatorProfile(normalizedCreator, { noStore: true }),
     getProductsByStoreSlug(normalizedCreator),
     getPublishedBuilds(normalizedCreator),
     getTemplatePreviewMedia(normalizedCreator),

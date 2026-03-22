@@ -38,48 +38,78 @@ function initials(handle: string): string {
   return clean.slice(0, 2) || "RI";
 }
 
+function formatCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value);
+}
+
 function renderBlock(block: BuilderBlock, data: BuilderPreviewData, theme: BuilderDocument["theme"]) {
   switch (block.type) {
     case "profile-header":
       return (
-        <section
-          className="overflow-hidden rounded-[28px] border"
-          style={{
-            background: data.banner && block.showBanner
-              ? `linear-gradient(180deg, rgba(9, 15, 29, 0.18), rgba(9, 15, 29, 0.82)), url(${data.banner}) center/cover`
-              : `linear-gradient(135deg, ${theme.menuBg}, ${theme.surface})`,
-            borderColor: theme.border,
-          }}
-        >
-          <div className="p-8 sm:p-10">
-            <div className="flex flex-wrap items-center gap-4">
+        <section className="overflow-hidden rounded-[28px] border" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
+          <div
+            className="h-48 sm:h-56"
+            style={{
+              background: data.banner && block.showBanner
+                ? `linear-gradient(180deg, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0.35)), url(${data.banner}) center/cover`
+                : `linear-gradient(135deg, ${theme.menuBg}, ${theme.surfaceMuted})`,
+            }}
+          />
+
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6" style={{ backgroundColor: theme.surface }}>
+            <div className="-mt-16 flex items-start justify-between gap-3 sm:-mt-20">
               {block.showAvatar ? (
                 data.avatar ? (
-                  <img src={data.avatar} alt="Creator avatar" className="h-20 w-20 rounded-full border object-cover" style={{ borderColor: theme.accent }} />
+                  <img
+                    key={data.avatar}
+                    src={data.avatar}
+                    alt="Creator avatar"
+                    className="h-28 w-28 rounded-full border-4 object-cover shadow-sm sm:h-36 sm:w-36"
+                    style={{ borderColor: theme.surface }}
+                  />
                 ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full border text-xl font-bold" style={{ borderColor: theme.accent, color: theme.textPrimary }}>
+                  <div
+                    className="flex h-28 w-28 items-center justify-center rounded-full border-4 text-2xl font-bold shadow-sm sm:h-36 sm:w-36 sm:text-3xl"
+                    style={{ borderColor: theme.surface, backgroundColor: theme.sidebarBg, color: theme.textPrimary }}
+                  >
                     {initials(data.handle)}
                   </div>
                 )
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em]" style={{ color: theme.textSecondary }}>
-                  @{data.handle}
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold sm:text-5xl" style={{ color: theme.textPrimary }}>
-                  {block.title}
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm sm:text-base" style={{ color: theme.textSecondary }}>
-                  {block.subtitle}
-                </p>
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <button type="button" className="rounded-full px-4 py-2 text-sm font-medium" style={{ backgroundColor: theme.accent, color: theme.menuBg }}>
-                    {block.ctaLabel}
-                  </button>
-                  <span className="text-xs" style={{ color: theme.textSecondary }}>
-                    {data.followerCount.toLocaleString()} followers
-                  </span>
-                </div>
+              ) : (
+                <div />
+              )}
+
+              <button
+                type="button"
+                className="mt-20 rounded-full border px-4 py-1.5 text-sm font-semibold sm:mt-24"
+                style={{ borderColor: theme.border, color: theme.textPrimary, backgroundColor: theme.surface }}
+              >
+                {block.ctaLabel || "Edit profile"}
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <h1 className="truncate text-2xl font-extrabold" style={{ color: theme.textPrimary }}>
+                {block.title}
+              </h1>
+              <p className="text-base" style={{ color: theme.textSecondary }}>
+                @{data.handle}
+              </p>
+              <p className="text-sm leading-6" style={{ color: theme.textPrimary }}>
+                {data.bio || block.subtitle}
+              </p>
+              <div className="flex flex-wrap items-center gap-4 pt-1 text-sm" style={{ color: theme.textSecondary }}>
+                <span>
+                  <strong style={{ color: theme.textPrimary }}>{formatCount(data.posts.length)}</strong> Posts
+                </span>
+                <span>
+                  <strong style={{ color: theme.textPrimary }}>{formatCount(data.followerCount)}</strong> Followers
+                </span>
+                <span>
+                  <strong style={{ color: theme.textPrimary }}>{formatCount(data.friends.length)}</strong> Friends
+                </span>
               </div>
             </div>
           </div>

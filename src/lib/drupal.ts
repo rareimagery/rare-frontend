@@ -1,10 +1,7 @@
 export const DRUPAL_API_URL = process.env.DRUPAL_API_URL || "http://72.62.80.155";
 
 const DRUPAL_PUBLIC_ASSET_BASE =
-  process.env.DRUPAL_PUBLIC_URL ||
-  (process.env.NEXT_PUBLIC_BASE_DOMAIN
-    ? `https://${process.env.NEXT_PUBLIC_BASE_DOMAIN}`
-    : null);
+  process.env.DRUPAL_PUBLIC_URL || null;
 
 // ---------------------------------------------------------------------------
 // Auth helper — Cookie session auth for JSON:API (Basic Auth fails on writes)
@@ -321,6 +318,14 @@ export function drupalAbsoluteUrl(path: string | null | undefined): string | nul
       const publicBase = new URL(DRUPAL_PUBLIC_ASSET_BASE);
       resolved.protocol = publicBase.protocol;
       resolved.host = publicBase.host;
+      return resolved.toString();
+    }
+
+    // If the Drupal origin is private/IP-only or plain HTTP, route file assets
+    // through our same-origin HTTPS proxy to avoid mixed-content and 404s.
+    if ((isIpHost || isDrupalApiHost) && resolved.pathname.startsWith("/sites/default/files/")) {
+      const proxiedPath = `${resolved.pathname}${resolved.search}`;
+      return `/api/drupal-asset?path=${encodeURIComponent(proxiedPath)}`;
     }
 
     return resolved.toString();

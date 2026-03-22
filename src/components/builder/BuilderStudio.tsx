@@ -410,6 +410,8 @@ export default function BuilderStudio({
 }) {
   const searchParams = useSearchParams();
   const initialHandle = normalizeHandle(searchParams.get("handle") || defaultHandle || defaultStoreSlug);
+  const step2ModeStorageKey = `builder_step2_mode_${initialHandle || "default"}`;
+  const step2ModeGlobalStorageKey = "builder_step2_mode_last";
 
   const [document, setDocument] = useState<BuilderDocument>(() => createDefaultBuilderDocument(initialHandle || "creator"));
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -733,6 +735,26 @@ export default function BuilderStudio({
     void loadPreviewData();
     void loadBuilds();
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(step2ModeStorageKey) || localStorage.getItem(step2ModeGlobalStorageKey);
+      if (saved === "basic" || saved === "advanced") {
+        setStep2Mode(saved);
+      }
+    } catch {
+      // Non-critical if storage is unavailable.
+    }
+  }, [step2ModeStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(step2ModeStorageKey, step2Mode);
+      localStorage.setItem(step2ModeGlobalStorageKey, step2Mode);
+    } catch {
+      // Non-critical if storage is unavailable.
+    }
+  }, [step2Mode, step2ModeStorageKey]);
 
   useEffect(() => {
     if (!selectedBlockId && document.blocks[0]) {

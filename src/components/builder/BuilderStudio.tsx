@@ -7,6 +7,8 @@ import {
   createBlock,
   createDefaultBuilderDocument,
   createEmptyPreviewData,
+  normalizeBuilderBlocks,
+  reflowBuilderBlocks,
   parseStoredBuilderDocument,
   touchDocument,
   type BuilderBlock,
@@ -162,6 +164,51 @@ const THEME_FIELDS: Array<{ key: keyof BuilderTheme; label: string }> = [
   { key: "textSecondary", label: "Secondary text" },
   { key: "border", label: "Border" },
 ];
+
+const GRID_COLUMN_START_CLASS: Record<number, string> = {
+  1: "lg:col-start-1",
+  2: "lg:col-start-2",
+  3: "lg:col-start-3",
+  4: "lg:col-start-4",
+  5: "lg:col-start-5",
+  6: "lg:col-start-6",
+  7: "lg:col-start-7",
+  8: "lg:col-start-8",
+  9: "lg:col-start-9",
+  10: "lg:col-start-10",
+  11: "lg:col-start-11",
+  12: "lg:col-start-12",
+};
+
+const GRID_SPAN_CLASS: Record<number, string> = {
+  1: "lg:col-span-1",
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
+  7: "lg:col-span-7",
+  8: "lg:col-span-8",
+  9: "lg:col-span-9",
+  10: "lg:col-span-10",
+  11: "lg:col-span-11",
+  12: "lg:col-span-12",
+};
+
+const GRID_ROW_START_CLASS: Record<number, string> = {
+  1: "lg:row-start-1",
+  2: "lg:row-start-2",
+  3: "lg:row-start-3",
+  4: "lg:row-start-4",
+  5: "lg:row-start-5",
+  6: "lg:row-start-6",
+  7: "lg:row-start-7",
+  8: "lg:row-start-8",
+  9: "lg:row-start-9",
+  10: "lg:row-start-10",
+  11: "lg:row-start-11",
+  12: "lg:row-start-12",
+};
 
 function normalizeHandle(value: string | null | undefined): string {
   return (value || "").replace(/^@+/, "").trim();
@@ -388,6 +435,20 @@ export default function BuilderStudio({
       ...current,
       blocks: current.blocks.map((block) => (block.id === selectedBlock.id ? mutator(block) : block)),
     }));
+  }
+
+  function updateSelectedBlockGrid(partial: Partial<Pick<BuilderBlock, "gridColumn" | "gridSpan" | "gridRow">>) {
+    if (!selectedBlock) return;
+
+    updateSelectedBlock((block) => ({
+      ...block,
+      gridSpan: Math.max(1, Math.min(12, partial.gridSpan ?? block.gridSpan)),
+      gridColumn: Math.max(1, Math.min(13 - Math.max(1, Math.min(12, partial.gridSpan ?? block.gridSpan)), partial.gridColumn ?? block.gridColumn)),
+      gridRow: Math.max(1, partial.gridRow ?? block.gridRow),
+    }));
+
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setPersistMessage("Grid placement updated.");
   }
 
   async function loadPreviewData(): Promise<BuilderPreviewData | null> {
@@ -621,7 +682,7 @@ export default function BuilderStudio({
     updateDocument((current) => {
       const blocks = [...current.blocks];
       blocks.splice(index, 0, nextBlock);
-      return { ...current, blocks };
+      return { ...current, blocks: reflowBuilderBlocks(blocks) };
     });
     setSelectedBlockId(nextBlock.id);
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
@@ -636,7 +697,7 @@ export default function BuilderStudio({
       const [moved] = blocks.splice(currentIndex, 1);
       const normalizedIndex = Math.max(0, Math.min(targetIndex, blocks.length));
       blocks.splice(normalizedIndex, 0, moved);
-      return { ...current, blocks };
+      return { ...current, blocks: reflowBuilderBlocks(blocks) };
     });
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
   }
@@ -847,7 +908,7 @@ export default function BuilderStudio({
         ...current.meta,
         name: `@${previewData.handle || current.meta.handle} ${selected.title} site`,
       },
-      blocks,
+      blocks: reflowBuilderBlocks(blocks),
     }));
 
     setSelectedBlockId(blocks[0]?.id ?? null);
@@ -947,7 +1008,10 @@ export default function BuilderStudio({
         }
       }
 
-      return next;
+      return {
+        ...next,
+        blocks: normalizeBuilderBlocks(next.blocks),
+      };
     });
 
     setPersistMessage(changed > 0 ? `AI copilot applied ${changed} change${changed === 1 ? "" : "s"}.` : "AI did not find safe changes to apply.");
@@ -1208,7 +1272,7 @@ export default function BuilderStudio({
 
         {wizardStep === 2 ? (
           <>
-            <p className="mt-4 text-xs text-zinc-500">Add components from the library, then drag cards inside the grid to reorder the layout.</p>
+            <p className="mt-4 text-xs text-zinc-500">Add components from the library, drag cards to reorder, and fine-tune each block with explicit row, column, and span controls.</p>
             <div className="mt-4 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Components</p>
@@ -1236,6 +1300,49 @@ export default function BuilderStudio({
                     </div>
                   ))}
                 </div>
+
+                {selectedBlock ? (
+                  <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Selected Block</p>
+                    <p className="mt-2 text-sm font-semibold text-white">{BLOCK_LIBRARY.find((item) => item.type === selectedBlock.type)?.label || selectedBlock.type}</p>
+                    <div className="mt-3 space-y-3 text-xs text-zinc-400">
+                      <label className="block">
+                        <span className="mb-1 block">Grid row</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={12}
+                          value={selectedBlock.gridRow}
+                          onChange={(event) => updateSelectedBlockGrid({ gridRow: Number(event.target.value) || 1 })}
+                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block">Column start</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={12}
+                          value={selectedBlock.gridColumn}
+                          onChange={(event) => updateSelectedBlockGrid({ gridColumn: Number(event.target.value) || 1 })}
+                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block">Column span</span>
+                        <select
+                          value={selectedBlock.gridSpan}
+                          onChange={(event) => updateSelectedBlockGrid({ gridSpan: Number(event.target.value) || 4 })}
+                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                        >
+                          {[3, 4, 6, 8, 12].map((option) => (
+                            <option key={option} value={option}>{option} columns</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div
@@ -1247,10 +1354,12 @@ export default function BuilderStudio({
                 className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3"
               >
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">12-Column Grid</p>
-                <div className="grid min-h-[320px] grid-cols-12 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2">
+                <div className="grid min-h-[320px] grid-cols-1 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2 lg:grid-cols-12">
                   {document.blocks.map((block, index) => {
                     const label = BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
-                    const colStart = (index % 3) * 4 + 1;
+                    const colClass = GRID_COLUMN_START_CLASS[block.gridColumn] || "lg:col-start-1";
+                    const spanClass = GRID_SPAN_CLASS[block.gridSpan] || "lg:col-span-4";
+                    const rowClass = GRID_ROW_START_CLASS[block.gridRow] || "lg:row-start-1";
 
                     return (
                       <div
@@ -1263,11 +1372,10 @@ export default function BuilderStudio({
                         }}
                         onDrop={(event) => handleDrop(event, index)}
                         onClick={() => setSelectedBlockId(block.id)}
-                        style={{ gridColumn: `${colStart} / span 4` }}
-                        className={`rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
+                        className={`${colClass} ${spanClass} ${rowClass} rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
                       >
                         <p className="text-xs font-semibold text-white">{label}</p>
-                        <p className="mt-1 text-[11px] text-zinc-500">Drag to move • type: {block.type}</p>
+                        <p className="mt-1 text-[11px] text-zinc-500">Drag to move • row {block.gridRow} • col {block.gridColumn} • span {block.gridSpan}</p>
                       </div>
                     );
                   })}

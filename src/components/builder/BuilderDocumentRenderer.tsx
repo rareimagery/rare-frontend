@@ -8,6 +8,51 @@ import {
   type BuilderPreviewData,
 } from "@/lib/builderDocument";
 
+const GRID_COLUMN_START_CLASS: Record<number, string> = {
+  1: "lg:col-start-1",
+  2: "lg:col-start-2",
+  3: "lg:col-start-3",
+  4: "lg:col-start-4",
+  5: "lg:col-start-5",
+  6: "lg:col-start-6",
+  7: "lg:col-start-7",
+  8: "lg:col-start-8",
+  9: "lg:col-start-9",
+  10: "lg:col-start-10",
+  11: "lg:col-start-11",
+  12: "lg:col-start-12",
+};
+
+const GRID_SPAN_CLASS: Record<number, string> = {
+  1: "lg:col-span-1",
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
+  7: "lg:col-span-7",
+  8: "lg:col-span-8",
+  9: "lg:col-span-9",
+  10: "lg:col-span-10",
+  11: "lg:col-span-11",
+  12: "lg:col-span-12",
+};
+
+const GRID_ROW_START_CLASS: Record<number, string> = {
+  1: "lg:row-start-1",
+  2: "lg:row-start-2",
+  3: "lg:row-start-3",
+  4: "lg:row-start-4",
+  5: "lg:row-start-5",
+  6: "lg:row-start-6",
+  7: "lg:row-start-7",
+  8: "lg:row-start-8",
+  9: "lg:row-start-9",
+  10: "lg:row-start-10",
+  11: "lg:row-start-11",
+  12: "lg:row-start-12",
+};
+
 function sanitizeEmbedHtml(input: string): string {
   return input
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
@@ -28,10 +73,6 @@ function normalizeEmbedUrl(url: string): string {
   }
 
   return url;
-}
-
-function isSidebarBlock(block: BuilderBlock): boolean {
-  return block.type === "sidebar" || block.type === "friends-list" || block.type === "media-widget";
 }
 
 function initials(handle: string): string {
@@ -278,30 +319,27 @@ export default function BuilderDocumentRenderer({
   const resolvedData = data || createEmptyPreviewData(document.meta.handle || "creator");
   const showMediaDebug =
     typeof pathname === "string" && (pathname.startsWith("/console/builder") || pathname.startsWith("/builder"));
-  const menuBlocks = document.blocks.filter((block) => block.type === "top-menu");
-  const sidebarBlocks = document.blocks.filter((block) => isSidebarBlock(block));
-  const mainBlocks = document.blocks.filter((block) => block.type !== "top-menu" && !isSidebarBlock(block));
+  const sortedBlocks = [...document.blocks].sort((left, right) => {
+    if (left.gridRow !== right.gridRow) return left.gridRow - right.gridRow;
+    if (left.gridColumn !== right.gridColumn) return left.gridColumn - right.gridColumn;
+    return left.id.localeCompare(right.id);
+  });
 
   return (
     <div className="rounded-[32px] border p-4 sm:p-5" style={{ backgroundColor: document.theme.pageBg, borderColor: document.theme.border }}>
-      <div className="space-y-4">
-        {menuBlocks.map((block) => (
-          <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:auto-rows-min">
+        {sortedBlocks.map((block) => {
+          const colClass = GRID_COLUMN_START_CLASS[block.gridColumn] || "lg:col-start-1";
+          const spanClass = GRID_SPAN_CLASS[block.gridSpan] || "lg:col-span-4";
+          const rowClass = GRID_ROW_START_CLASS[block.gridRow] || "lg:row-start-1";
 
-        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <div className="space-y-4">
-            {sidebarBlocks.map((block) => (
-              <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
-            ))}
-          </div>
-          <div className="space-y-4">
-            {mainBlocks.map((block) => (
-              <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
-            ))}
-          </div>
+          return (
+            <div key={block.id} className={`${colClass} ${spanClass} ${rowClass}`}>
+              {renderBlock(block, resolvedData, document.theme, showMediaDebug)}
+            </div>
+          );
+        })}
         </div>
-      </div>
     </div>
   );
 }

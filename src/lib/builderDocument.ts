@@ -53,7 +53,13 @@ export interface BuilderTheme {
   border: string;
 }
 
-export interface ProfileHeaderBlock {
+export interface BuilderGridPlacement {
+  gridColumn: number;
+  gridSpan: number;
+  gridRow: number;
+}
+
+export interface ProfileHeaderBlock extends BuilderGridPlacement {
   id: string;
   type: "profile-header";
   title: string;
@@ -63,13 +69,13 @@ export interface ProfileHeaderBlock {
   showAvatar: boolean;
 }
 
-export interface TopMenuBlock {
+export interface TopMenuBlock extends BuilderGridPlacement {
   id: string;
   type: "top-menu";
   items: string[];
 }
 
-export interface SidebarBlock {
+export interface SidebarBlock extends BuilderGridPlacement {
   id: string;
   type: "sidebar";
   heading: string;
@@ -77,21 +83,21 @@ export interface SidebarBlock {
   ctaLabel: string;
 }
 
-export interface FriendsListBlock {
+export interface FriendsListBlock extends BuilderGridPlacement {
   id: string;
   type: "friends-list";
   title: string;
   maxItems: number;
 }
 
-export interface PostFeedBlock {
+export interface PostFeedBlock extends BuilderGridPlacement {
   id: string;
   type: "post-feed";
   title: string;
   maxItems: number;
 }
 
-export interface ProductGridBlock {
+export interface ProductGridBlock extends BuilderGridPlacement {
   id: string;
   type: "product-grid";
   title: string;
@@ -99,7 +105,7 @@ export interface ProductGridBlock {
   columns: 2 | 3;
 }
 
-export interface MediaWidgetBlock {
+export interface MediaWidgetBlock extends BuilderGridPlacement {
   id: string;
   type: "media-widget";
   title: string;
@@ -107,7 +113,7 @@ export interface MediaWidgetBlock {
   caption: string;
 }
 
-export interface CustomEmbedBlock {
+export interface CustomEmbedBlock extends BuilderGridPlacement {
   id: string;
   type: "custom-embed";
   title: string;
@@ -166,6 +172,14 @@ function createId(prefix: string): string {
   return uuid ? `${prefix}-${uuid}` : `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function createBasePlacement(): BuilderGridPlacement {
+  return {
+    gridColumn: 1,
+    gridSpan: 4,
+    gridRow: 1,
+  };
+}
+
 export function createEmptyPreviewData(handle = "creator"): BuilderPreviewData {
   return {
     handle,
@@ -183,6 +197,7 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
   switch (type) {
     case "profile-header":
       return {
+        ...createBasePlacement(),
         id: createId("profile"),
         type,
         title: "Creator profile",
@@ -193,12 +208,14 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "top-menu":
       return {
+        ...createBasePlacement(),
         id: createId("menu"),
         type,
         items: ["Home", "Shop", "Posts", "Friends", "Media"],
       };
     case "sidebar":
       return {
+        ...createBasePlacement(),
         id: createId("sidebar"),
         type,
         heading: "About this page",
@@ -207,6 +224,7 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "friends-list":
       return {
+        ...createBasePlacement(),
         id: createId("friends"),
         type,
         title: "Friends",
@@ -214,6 +232,7 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "post-feed":
       return {
+        ...createBasePlacement(),
         id: createId("posts"),
         type,
         title: "Recent posts",
@@ -221,6 +240,7 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "product-grid":
       return {
+        ...createBasePlacement(),
         id: createId("products"),
         type,
         title: "Shop the drop",
@@ -229,6 +249,7 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "media-widget":
       return {
+        ...createBasePlacement(),
         id: createId("media"),
         type,
         title: "Now playing",
@@ -237,12 +258,96 @@ export function createBlock(type: BuilderBlockType): BuilderBlock {
       };
     case "custom-embed":
       return {
+        ...createBasePlacement(),
         id: createId("embed"),
         type,
         title: "Custom embed",
         html: "<div style=\"padding:16px;border-radius:16px;background:#0f172a;color:#f8fafc;\">Paste custom HTML or iframe embed markup here.</div>",
       };
   }
+}
+
+function clampGridColumn(value: number): number {
+  return Math.max(1, Math.min(12, Math.round(value)));
+}
+
+function clampGridSpan(value: number): number {
+  return Math.max(1, Math.min(12, Math.round(value)));
+}
+
+function clampGridRow(value: number): number {
+  return Math.max(1, Math.round(value));
+}
+
+function defaultPlacementForSequence(block: BuilderBlock, contentIndex: number): BuilderGridPlacement {
+  if (block.type === "top-menu") {
+    return {
+      gridColumn: 1,
+      gridSpan: 12,
+      gridRow: 1,
+    };
+  }
+
+  if (block.type === "profile-header") {
+    return {
+      gridColumn: 1,
+      gridSpan: 12,
+      gridRow: 2,
+    };
+  }
+
+  return {
+    gridColumn: (contentIndex % 3) * 4 + 1,
+    gridSpan: 4,
+    gridRow: 3 + Math.floor(contentIndex / 3),
+  };
+}
+
+export function reflowBuilderBlocks(blocks: BuilderBlock[]): BuilderBlock[] {
+  let contentIndex = 0;
+
+  return blocks.map((block) => {
+    const placement = defaultPlacementForSequence(block, contentIndex);
+    if (block.type !== "top-menu" && block.type !== "profile-header") {
+      contentIndex += 1;
+    }
+
+    return {
+      ...block,
+      ...placement,
+    };
+  });
+}
+
+export function normalizeBuilderBlocks(blocks: BuilderBlock[]): BuilderBlock[] {
+  let contentIndex = 0;
+
+  return blocks.map((block) => {
+    const existingSpan = typeof block.gridSpan === "number" ? clampGridSpan(block.gridSpan) : null;
+    const existingColumn = typeof block.gridColumn === "number" && existingSpan
+      ? Math.max(1, Math.min(13 - existingSpan, clampGridColumn(block.gridColumn)))
+      : null;
+    const existingRow = typeof block.gridRow === "number" ? clampGridRow(block.gridRow) : null;
+
+    if (existingColumn && existingSpan && existingRow) {
+      return {
+        ...block,
+        gridColumn: existingColumn,
+        gridSpan: existingSpan,
+        gridRow: existingRow,
+      };
+    }
+
+    const placement = defaultPlacementForSequence(block, contentIndex);
+    if (block.type !== "top-menu" && block.type !== "profile-header") {
+      contentIndex += 1;
+    }
+
+    return {
+      ...block,
+      ...placement,
+    };
+  });
 }
 
 export function createDefaultBuilderDocument(handle = "creator"): BuilderDocument {
@@ -254,14 +359,14 @@ export function createDefaultBuilderDocument(handle = "creator"): BuilderDocumen
       updatedAt: new Date().toISOString(),
     },
     theme: { ...DEFAULT_BUILDER_THEME },
-    blocks: [
+    blocks: reflowBuilderBlocks([
       createBlock("top-menu"),
       createBlock("profile-header"),
       createBlock("sidebar"),
       createBlock("friends-list"),
       createBlock("post-feed"),
       createBlock("product-grid"),
-    ],
+    ]),
   };
 }
 
@@ -293,6 +398,7 @@ function mapLegacyPuckNode(node: LegacyPuckNode): BuilderBlock | null {
   switch (node.type) {
     case "Hero":
       return {
+        ...createBasePlacement(),
         id: createId("profile"),
         type: "profile-header",
         title: asString(props.title, "Creator profile"),
@@ -303,6 +409,7 @@ function mapLegacyPuckNode(node: LegacyPuckNode): BuilderBlock | null {
       };
     case "ProductGrid":
       return {
+        ...createBasePlacement(),
         id: createId("products"),
         type: "product-grid",
         title: asString(props.heading, "Shop the drop"),
@@ -311,6 +418,7 @@ function mapLegacyPuckNode(node: LegacyPuckNode): BuilderBlock | null {
       };
     case "DonationBar":
       return {
+        ...createBasePlacement(),
         id: createId("sidebar"),
         type: "sidebar",
         heading: asString(props.title, "Support this creator"),
@@ -319,6 +427,7 @@ function mapLegacyPuckNode(node: LegacyPuckNode): BuilderBlock | null {
       };
     case "PostsList":
       return {
+        ...createBasePlacement(),
         id: createId("posts"),
         type: "post-feed",
         title: asString(props.heading, "Recent posts"),
@@ -362,7 +471,7 @@ function parseLegacyPuckBuild(parsed: unknown): BuilderDocument | null {
       updatedAt: new Date().toISOString(),
     },
     theme: { ...DEFAULT_BUILDER_THEME },
-    blocks,
+    blocks: normalizeBuilderBlocks(blocks),
   };
 }
 
@@ -378,7 +487,10 @@ export function parseBuilderDocument(raw: string | null | undefined): BuilderDoc
       return null;
     }
 
-    return candidate as BuilderDocument;
+    return {
+      ...(candidate as BuilderDocument),
+      blocks: normalizeBuilderBlocks(candidate.blocks as BuilderBlock[]),
+    };
   } catch {
     return null;
   }

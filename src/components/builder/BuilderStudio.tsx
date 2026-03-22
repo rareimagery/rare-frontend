@@ -186,7 +186,7 @@ export default function BuilderStudio({
   const [buildsLoading, setBuildsLoading] = useState(true);
   const [persisting, setPersisting] = useState<"draft" | "publish" | null>(null);
   const [persistMessage, setPersistMessage] = useState("Drafts are private until you publish.");
-  const [isGuidedMode, setIsGuidedMode] = useState(true);
+  const [builderMode, setBuilderMode] = useState<"beginner" | "pro">("beginner");
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [wizardProgress, setWizardProgress] = useState({
     stylePicked: false,
@@ -207,11 +207,19 @@ export default function BuilderStudio({
 
   const activeHandle = useMemo(() => normalizeHandle(searchParams.get("handle") || document.meta.handle || defaultHandle || defaultStoreSlug), [searchParams, document.meta.handle, defaultHandle, defaultStoreSlug]);
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
+  const isGuidedMode = builderMode === "beginner";
 
   const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
 
   function advanceWizard(step: 1 | 2 | 3) {
     setWizardStep((current) => (step > current ? step : current));
+  }
+
+  function selectBuilderMode(mode: "beginner" | "pro") {
+    setBuilderMode(mode);
+    if (mode === "pro") {
+      setWizardStep(3);
+    }
   }
 
   function updateDocument(mutator: (current: BuilderDocument) => BuilderDocument) {
@@ -318,9 +326,26 @@ export default function BuilderStudio({
   }
 
   useEffect(() => {
+    try {
+      const savedMode = window.localStorage.getItem("ri:builderMode:v1");
+      if (savedMode === "pro" || savedMode === "beginner") {
+        selectBuilderMode(savedMode);
+      }
+    } catch {
+      // ignore localStorage access issues
+    }
+
     void loadPreviewData();
     void loadBuilds();
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("ri:builderMode:v1", builderMode);
+    } catch {
+      // ignore localStorage access issues
+    }
+  }, [builderMode]);
 
   useEffect(() => {
     if (!selectedBlockId && document.blocks[0]) {
@@ -623,13 +648,22 @@ export default function BuilderStudio({
           <p className="mt-2 text-sm text-zinc-400">Start with AI or a starter layout, then tweak blocks only when you need to.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsGuidedMode((current) => !current)}
-            className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-          >
-            {isGuidedMode ? "Show Advanced" : "Guided View"}
-          </button>
+          <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-950/60 p-1">
+            <button
+              type="button"
+              onClick={() => selectBuilderMode("beginner")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${builderMode === "beginner" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
+            >
+              Beginner
+            </button>
+            <button
+              type="button"
+              onClick={() => selectBuilderMode("pro")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${builderMode === "pro" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
+            >
+              Pro
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => void loadPreviewData()}

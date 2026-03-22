@@ -416,6 +416,42 @@ function resolveImageFromRelationship(
   return null;
 }
 
+function firstRelationshipId(relationshipData: unknown): string | null {
+  if (!relationshipData) return null;
+  const refs = Array.isArray(relationshipData)
+    ? relationshipData
+    : [relationshipData];
+  for (const ref of refs) {
+    const refId = (ref as { id?: string })?.id;
+    if (typeof refId === "string" && refId.length > 0) return refId;
+  }
+  return null;
+}
+
+async function resolveFileUrlByUuid(
+  fileUuid: string,
+  options?: { noStore?: boolean }
+): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      "fields[file--file]": "uri,changed,drupal_internal__fid",
+    });
+    const res = await fetch(
+      `${DRUPAL_API_URL}/jsonapi/file/file/${fileUuid}?${params.toString()}`,
+      options?.noStore ? { cache: "no-store" } : { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    const attrs = json?.data?.attributes;
+    return withAssetVersion(
+      drupalAbsoluteUrl(attrs?.uri?.url),
+      attrs?.changed ?? attrs?.drupal_internal__fid ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
 function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
   const attrs = node.attributes;
   const rels = node.relationships;
@@ -534,7 +570,32 @@ export async function getCreatorProfile(
     const nodes = json.data;
     if (!nodes || nodes.length === 0) return null;
 
-    return mapCreatorProfile(nodes[0], json.included ?? []);
+    const node = nodes[0];
+    const profile = mapCreatorProfile(node, json.included ?? []);
+
+    // Fallback: if relationship exists but include payload omitted file entity,
+    // resolve directly from /jsonapi/file/file/{uuid} before falling back to X URL fields.
+    const pfpRef = firstRelationshipId(node?.relationships?.field_profile_picture?.data);
+    const bannerRef = firstRelationshipId(node?.relationships?.field_background_banner?.data);
+
+    const needsPfpDirectLookup =
+      !!pfpRef && (!profile.profile_picture_url || /pbs\.twimg\.com/i.test(profile.profile_picture_url));
+    const needsBannerDirectLookup = !!bannerRef && !profile.banner_url;
+
+    if (needsPfpDirectLookup || needsBannerDirectLookup) {
+      const [resolvedPfp, resolvedBanner] = await Promise.all([
+        needsPfpDirectLookup && pfpRef ? resolveFileUrlByUuid(pfpRef, options) : Promise.resolve(null),
+        needsBannerDirectLookup && bannerRef ? resolveFileUrlByUuid(bannerRef, options) : Promise.resolve(null),
+      ]);
+
+      return {
+        ...profile,
+        profile_picture_url: resolvedPfp || profile.profile_picture_url,
+        banner_url: resolvedBanner || profile.banner_url,
+      };
+    }
+
+    return profile;
   }
 
   console.error("Drupal API error: all creator profile include variants failed");

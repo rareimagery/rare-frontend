@@ -164,6 +164,10 @@ function normalizeHandle(value: string | null | undefined): string {
   return (value || "").replace(/^@+/, "").trim();
 }
 
+function isXHostedAvatar(url: string | null | undefined): boolean {
+  return typeof url === "string" && /pbs\.twimg\.com/i.test(url);
+}
+
 function fallbackBuildLabel(document: BuilderDocument, published: boolean): string {
   const timestamp = new Date().toLocaleString();
   return `${document.meta.name} ${published ? "Publish" : "Draft"} ${timestamp}`;
@@ -410,7 +414,12 @@ export default function BuilderStudio({
             ...merged,
             handle,
             bio: typeof preview.bio === "string" && preview.bio ? preview.bio : merged.bio,
-            avatar: typeof preview.avatar === "string" ? preview.avatar : merged.avatar,
+            avatar:
+              typeof preview.avatar === "string"
+                ? (isXHostedAvatar(preview.avatar) && !!merged.avatar && !isXHostedAvatar(merged.avatar)
+                    ? merged.avatar
+                    : preview.avatar)
+                : merged.avatar,
             banner: typeof preview.banner === "string" ? preview.banner : merged.banner,
             followerCount: typeof preview.followerCount === "number" ? preview.followerCount : merged.followerCount,
             friends: merged.friends.length ? merged.friends : mapFriends(preview.friends),

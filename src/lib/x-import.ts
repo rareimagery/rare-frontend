@@ -527,7 +527,7 @@ export async function uploadImageToDrupal(
         method: "POST",
         headers: {
           ...writeHeaders,
-          "Content-Type": "application/octet-stream",
+          "Content-Type": contentType,
           "Content-Disposition": `file; filename="${filename}.${ext}"`,
         },
         body: imageBuffer,

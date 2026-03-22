@@ -824,7 +824,18 @@ export default function BuilderStudio({
         }
 
         if (action.type === "set_name") {
-          next.meta = { ...next.meta, name: action.name.trim() || next.meta.name };
+          const nextName = action.name.trim() || next.meta.name;
+          next.meta = { ...next.meta, name: nextName };
+          const heroIndex = next.blocks.findIndex((block) => block.type === "profile-header");
+          if (heroIndex >= 0) {
+            const hero = next.blocks[heroIndex];
+            if (hero.type === "profile-header") {
+              next.blocks[heroIndex] = {
+                ...hero,
+                title: nextName,
+              };
+            }
+          }
           changed += 1;
           continue;
         }

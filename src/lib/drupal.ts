@@ -306,6 +306,13 @@ export function drupalAbsoluteUrl(path: string | null | undefined): string | nul
   return `${DRUPAL_API_URL}${path}`;
 }
 
+function withAssetVersion(url: string | null, version: string | number | null | undefined): string | null {
+  if (!url) return null;
+  if (!version) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(String(version))}`;
+}
+
 function parseJsonField<T>(value: string | null | undefined): T | null {
   if (!value) return null;
   try {
@@ -358,7 +365,10 @@ function resolveImageFromRelationship(
     if (!entity) continue;
 
     if (entity.type === "file--file") {
-      const url = drupalAbsoluteUrl(entity.attributes?.uri?.url);
+      const url = withAssetVersion(
+        drupalAbsoluteUrl(entity.attributes?.uri?.url),
+        entity.attributes?.changed ?? entity.attributes?.drupal_internal__fid ?? null
+      );
       if (url) return url;
       continue;
     }
@@ -372,7 +382,10 @@ function resolveImageFromRelationship(
         (inc: any) => inc.id === mediaFileId && inc.type === "file--file"
       );
 
-      const mediaUrl = drupalAbsoluteUrl(fileEntity?.attributes?.uri?.url);
+      const mediaUrl = withAssetVersion(
+        drupalAbsoluteUrl(fileEntity?.attributes?.uri?.url),
+        fileEntity?.attributes?.changed ?? fileEntity?.attributes?.drupal_internal__fid ?? null
+      );
       if (mediaUrl) return mediaUrl;
     }
   }

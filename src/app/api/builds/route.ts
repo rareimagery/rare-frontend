@@ -19,6 +19,22 @@ type StoredBuild = {
   published?: boolean;
 };
 
+function pruneBuildsForInsert(builds: StoredBuild[], maxBuilds: number): StoredBuild[] {
+  const next = [...builds];
+
+  // Keep the newest history while preferring to drop drafts before published builds.
+  while (next.length >= maxBuilds) {
+    const oldestDraftIndex = next.findIndex((build) => build.published !== true);
+    if (oldestDraftIndex >= 0) {
+      next.splice(oldestDraftIndex, 1);
+      continue;
+    }
+    next.shift();
+  }
+
+  return next;
+}
+
 function normalizeStoreSlug(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().replace(/^@+/, "").toLowerCase();
@@ -119,14 +135,11 @@ export async function POST(req: NextRequest) {
 
   for (const slug of slugCandidates) {
     const builds = await getBuilds(slug);
-
-    if (builds.length >= 20) {
-      continue;
-    }
+    const prunedBuilds = pruneBuildsForInsert(builds as StoredBuild[], 20);
 
     const updated = published === true
-      ? [...(builds as StoredBuild[]).map((b) => ({ ...b, published: false })), newBuild]
-      : [...(builds as StoredBuild[]), newBuild];
+      ? [...prunedBuilds.map((b) => ({ ...b, published: false })), newBuild]
+      : [...prunedBuilds, newBuild];
 
     const result = await saveBuildsDetailed(slug, updated);
     if (result.ok) {

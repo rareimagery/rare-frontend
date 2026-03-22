@@ -141,6 +141,7 @@ const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop" | "sunset" | "forest"
 
 type StarterLayoutId = (typeof STARTER_LAYOUTS)[number]["id"];
 type ThemePresetId = (typeof THEME_PRESETS)[number]["id"] | "custom";
+type TemplateSlotId = "menu" | "header" | "col-1" | "col-2" | "col-3";
 
 const BLOCK_LIBRARY: Array<{ type: BuilderBlockType; label: string; description: string }> = [
   { type: "top-menu", label: "Top menu", description: "Navigation pills across the top of the page." },
@@ -164,7 +165,20 @@ const THEME_FIELDS: Array<{ key: keyof BuilderTheme; label: string }> = [
   { key: "textSecondary", label: "Secondary text" },
   { key: "border", label: "Border" },
 ];
-const GRID_EDITOR_ROWS = 8;
+
+const TEMPLATE_SLOTS: Array<{
+  id: TemplateSlotId;
+  label: string;
+  gridColumn: number;
+  gridSpan: number;
+  gridRow: number;
+}> = [
+  { id: "menu", label: "Menu", gridColumn: 1, gridSpan: 12, gridRow: 1 },
+  { id: "header", label: "Header", gridColumn: 1, gridSpan: 12, gridRow: 2 },
+  { id: "col-1", label: "Column 1", gridColumn: 1, gridSpan: 4, gridRow: 3 },
+  { id: "col-2", label: "Column 2", gridColumn: 5, gridSpan: 4, gridRow: 3 },
+  { id: "col-3", label: "Column 3", gridColumn: 9, gridSpan: 4, gridRow: 3 },
+];
 
 function normalizeHandle(value: string | null | undefined): string {
   return (value || "").replace(/^@+/, "").trim();
@@ -344,9 +358,7 @@ export default function BuilderStudio({
   });
   const [selectedStarterLayout, setSelectedStarterLayout] = useState<StarterLayoutId | null>(null);
   const [selectedThemePreset, setSelectedThemePreset] = useState<ThemePresetId | null>(null);
-  const [gridDragOverIndex, setGridDragOverIndex] = useState<number | null>(null);
   const [gridDragOverCell, setGridDragOverCell] = useState<string | null>(null);
-  const [resizeDrag, setResizeDrag] = useState<{ blockId: string; startX: number; startSpan: number } | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -428,18 +440,6 @@ export default function BuilderStudio({
     if (announce) {
       setPersistMessage("Grid placement updated.");
     }
-  }
-
-  function updateSelectedBlockGrid(partial: Partial<Pick<BuilderBlock, "gridColumn" | "gridSpan" | "gridRow">>) {
-    if (!selectedBlock) return;
-    updateBlockGrid(selectedBlock.id, partial, { announce: true });
-  }
-
-  function beginSpanResize(event: React.MouseEvent<HTMLButtonElement>, block: BuilderBlock) {
-    event.preventDefault();
-    event.stopPropagation();
-    setSelectedBlockId(block.id);
-    setResizeDrag({ blockId: block.id, startX: event.clientX, startSpan: block.gridSpan });
   }
 
   async function loadPreviewData(): Promise<BuilderPreviewData | null> {
@@ -668,31 +668,6 @@ export default function BuilderStudio({
     }
   }, [document.blocks, selectedBlockId]);
 
-  useEffect(() => {
-    if (!resizeDrag) return;
-    const drag = resizeDrag;
-
-    function handleMouseMove(event: MouseEvent) {
-      const delta = event.clientX - drag.startX;
-      const spanDelta = Math.round(delta / 80);
-      const nextSpan = Math.max(1, Math.min(12, drag.startSpan + spanDelta));
-      updateBlockGrid(drag.blockId, { gridSpan: nextSpan }, { announce: false });
-    }
-
-    function handleMouseUp() {
-      setResizeDrag(null);
-      setPersistMessage("Block width updated.");
-    }
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [resizeDrag]);
-
   function insertBlock(type: BuilderBlockType, index = document.blocks.length) {
     const nextBlock = createBlock(type);
     updateDocument((current) => {
@@ -731,62 +706,102 @@ export default function BuilderStudio({
     if (existingId) {
       moveBlock(existingId, index);
     }
-
-    setGridDragOverIndex(null);
   }
 
-  function moveBlockToGridCell(blockId: string, gridRow: number, gridColumn: number) {
+  function getSlotPlacement(slotId: TemplateSlotId) {
+    return TEMPLATE_SLOTS.find((slot) => slot.id === slotId) || TEMPLATE_SLOTS[0];
+  }
+
+  function findBlockInSlot(slotId: TemplateSlotId): BuilderBlock | null {
+    const placement = getSlotPlacement(slotId);
+    return (
+      document.blocks.find(
+        (block) =>
+          block.gridRow === placement.gridRow &&
+          block.gridColumn === placement.gridColumn &&
+          block.gridSpan === placement.gridSpan
+      ) || null
+    );
+  }
+
+  function placeBlockInTemplateSlot(blockId: string, slotId: TemplateSlotId) {
+    const placement = getSlotPlacement(slotId);
+
     updateDocument((current) => {
-      const blocks = current.blocks.map((block) => {
+      const existingAtSlot = current.blocks.find(
+        (block) =>
+          block.id !== blockId &&
+          block.gridRow === placement.gridRow &&
+          block.gridColumn === placement.gridColumn &&
+          block.gridSpan === placement.gridSpan
+      );
+
+      const withoutReplaced = existingAtSlot
+        ? current.blocks.filter((block) => block.id !== existingAtSlot.id)
+        : current.blocks;
+
+      const blocks = withoutReplaced.map((block) => {
         if (block.id !== blockId) return block;
-        const safeSpan = Math.max(1, Math.min(12, block.gridSpan));
         return {
           ...block,
-          gridRow: Math.max(1, gridRow),
-          gridColumn: Math.max(1, Math.min(13 - safeSpan, gridColumn)),
+          gridRow: placement.gridRow,
+          gridColumn: placement.gridColumn,
+          gridSpan: placement.gridSpan,
         };
       });
 
       return { ...current, blocks: normalizeBuilderBlocks(blocks) };
     });
+
+    setSelectedBlockId(blockId);
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setPersistMessage(`Placed block in ${placement.label}.`);
   }
 
-  function addBlockToGridCell(type: BuilderBlockType, gridRow: number, gridColumn: number) {
+  function addBlockToTemplateSlot(type: BuilderBlockType, slotId: TemplateSlotId) {
+    const placement = getSlotPlacement(slotId);
     const nextBlock = createBlock(type);
-    const safeSpan = Math.max(1, Math.min(12, nextBlock.gridSpan));
 
     updateDocument((current) => {
+      const withoutReplaced = current.blocks.filter(
+        (block) =>
+          !(
+            block.gridRow === placement.gridRow &&
+            block.gridColumn === placement.gridColumn &&
+            block.gridSpan === placement.gridSpan
+          )
+      );
+
       const blocks = [
-        ...current.blocks,
+        ...withoutReplaced,
         {
           ...nextBlock,
-          gridRow: Math.max(1, gridRow),
-          gridColumn: Math.max(1, Math.min(13 - safeSpan, gridColumn)),
+          gridRow: placement.gridRow,
+          gridColumn: placement.gridColumn,
+          gridSpan: placement.gridSpan,
         },
       ];
+
       return { ...current, blocks: normalizeBuilderBlocks(blocks) };
     });
 
     setSelectedBlockId(nextBlock.id);
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setPersistMessage(`Added ${type} to ${placement.label}.`);
   }
 
-  function handleGridCellDrop(event: React.DragEvent<HTMLDivElement>, gridRow: number, gridColumn: number) {
+  function handleTemplateSlotDrop(event: React.DragEvent<HTMLDivElement>, slotId: TemplateSlotId) {
     event.preventDefault();
     const newType = event.dataTransfer.getData("application/x-builder-new");
     const existingId = event.dataTransfer.getData("application/x-builder-existing");
 
     if (newType) {
-      addBlockToGridCell(newType as BuilderBlockType, gridRow, gridColumn);
+      addBlockToTemplateSlot(newType as BuilderBlockType, slotId);
     } else if (existingId) {
-      moveBlockToGridCell(existingId, gridRow, gridColumn);
-      setSelectedBlockId(existingId);
+      placeBlockInTemplateSlot(existingId, slotId);
     }
 
     setGridDragOverCell(null);
-    setGridDragOverIndex(null);
-    setPersistMessage(`Placed block at row ${gridRow}, column ${gridColumn}.`);
   }
 
   function continueFromGridStep() {
@@ -1342,7 +1357,7 @@ export default function BuilderStudio({
 
         {wizardStep === 2 ? (
           <>
-            <p className="mt-4 text-xs text-zinc-500">Add components from the library, drag cards to reorder, and fine-tune each block with explicit row, column, and span controls.</p>
+            <p className="mt-4 text-xs text-zinc-500">Drag components from the left into the center template. Keep it simple: menu, header, then three columns.</p>
             <div className="mt-4 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Components</p>
@@ -1359,162 +1374,86 @@ export default function BuilderStudio({
                           <p className="text-xs font-semibold text-white">{item.label}</p>
                           <p className="text-[11px] text-zinc-500">{item.description}</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => insertBlock(item.type)}
-                          className="rounded-full border border-zinc-700 px-2 py-1 text-[11px] text-zinc-200 transition hover:border-zinc-500"
-                        >
-                          Add
-                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
-
-                {selectedBlock ? (
-                  <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Selected Block</p>
-                    <p className="mt-2 text-sm font-semibold text-white">{BLOCK_LIBRARY.find((item) => item.type === selectedBlock.type)?.label || selectedBlock.type}</p>
-                    <div className="mt-3 space-y-3 text-xs text-zinc-400">
-                      <label className="block">
-                        <span className="mb-1 block">Grid row</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={selectedBlock.gridRow}
-                          onChange={(event) => updateSelectedBlockGrid({ gridRow: Number(event.target.value) || 1 })}
-                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block">Column start</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={selectedBlock.gridColumn}
-                          onChange={(event) => updateSelectedBlockGrid({ gridColumn: Number(event.target.value) || 1 })}
-                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block">Column span</span>
-                        <select
-                          value={selectedBlock.gridSpan}
-                          onChange={(event) => updateSelectedBlockGrid({ gridSpan: Number(event.target.value) || 4 })}
-                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
-                        >
-                          {[3, 4, 6, 8, 12].map((option) => (
-                            <option key={option} value={option}>{option} columns</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                ) : null}
               </div>
 
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setGridDragOverIndex(document.blocks.length);
-                }}
-                onDrop={(event) => handleDrop(event, document.blocks.length)}
-                className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3"
-              >
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">12-Column Grid</p>
-                <div className="grid min-h-[320px] grid-cols-1 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2 lg:grid-cols-12 lg:auto-rows-min">
-                  {document.blocks.map((block, index) => {
-                    const label = BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Center Template</p>
+                <div className="space-y-3">
+                  {TEMPLATE_SLOTS.filter((slot) => slot.id === "menu" || slot.id === "header").map((slot) => {
+                    const block = findBlockInSlot(slot.id);
+                    const isOver = gridDragOverCell === slot.id;
+                    const blockLabel = block
+                      ? BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type
+                      : null;
 
                     return (
                       <div
-                        key={`wizard-block-${block.id}`}
-                        draggable
-                        onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                        key={slot.id}
                         onDragOver={(event) => {
                           event.preventDefault();
-                          setGridDragOverIndex(index);
+                          setGridDragOverCell(slot.id);
                         }}
-                        onDrop={(event) => handleDrop(event, index)}
-                        onClick={() => setSelectedBlockId(block.id)}
-                        style={{
-                          gridColumn: `${block.gridColumn} / span ${block.gridSpan}`,
-                          gridRow: block.gridRow,
-                        }}
-                        className={`rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : gridDragOverIndex === index ? "border-cyan-500 border-dashed bg-zinc-900" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
+                        onDrop={(event) => handleTemplateSlotDrop(event, slot.id)}
+                        className={`rounded-xl border px-4 py-4 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
                       >
-                        <p className="text-xs font-semibold text-white">{label}</p>
-                        <p className="mt-1 text-[11px] text-zinc-500">Drag to move • row {block.gridRow} • col {block.gridColumn} • span {block.gridSpan}</p>
-                        <div className="mt-2 flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                updateBlockGrid(block.id, { gridSpan: Math.max(1, block.gridSpan - 1) });
-                              }}
-                              className="rounded border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-400"
-                              title="Narrower"
-                            >
-                              -
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                updateBlockGrid(block.id, { gridSpan: Math.min(12, block.gridSpan + 1) });
-                              }}
-                              className="rounded border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-400"
-                              title="Wider"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onMouseDown={(event) => beginSpanResize(event, block)}
-                            className={`cursor-ew-resize rounded border px-2 py-0.5 text-[10px] ${resizeDrag?.blockId === block.id ? "border-cyan-400 text-cyan-200" : "border-zinc-600 text-zinc-400 hover:border-zinc-400"}`}
-                            title="Drag left or right to resize span"
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                        {block ? (
+                          <div
+                            draggable
+                            onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                            onClick={() => setSelectedBlockId(block.id)}
+                            className="cursor-grab rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2"
                           >
-                            resize
-                          </button>
+                            <p className="text-sm font-medium text-white">{blockLabel}</p>
+                            <p className="text-xs text-zinc-500">Drag to another slot to move</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-zinc-500">Drop a component here</p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {TEMPLATE_SLOTS.filter((slot) => slot.id.startsWith("col-")).map((slot) => {
+                      const block = findBlockInSlot(slot.id);
+                      const isOver = gridDragOverCell === slot.id;
+                      const blockLabel = block
+                        ? BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type
+                        : null;
+
+                      return (
+                        <div
+                          key={slot.id}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            setGridDragOverCell(slot.id);
+                          }}
+                          onDrop={(event) => handleTemplateSlotDrop(event, slot.id)}
+                          className={`min-h-[140px] rounded-xl border px-3 py-3 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
+                        >
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                          {block ? (
+                            <div
+                              draggable
+                              onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                              onClick={() => setSelectedBlockId(block.id)}
+                              className="cursor-grab rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2"
+                            >
+                              <p className="text-sm font-medium text-white">{blockLabel}</p>
+                              <p className="text-xs text-zinc-500">Drag to another slot to move</p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-zinc-500">Drop a component here</p>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-
-                  {document.blocks.length === 0 ? (
-                    <div className="col-span-12 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/70 px-4 py-6 text-center text-xs text-zinc-500">
-                      Drag a component here to start your layout.
-                    </div>
-                  ) : null}
-                </div>
-
-                <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Drop Target Matrix</p>
-                <div className="grid grid-cols-6 gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-2 lg:grid-cols-12">
-                  {Array.from({ length: GRID_EDITOR_ROWS * 12 }).map((_, cellIndex) => {
-                    const gridRow = Math.floor(cellIndex / 12) + 1;
-                    const gridColumn = (cellIndex % 12) + 1;
-                    const cellKey = `${gridRow}-${gridColumn}`;
-                    const isActive = gridDragOverCell === cellKey;
-
-                    return (
-                      <div
-                        key={`grid-cell-${cellKey}`}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          setGridDragOverCell(cellKey);
-                        }}
-                        onDrop={(event) => handleGridCellDrop(event, gridRow, gridColumn)}
-                        className={`h-7 rounded border text-center text-[10px] leading-7 transition ${isActive ? "border-cyan-400 bg-cyan-500/20 text-cyan-200" : "border-zinc-700 bg-zinc-950 text-zinc-500"}`}
-                        title={`Drop at row ${gridRow}, col ${gridColumn}`}
-                      >
-                        {gridRow}:{gridColumn}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveBuildsDetailed } from "@/lib/drupalBuilds";
 
 /**
  * Debug endpoint to test if Drupal API writes work
@@ -87,6 +88,18 @@ export async function GET() {
     } else {
       results.patch_response = patchResp;
     }
+
+    // Step 3: Test the same library path /api/builds uses.
+    const libResult = await saveBuildsDetailed("rareimagery", [
+      {
+        id: `debug-${Date.now()}`,
+        label: "debug",
+        code: "<div>debug</div>",
+        createdAt: new Date().toISOString(),
+        published: false,
+      },
+    ]);
+    results.library_saveBuildsDetailed = libResult;
 
     return NextResponse.json(results);
   } catch (error) {

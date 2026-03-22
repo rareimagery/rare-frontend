@@ -103,7 +103,7 @@ export async function GET(
     const topPosts = (profile?.top_posts || []).slice(0, 6).map((post) => ({
       id: post.id,
       text: post.text,
-      image: post.image_url,
+      image: post.image_url ?? null,
     }));
 
     const friends = (profile?.top_followers || []).slice(0, 8).map((friend, index) => ({

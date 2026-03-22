@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCreatorProfile, getProductsByStoreSlug } from "@/lib/drupal";
+import {
+  findProfileByUsername,
+  getDrupalFileAssetUrl,
+  getProfileMediaFieldState,
+} from "@/lib/x-import";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -92,6 +97,30 @@ export async function GET(
       getProductsByStoreSlug(normalizedHandle),
     ]);
 
+    let resolvedAvatar = profile?.profile_picture_url || null;
+    let resolvedBanner = profile?.banner_url || null;
+
+    const avatarNeedsFallback = !resolvedAvatar || /pbs\.twimg\.com/i.test(resolvedAvatar);
+    const bannerNeedsFallback = !resolvedBanner;
+
+    if (avatarNeedsFallback || bannerNeedsFallback) {
+      const profileRef = await findProfileByUsername(normalizedHandle);
+      if (profileRef) {
+        const fieldState = await getProfileMediaFieldState(profileRef.uuid);
+        const [fallbackAvatar, fallbackBanner] = await Promise.all([
+          avatarNeedsFallback && fieldState?.profilePictureFileId
+            ? getDrupalFileAssetUrl(fieldState.profilePictureFileId)
+            : Promise.resolve(null),
+          bannerNeedsFallback && fieldState?.backgroundBannerFileId
+            ? getDrupalFileAssetUrl(fieldState.backgroundBannerFileId)
+            : Promise.resolve(null),
+        ]);
+
+        if (fallbackAvatar) resolvedAvatar = fallbackAvatar;
+        if (fallbackBanner) resolvedBanner = fallbackBanner;
+      }
+    }
+
     const previewProducts = (products || []).slice(0, 8).map((product) => {
       const title = product.title || "Product";
       return {
@@ -120,8 +149,8 @@ export async function GET(
     return NextResponse.json(
       {
         handle: normalizedHandle,
-        avatar: profile?.profile_picture_url || fallbackAvatar(normalizedHandle),
-        banner: profile?.banner_url || fallbackBanner(normalizedHandle),
+        avatar: resolvedAvatar || fallbackAvatar(normalizedHandle),
+        banner: resolvedBanner || fallbackBanner(normalizedHandle),
         bio: stripHtml(profile?.bio),
         followerCount: profile?.follower_count || 0,
         friends,

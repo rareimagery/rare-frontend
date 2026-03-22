@@ -12,7 +12,7 @@ export async function GET() {
 
   const results: Record<string, any> = {
     env_set: {
-      DRUPAL_API_URL: DRUPAL_API_URL ? "✓ set" : "✗ missing",
+      DRUPAL_API_URL: DRUPAL_API_URL,
       DRUPAL_API_USER: DRUPAL_API_USER ? "✓ set" : "✗ missing",
       DRUPAL_API_PASS: DRUPAL_API_PASS ? "✓ set" : "✗ missing",
     },
@@ -80,6 +80,7 @@ export async function GET() {
     const patchResp = JSON.parse(patchRespText);
 
     if (patchResp.errors) {
+      results.patch_write = "✗ FAILED";
       results.patch_error = patchResp.errors[0];
     } else if (patchResp.data?.attributes?.field_page_builds) {
       results.patch_write = `✓ SUCCESS! field_page_builds = ${patchResp.data.attributes.field_page_builds}`;

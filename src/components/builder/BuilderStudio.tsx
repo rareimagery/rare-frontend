@@ -141,7 +141,7 @@ const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop" | "sunset" | "forest"
 
 type StarterLayoutId = (typeof STARTER_LAYOUTS)[number]["id"];
 type ThemePresetId = (typeof THEME_PRESETS)[number]["id"] | "custom";
-type TemplateSlotId = "menu" | "header" | "col-1" | "col-2" | "col-3";
+type TemplateSlotId = "header" | "menu" | "left" | "center" | "right";
 
 const BLOCK_LIBRARY: Array<{ type: BuilderBlockType; label: string; description: string }> = [
   { type: "top-menu", label: "Top menu", description: "Navigation pills across the top of the page." },
@@ -173,11 +173,11 @@ const TEMPLATE_SLOTS: Array<{
   gridSpan: number;
   gridRow: number;
 }> = [
-  { id: "menu", label: "Menu", gridColumn: 1, gridSpan: 12, gridRow: 1 },
-  { id: "header", label: "Header", gridColumn: 1, gridSpan: 12, gridRow: 2 },
-  { id: "col-1", label: "Column 1", gridColumn: 1, gridSpan: 4, gridRow: 3 },
-  { id: "col-2", label: "Column 2", gridColumn: 5, gridSpan: 4, gridRow: 3 },
-  { id: "col-3", label: "Column 3", gridColumn: 9, gridSpan: 4, gridRow: 3 },
+  { id: "header", label: "Header", gridColumn: 1, gridSpan: 12, gridRow: 1 },
+  { id: "menu", label: "Menu", gridColumn: 1, gridSpan: 12, gridRow: 2 },
+  { id: "left", label: "Left Sidebar", gridColumn: 1, gridSpan: 3, gridRow: 3 },
+  { id: "center", label: "Main Content", gridColumn: 4, gridSpan: 6, gridRow: 3 },
+  { id: "right", label: "Right Sidebar", gridColumn: 10, gridSpan: 3, gridRow: 3 },
 ];
 
 const SLOT_GUIDANCE: Record<
@@ -186,7 +186,7 @@ const SLOT_GUIDANCE: Record<
 > = {
   menu: {
     iconLabel: "NAV",
-    hint: "Best for navigation at the top.",
+    hint: "Best for navigation right below the header.",
     recommended: ["top-menu"],
   },
   header: {
@@ -194,59 +194,73 @@ const SLOT_GUIDANCE: Record<
     hint: "Best for profile intro and banner.",
     recommended: ["profile-header"],
   },
-  "col-1": {
+  left: {
     iconLabel: "COL",
-    hint: "Great for posts or products.",
-    recommended: ["post-feed", "product-grid"],
+    hint: "Use for supporting info and community widgets.",
+    recommended: ["sidebar", "friends-list", "media-widget"],
   },
-  "col-2": {
+  center: {
     iconLabel: "COL",
-    hint: "Great for community or posts.",
-    recommended: ["friends-list", "post-feed", "sidebar"],
+    hint: "Use for primary content and conversion blocks.",
+    recommended: ["post-feed", "product-grid", "custom-embed"],
   },
-  "col-3": {
+  right: {
     iconLabel: "COL",
-    hint: "Great for media or sidebar info.",
+    hint: "Use for extra links, media, or social proof.",
     recommended: ["media-widget", "sidebar", "custom-embed"],
   },
+};
+
+const TEMPLATE_SLOT_LIMITS: Record<TemplateSlotId, number> = {
+  header: 1,
+  menu: 1,
+  left: 4,
+  center: 8,
+  right: 4,
 };
 
 const TEMPLATE_PRESETS: Array<{
   id: "social" | "shop" | "community";
   label: string;
-  slots: Record<TemplateSlotId, BuilderBlockType>;
+  slots: {
+    header: BuilderBlockType;
+    menu: BuilderBlockType;
+    left: BuilderBlockType[];
+    center: BuilderBlockType[];
+    right: BuilderBlockType[];
+  };
 }> = [
   {
     id: "social",
     label: "Social",
     slots: {
-      menu: "top-menu",
       header: "profile-header",
-      "col-1": "post-feed",
-      "col-2": "friends-list",
-      "col-3": "media-widget",
+      menu: "top-menu",
+      left: ["friends-list"],
+      center: ["post-feed", "custom-embed"],
+      right: ["media-widget"],
     },
   },
   {
     id: "shop",
     label: "Shop",
     slots: {
-      menu: "top-menu",
       header: "profile-header",
-      "col-1": "product-grid",
-      "col-2": "post-feed",
-      "col-3": "sidebar",
+      menu: "top-menu",
+      left: ["sidebar"],
+      center: ["product-grid", "post-feed"],
+      right: ["media-widget"],
     },
   },
   {
     id: "community",
     label: "Community",
     slots: {
-      menu: "top-menu",
       header: "profile-header",
-      "col-1": "friends-list",
-      "col-2": "post-feed",
-      "col-3": "sidebar",
+      menu: "top-menu",
+      left: ["friends-list", "sidebar"],
+      center: ["post-feed"],
+      right: ["media-widget", "custom-embed"],
     },
   },
 ];
@@ -455,22 +469,27 @@ export default function BuilderStudio({
   const isGuidedMode = builderMode === "beginner";
   const styleReady = !!selectedStarterLayout && !!selectedThemePreset;
   const slotBlocks = useMemo(() => {
+    const isColumnSlot = (slotId: TemplateSlotId) => slotId === "left" || slotId === "center" || slotId === "right";
+
     return TEMPLATE_SLOTS.map((slot) => ({
       slot,
-      block:
-        document.blocks.find(
-          (block) =>
-            block.gridRow === slot.gridRow &&
-            block.gridColumn === slot.gridColumn &&
-            block.gridSpan === slot.gridSpan
-        ) || null,
+      blocks: document.blocks
+        .filter((block) => {
+          const matchesColumn =
+            block.gridColumn === slot.gridColumn && block.gridSpan === slot.gridSpan;
+          if (!matchesColumn) return false;
+          return isColumnSlot(slot.id)
+            ? block.gridRow >= slot.gridRow
+            : block.gridRow === slot.gridRow;
+        })
+        .sort((left, right) => left.gridRow - right.gridRow),
     }));
   }, [document.blocks]);
-  const hasMenuSlot = slotBlocks.some((entry) => entry.slot.id === "menu" && !!entry.block);
-  const hasHeaderSlot = slotBlocks.some((entry) => entry.slot.id === "header" && !!entry.block);
-  const filledColumnSlots = slotBlocks.filter((entry) => entry.slot.id.startsWith("col-") && !!entry.block).length;
+  const hasMenuSlot = slotBlocks.some((entry) => entry.slot.id === "menu" && entry.blocks.length > 0);
+  const hasHeaderSlot = slotBlocks.some((entry) => entry.slot.id === "header" && entry.blocks.length > 0);
+  const filledColumnSlots = slotBlocks.filter((entry) => (entry.slot.id === "left" || entry.slot.id === "center" || entry.slot.id === "right") && entry.blocks.length > 0).length;
   const hasCommerceOrContentAnchor = slotBlocks.some(
-    (entry) => entry.block?.type === "product-grid" || entry.block?.type === "post-feed"
+    (entry) => entry.blocks.some((block) => block.type === "product-grid" || block.type === "post-feed")
   );
 
   const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
@@ -824,20 +843,85 @@ export default function BuilderStudio({
     return TEMPLATE_SLOTS.find((slot) => slot.id === slotId) || TEMPLATE_SLOTS[0];
   }
 
-  function findBlockInSlot(slotId: TemplateSlotId): BuilderBlock | null {
+  function isColumnSlot(slotId: TemplateSlotId): boolean {
+    return slotId === "left" || slotId === "center" || slotId === "right";
+  }
+
+  function slotLimit(slotId: TemplateSlotId): number {
+    return TEMPLATE_SLOT_LIMITS[slotId];
+  }
+
+  function findBlocksInSlotFrom(blocks: BuilderBlock[], slotId: TemplateSlotId): BuilderBlock[] {
     const placement = getSlotPlacement(slotId);
-    return (
-      document.blocks.find(
-        (block) =>
-          block.gridRow === placement.gridRow &&
-          block.gridColumn === placement.gridColumn &&
-          block.gridSpan === placement.gridSpan
-      ) || null
+    return blocks
+      .filter((block) => {
+        const matchesColumn =
+          block.gridColumn === placement.gridColumn && block.gridSpan === placement.gridSpan;
+        if (!matchesColumn) return false;
+
+        return isColumnSlot(slotId)
+          ? block.gridRow >= placement.gridRow
+          : block.gridRow === placement.gridRow;
+      })
+      .sort((left, right) => left.gridRow - right.gridRow);
+  }
+
+  function findBlocksInSlot(slotId: TemplateSlotId): BuilderBlock[] {
+    return findBlocksInSlotFrom(document.blocks, slotId);
+  }
+
+  function findPrimaryBlockInSlot(slotId: TemplateSlotId): BuilderBlock | null {
+    return findBlocksInSlot(slotId)[0] || null;
+  }
+
+  function removeBlocksInSlot(blocks: BuilderBlock[], slotId: TemplateSlotId): BuilderBlock[] {
+    const placement = getSlotPlacement(slotId);
+    return blocks.filter((block) => {
+      const matchesColumn =
+        block.gridColumn === placement.gridColumn && block.gridSpan === placement.gridSpan;
+      if (!matchesColumn) return true;
+
+      return isColumnSlot(slotId)
+        ? block.gridRow < placement.gridRow
+        : block.gridRow !== placement.gridRow;
+    });
+  }
+
+  function nextRowForSlot(blocks: BuilderBlock[], slotId: TemplateSlotId): number {
+    const placement = getSlotPlacement(slotId);
+    if (!isColumnSlot(slotId)) return placement.gridRow;
+
+    const inSlot = blocks.filter(
+      (block) =>
+        block.gridColumn === placement.gridColumn &&
+        block.gridSpan === placement.gridSpan &&
+        block.gridRow >= placement.gridRow
     );
+
+    if (inSlot.length === 0) return placement.gridRow;
+    return Math.max(...inSlot.map((block) => block.gridRow)) + 1;
   }
 
   function isRecommendedForSlot(slotId: TemplateSlotId, type: BuilderBlockType): boolean {
     return SLOT_GUIDANCE[slotId].recommended.includes(type);
+  }
+
+  function isSlotAtCapacity(
+    blocks: BuilderBlock[],
+    slotId: TemplateSlotId,
+    movingBlockId?: string
+  ): boolean {
+    if (!isColumnSlot(slotId)) return false;
+
+    const inSlot = findBlocksInSlotFrom(blocks, slotId);
+    if (movingBlockId) {
+      const movingBlock = blocks.find((block) => block.id === movingBlockId);
+      if (movingBlock && inSlot.some((block) => block.id === movingBlock.id)) {
+        return false;
+      }
+    }
+
+    return inSlot.length >= slotLimit(slotId);
   }
 
   function recommendedSlotsForType(type: BuilderBlockType): TemplateSlotId[] {
@@ -848,25 +932,22 @@ export default function BuilderStudio({
 
   function placeBlockInTemplateSlot(blockId: string, slotId: TemplateSlotId) {
     const placement = getSlotPlacement(slotId);
+    if (isSlotAtCapacity(document.blocks, slotId, blockId)) {
+      setPersistMessage(`${placement.label} is full (${slotLimit(slotId)} max). Move or remove a block first.`);
+      return;
+    }
 
     updateDocument((current) => {
-      const existingAtSlot = current.blocks.find(
-        (block) =>
-          block.id !== blockId &&
-          block.gridRow === placement.gridRow &&
-          block.gridColumn === placement.gridColumn &&
-          block.gridSpan === placement.gridSpan
-      );
+      const baseBlocks = isColumnSlot(slotId)
+        ? current.blocks
+        : removeBlocksInSlot(current.blocks.filter((block) => block.id !== blockId), slotId);
+      const targetRow = nextRowForSlot(baseBlocks, slotId);
 
-      const withoutReplaced = existingAtSlot
-        ? current.blocks.filter((block) => block.id !== existingAtSlot.id)
-        : current.blocks;
-
-      const blocks = withoutReplaced.map((block) => {
+      const blocks = baseBlocks.map((block) => {
         if (block.id !== blockId) return block;
         return {
           ...block,
-          gridRow: placement.gridRow,
+          gridRow: targetRow,
           gridColumn: placement.gridColumn,
           gridSpan: placement.gridSpan,
         };
@@ -882,23 +963,24 @@ export default function BuilderStudio({
 
   function addBlockToTemplateSlot(type: BuilderBlockType, slotId: TemplateSlotId) {
     const placement = getSlotPlacement(slotId);
+    if (isSlotAtCapacity(document.blocks, slotId)) {
+      setPersistMessage(`${placement.label} is full (${slotLimit(slotId)} max). Remove one to add another.`);
+      return;
+    }
+
     const nextBlock = createBlock(type);
 
     updateDocument((current) => {
-      const withoutReplaced = current.blocks.filter(
-        (block) =>
-          !(
-            block.gridRow === placement.gridRow &&
-            block.gridColumn === placement.gridColumn &&
-            block.gridSpan === placement.gridSpan
-          )
-      );
+      const withoutReplaced = isColumnSlot(slotId)
+        ? current.blocks
+        : removeBlocksInSlot(current.blocks, slotId);
+      const targetRow = nextRowForSlot(withoutReplaced, slotId);
 
       const blocks = [
         ...withoutReplaced,
         {
           ...nextBlock,
-          gridRow: placement.gridRow,
+          gridRow: targetRow,
           gridColumn: placement.gridColumn,
           gridSpan: placement.gridSpan,
         },
@@ -977,19 +1059,43 @@ export default function BuilderStudio({
     if (!preset) return;
 
     updateDocument((current) => {
-      const slotKeys = new Set(TEMPLATE_SLOTS.map((slot) => `${slot.gridRow}-${slot.gridColumn}-${slot.gridSpan}`));
-      const retained = current.blocks.filter((block) => !slotKeys.has(`${block.gridRow}-${block.gridColumn}-${block.gridSpan}`));
+      let retained = current.blocks;
+      for (const slot of TEMPLATE_SLOTS) {
+        retained = removeBlocksInSlot(retained, slot.id);
+      }
 
-      const slotBlocks = TEMPLATE_SLOTS.map((slot) => {
-        const type = preset.slots[slot.id];
-        const block = createBlock(type);
-        return {
-          ...block,
-          gridRow: slot.gridRow,
-          gridColumn: slot.gridColumn,
-          gridSpan: slot.gridSpan,
-        };
+      const slotBlocks: BuilderBlock[] = [];
+
+      const headerBlock = createBlock(preset.slots.header);
+      slotBlocks.push({
+        ...headerBlock,
+        gridRow: getSlotPlacement("header").gridRow,
+        gridColumn: getSlotPlacement("header").gridColumn,
+        gridSpan: getSlotPlacement("header").gridSpan,
       });
+
+      const menuBlock = createBlock(preset.slots.menu);
+      slotBlocks.push({
+        ...menuBlock,
+        gridRow: getSlotPlacement("menu").gridRow,
+        gridColumn: getSlotPlacement("menu").gridColumn,
+        gridSpan: getSlotPlacement("menu").gridSpan,
+      });
+
+      const zoneSlots: Array<"left" | "center" | "right"> = ["left", "center", "right"];
+      for (const zone of zoneSlots) {
+        const placement = getSlotPlacement(zone);
+        const zoneBlocks = preset.slots[zone];
+        zoneBlocks.forEach((type, index) => {
+          const block = createBlock(type);
+          slotBlocks.push({
+            ...block,
+            gridRow: placement.gridRow + index,
+            gridColumn: placement.gridColumn,
+            gridSpan: placement.gridSpan,
+          });
+        });
+      }
 
       return {
         ...current,
@@ -1004,8 +1110,10 @@ export default function BuilderStudio({
 
   function clearTemplateSlots() {
     updateDocument((current) => {
-      const slotKeys = new Set(TEMPLATE_SLOTS.map((slot) => `${slot.gridRow}-${slot.gridColumn}-${slot.gridSpan}`));
-      const retained = current.blocks.filter((block) => !slotKeys.has(`${block.gridRow}-${block.gridColumn}-${block.gridSpan}`));
+      let retained = current.blocks;
+      for (const slot of TEMPLATE_SLOTS) {
+        retained = removeBlocksInSlot(retained, slot.id);
+      }
       return {
         ...current,
         blocks: normalizeBuilderBlocks(retained),
@@ -1657,8 +1765,8 @@ export default function BuilderStudio({
                 </div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Center Template</p>
                 <div className="space-y-3">
-                  {TEMPLATE_SLOTS.filter((slot) => slot.id === "menu" || slot.id === "header").map((slot) => {
-                    const block = findBlockInSlot(slot.id);
+                  {TEMPLATE_SLOTS.filter((slot) => slot.id === "header" || slot.id === "menu").map((slot) => {
+                    const block = findPrimaryBlockInSlot(slot.id);
                     const isOver = gridDragOverCell === slot.id;
                     const slotGuide = SLOT_GUIDANCE[slot.id];
                     const blockLabel = block
@@ -1701,15 +1809,14 @@ export default function BuilderStudio({
                     );
                   })}
 
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {TEMPLATE_SLOTS.filter((slot) => slot.id.startsWith("col-")).map((slot) => {
-                      const block = findBlockInSlot(slot.id);
+                  <div className="grid gap-3 md:grid-cols-12">
+                    {TEMPLATE_SLOTS.filter((slot) => slot.id === "left" || slot.id === "center" || slot.id === "right").map((slot) => {
+                      const blocks = findBlocksInSlot(slot.id);
                       const isOver = gridDragOverCell === slot.id;
                       const slotGuide = SLOT_GUIDANCE[slot.id];
-                      const blockLabel = block
-                        ? BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type
-                        : null;
-                      const showMismatch = !!block && !isRecommendedForSlot(slot.id, block.type);
+                      const zoneWidthClass = slot.id === "center" ? "md:col-span-6" : "md:col-span-3";
+                      const limit = slotLimit(slot.id);
+                      const isAtLimit = blocks.length >= limit;
 
                       return (
                         <div
@@ -1719,28 +1826,41 @@ export default function BuilderStudio({
                             setGridDragOverCell(slot.id);
                           }}
                           onDrop={(event) => handleTemplateSlotDrop(event, slot.id)}
-                          className={`min-h-[140px] rounded-xl border px-3 py-3 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
+                          className={`${zoneWidthClass} min-h-[140px] rounded-xl border px-3 py-3 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
                             <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">{slotGuide.iconLabel}</span>
                           </div>
                           <p className="mb-2 text-[11px] text-zinc-500">{slotGuide.hint}</p>
-                          {block ? (
-                            <div
-                              draggable
-                              onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
-                              onClick={() => setSelectedBlockId(block.id)}
-                              className="cursor-grab rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2"
-                            >
-                              <p className="text-sm font-medium text-white">{blockLabel}</p>
-                              <p className="text-xs text-zinc-500">Drag to another slot to move</p>
-                              {showMismatch ? (
-                                <p className="mt-1 text-[11px] text-amber-300">Not a typical fit for this slot.</p>
-                              ) : null}
-                            </div>
-                          ) : (
+                          <p className={`mb-2 text-[11px] ${isAtLimit ? "text-amber-300" : "text-zinc-500"}`}>
+                            {blocks.length}/{limit} used{isAtLimit ? " - zone full" : ""}
+                          </p>
+                          {blocks.length === 0 ? (
                             <p className="text-xs text-zinc-500">Drop a component here</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {blocks.map((block) => {
+                                const blockLabel =
+                                  BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
+                                const showMismatch = !isRecommendedForSlot(slot.id, block.type);
+                                return (
+                                  <div
+                                    key={`slot-${slot.id}-${block.id}`}
+                                    draggable
+                                    onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                                    onClick={() => setSelectedBlockId(block.id)}
+                                    className="cursor-grab rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2"
+                                  >
+                                    <p className="text-sm font-medium text-white">{blockLabel}</p>
+                                    <p className="text-xs text-zinc-500">Drag to another slot to move</p>
+                                    {showMismatch ? (
+                                      <p className="mt-1 text-[11px] text-amber-300">Not a typical fit for this slot.</p>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       );

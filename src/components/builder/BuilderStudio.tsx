@@ -180,6 +180,46 @@ const TEMPLATE_SLOTS: Array<{
   { id: "col-3", label: "Column 3", gridColumn: 9, gridSpan: 4, gridRow: 3 },
 ];
 
+const TEMPLATE_PRESETS: Array<{
+  id: "social" | "shop" | "community";
+  label: string;
+  slots: Record<TemplateSlotId, BuilderBlockType>;
+}> = [
+  {
+    id: "social",
+    label: "Social",
+    slots: {
+      menu: "top-menu",
+      header: "profile-header",
+      "col-1": "post-feed",
+      "col-2": "friends-list",
+      "col-3": "media-widget",
+    },
+  },
+  {
+    id: "shop",
+    label: "Shop",
+    slots: {
+      menu: "top-menu",
+      header: "profile-header",
+      "col-1": "product-grid",
+      "col-2": "post-feed",
+      "col-3": "sidebar",
+    },
+  },
+  {
+    id: "community",
+    label: "Community",
+    slots: {
+      menu: "top-menu",
+      header: "profile-header",
+      "col-1": "friends-list",
+      "col-2": "post-feed",
+      "col-3": "sidebar",
+    },
+  },
+];
+
 function normalizeHandle(value: string | null | undefined): string {
   return (value || "").replace(/^@+/, "").trim();
 }
@@ -804,6 +844,49 @@ export default function BuilderStudio({
     setGridDragOverCell(null);
   }
 
+  function applyTemplatePreset(presetId: "social" | "shop" | "community") {
+    const preset = TEMPLATE_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) return;
+
+    updateDocument((current) => {
+      const slotKeys = new Set(TEMPLATE_SLOTS.map((slot) => `${slot.gridRow}-${slot.gridColumn}-${slot.gridSpan}`));
+      const retained = current.blocks.filter((block) => !slotKeys.has(`${block.gridRow}-${block.gridColumn}-${block.gridSpan}`));
+
+      const slotBlocks = TEMPLATE_SLOTS.map((slot) => {
+        const type = preset.slots[slot.id];
+        const block = createBlock(type);
+        return {
+          ...block,
+          gridRow: slot.gridRow,
+          gridColumn: slot.gridColumn,
+          gridSpan: slot.gridSpan,
+        };
+      });
+
+      return {
+        ...current,
+        blocks: normalizeBuilderBlocks([...retained, ...slotBlocks]),
+      };
+    });
+
+    setSelectedBlockId(null);
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setPersistMessage(`Applied ${preset.label} slot preset.`);
+  }
+
+  function clearTemplateSlots() {
+    updateDocument((current) => {
+      const slotKeys = new Set(TEMPLATE_SLOTS.map((slot) => `${slot.gridRow}-${slot.gridColumn}-${slot.gridSpan}`));
+      const retained = current.blocks.filter((block) => !slotKeys.has(`${block.gridRow}-${block.gridColumn}-${block.gridSpan}`));
+      return {
+        ...current,
+        blocks: normalizeBuilderBlocks(retained),
+      };
+    });
+    setSelectedBlockId(null);
+    setPersistMessage("Template slots cleared.");
+  }
+
   function continueFromGridStep() {
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
     setWizardStep(3);
@@ -1381,6 +1464,25 @@ export default function BuilderStudio({
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {TEMPLATE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyTemplatePreset(preset.id)}
+                      className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={clearTemplateSlots}
+                    className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
+                  >
+                    Clear
+                  </button>
+                </div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Center Template</p>
                 <div className="space-y-3">
                   {TEMPLATE_SLOTS.filter((slot) => slot.id === "menu" || slot.id === "header").map((slot) => {

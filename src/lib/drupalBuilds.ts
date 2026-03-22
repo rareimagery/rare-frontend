@@ -324,29 +324,40 @@ export async function saveBuildsDetailed(
   }
 
   const serialized = serializeBuildDocument(builds);
+  const patchUrl = `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${uuid}`;
+
+  async function patchWithHeaders(headers: Record<string, string>) {
+    return fetch(patchUrl, {
+      method: "PATCH",
+      headers: {
+        ...headers,
+        "Content-Type": "application/vnd.api+json",
+        Accept: "application/vnd.api+json",
+      },
+      body: JSON.stringify({
+        data: {
+          type: "commerce_store--online",
+          id: uuid,
+          attributes: {
+            field_page_builds: serialized,
+          },
+        },
+      }),
+    });
+  }
 
   try {
     const writeHeaders = await drupalWriteHeaders();
-    const res = await fetch(
-      `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${uuid}`,
-      {
-        method: "PATCH",
-        headers: {
-          ...writeHeaders,
-          "Content-Type": "application/vnd.api+json",
-          Accept: "application/vnd.api+json",
-        },
-        body: JSON.stringify({
-          data: {
-            type: "commerce_store--online",
-            id: uuid,
-            attributes: {
-              field_page_builds: serialized,
-            },
-          },
-        }),
+    let res = await patchWithHeaders(writeHeaders);
+
+    // Some environments return a session cookie for a low-privilege user.
+    // Retry once with Basic/Bearer auth headers if the initial write is forbidden.
+    if (res.status === 403) {
+      const fallbackHeaders = drupalAuthHeaders();
+      if (Object.keys(fallbackHeaders).length > 0) {
+        res = await patchWithHeaders(fallbackHeaders);
       }
-    );
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");

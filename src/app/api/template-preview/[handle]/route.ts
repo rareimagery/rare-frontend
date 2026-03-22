@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCreatorProfile, getProductsByStoreSlug } from "@/lib/drupal";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function stripHtml(input: string | null | undefined): string {
   if (!input) return "";
   return input.replace(/<[^>]*>/g, "").trim();

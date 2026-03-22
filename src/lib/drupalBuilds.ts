@@ -34,6 +34,12 @@ export interface BuildStorageInspection {
   builds: Build[];
 }
 
+export interface SaveBuildsResult {
+  ok: boolean;
+  status?: number;
+  error?: string;
+}
+
 function isBuild(value: unknown): value is Build {
   if (!value || typeof value !== "object") return false;
 
@@ -298,30 +304,64 @@ export async function saveBuilds(
   storeSlug: string,
   builds: Build[]
 ): Promise<boolean> {
+  const result = await saveBuildsDetailed(storeSlug, builds);
+  if (!result.ok) {
+    console.error(`[builds] saveBuilds failed for ${storeSlug}: ${result.error || "unknown error"}`);
+  }
+  return result.ok;
+}
+
+export async function saveBuildsDetailed(
+  storeSlug: string,
+  builds: Build[]
+): Promise<SaveBuildsResult> {
   const uuid = await resolveStoreUuid(storeSlug);
-  if (!uuid) return false;
+  if (!uuid) {
+    return {
+      ok: false,
+      error: `Store not found for slug: ${storeSlug}`,
+    };
+  }
 
-  const writeHeaders = await drupalWriteHeaders();
-  const res = await fetch(
-    `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${uuid}`,
-    {
-      method: "PATCH",
-      headers: {
-        ...writeHeaders,
-        "Content-Type": "application/vnd.api+json",
-        Accept: "application/vnd.api+json",
-      },
-      body: JSON.stringify({
-        data: {
-          type: "commerce_store--online",
-          id: uuid,
-          attributes: {
-            field_page_builds: serializeBuildDocument(builds),
-          },
+  const serialized = serializeBuildDocument(builds);
+
+  try {
+    const writeHeaders = await drupalWriteHeaders();
+    const res = await fetch(
+      `${DRUPAL_API_URL}/jsonapi/commerce_store/online/${uuid}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...writeHeaders,
+          "Content-Type": "application/vnd.api+json",
+          Accept: "application/vnd.api+json",
         },
-      }),
-    }
-  );
+        body: JSON.stringify({
+          data: {
+            type: "commerce_store--online",
+            id: uuid,
+            attributes: {
+              field_page_builds: serialized,
+            },
+          },
+        }),
+      }
+    );
 
-  return res.ok;
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        ok: false,
+        status: res.status,
+        error: `Drupal PATCH failed (${res.status}). Payload bytes=${serialized.length}. ${body.slice(0, 400)}`,
+      };
+    }
+
+    return { ok: true, status: res.status };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown save error",
+    };
+  }
 }

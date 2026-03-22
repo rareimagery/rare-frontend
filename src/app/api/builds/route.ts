@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import type { JWT } from "next-auth/jwt";
-import { getBuilds, saveBuilds } from "@/lib/drupalBuilds";
+import { getBuilds, saveBuildsDetailed } from "@/lib/drupalBuilds";
 import { randomUUID } from "crypto";
 
 type StoreJWT = JWT & {
@@ -90,9 +90,12 @@ export async function POST(req: NextRequest) {
   const updated = published === true
     ? [...(builds as StoredBuild[]).map((b) => ({ ...b, published: false })), newBuild]
     : [...(builds as StoredBuild[]), newBuild];
-  const ok = await saveBuilds(slug, updated);
-  if (!ok) {
-    return NextResponse.json({ error: "Failed to persist build" }, { status: 500 });
+  const result = await saveBuildsDetailed(slug, updated);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error || "Failed to persist build" },
+      { status: result.status || 500 }
+    );
   }
 
   revalidatePath(`/stores/${slug}`);
@@ -127,9 +130,12 @@ export async function PATCH(req: NextRequest) {
     }
     return b.id === id ? { ...b, published: false } : b;
   });
-  const ok = await saveBuilds(slug, updated);
-  if (!ok) {
-    return NextResponse.json({ error: "Failed to update publish state" }, { status: 500 });
+  const result = await saveBuildsDetailed(slug, updated);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error || "Failed to update publish state" },
+      { status: result.status || 500 }
+    );
   }
 
   revalidatePath(`/stores/${slug}`);
@@ -152,9 +158,12 @@ export async function DELETE(req: NextRequest) {
   const { id } = await req.json();
   const builds = await getBuilds(slug);
   const updated = (builds as StoredBuild[]).filter((b) => b.id !== id);
-  const ok = await saveBuilds(slug, updated);
-  if (!ok) {
-    return NextResponse.json({ error: "Failed to delete build" }, { status: 500 });
+  const result = await saveBuildsDetailed(slug, updated);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error || "Failed to delete build" },
+      { status: result.status || 500 }
+    );
   }
 
   revalidatePath(`/stores/${slug}`);

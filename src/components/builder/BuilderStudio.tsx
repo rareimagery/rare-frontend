@@ -454,6 +454,24 @@ export default function BuilderStudio({
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
   const isGuidedMode = builderMode === "beginner";
   const styleReady = !!selectedStarterLayout && !!selectedThemePreset;
+  const slotBlocks = useMemo(() => {
+    return TEMPLATE_SLOTS.map((slot) => ({
+      slot,
+      block:
+        document.blocks.find(
+          (block) =>
+            block.gridRow === slot.gridRow &&
+            block.gridColumn === slot.gridColumn &&
+            block.gridSpan === slot.gridSpan
+        ) || null,
+    }));
+  }, [document.blocks]);
+  const hasMenuSlot = slotBlocks.some((entry) => entry.slot.id === "menu" && !!entry.block);
+  const hasHeaderSlot = slotBlocks.some((entry) => entry.slot.id === "header" && !!entry.block);
+  const filledColumnSlots = slotBlocks.filter((entry) => entry.slot.id.startsWith("col-") && !!entry.block).length;
+  const hasCommerceOrContentAnchor = slotBlocks.some(
+    (entry) => entry.block?.type === "product-grid" || entry.block?.type === "post-feed"
+  );
 
   const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
 
@@ -1571,18 +1589,17 @@ export default function BuilderStudio({
             </div>
 
             <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-400">
+              <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-zinc-500">Build checklist</p>
+              <ul className="space-y-1">
+                <li>{hasMenuSlot ? "[x]" : "[ ]"} Add a top menu slot</li>
+                <li>{hasHeaderSlot ? "[x]" : "[ ]"} Add a profile header slot</li>
+                <li>{filledColumnSlots >= 2 ? "[x]" : "[ ]"} Fill at least 2 of 3 columns</li>
+                <li>{hasCommerceOrContentAnchor ? "[x]" : "[ ]"} Include at least one posts or products block</li>
+              </ul>
               {step2Mode === "basic" ? (
-                <ul className="space-y-1">
-                  <li>- Start with a preset, then swap only the blocks you need.</li>
-                  <li>- Keep Menu and Header in place for a familiar structure.</li>
-                  <li>- Use columns for story: products, social proof, media.</li>
-                </ul>
+                <p className="mt-2 text-zinc-500">Basic tip: start with a preset, then swap only one or two slots.</p>
               ) : (
-                <ul className="space-y-1">
-                  <li>- Drop blocks into any grid cell for full control.</li>
-                  <li>- Set row/column/span on the selected block panel.</li>
-                  <li>- Keep key content above the fold: header + one strong column.</li>
-                </ul>
+                <p className="mt-2 text-zinc-500">Advanced tip: place your strongest conversion block in row 3, column 2 for center focus.</p>
               )}
             </div>
 

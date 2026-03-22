@@ -187,6 +187,7 @@ export default function BuilderStudio({
   const [persisting, setPersisting] = useState<"draft" | "publish" | null>(null);
   const [persistMessage, setPersistMessage] = useState("Drafts are private until you publish.");
   const [isGuidedMode, setIsGuidedMode] = useState(true);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -203,6 +204,10 @@ export default function BuilderStudio({
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
 
   const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
+
+  function advanceWizard(step: 1 | 2 | 3) {
+    setWizardStep((current) => (step > current ? step : current));
+  }
 
   function updateDocument(mutator: (current: BuilderDocument) => BuilderDocument) {
     setDocument((current) => touchDocument(mutator(current)));
@@ -463,12 +468,14 @@ export default function BuilderStudio({
 
     setSelectedBlockId(blocks[0]?.id ?? null);
     setPersistMessage(`Started from ${selected.title} layout.`);
+    advanceWizard(2);
   }
 
   function applyThemePreset(presetId: "night" | "cream" | "pop") {
     const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
     updateDocument((current) => ({ ...current, theme: selected.theme }));
     setPersistMessage(`Applied ${selected.label} theme.`);
+    advanceWizard(2);
   }
 
   function applyAiActions(actions: AiAction[]) {
@@ -573,6 +580,7 @@ export default function BuilderStudio({
 
       if (actions.length > 0) {
         applyAiActions(actions);
+        advanceWizard(3);
       }
 
       setAiMessages((prev) => [
@@ -640,49 +648,142 @@ export default function BuilderStudio({
       <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Start Here</p>
-            <p className="mt-2 text-sm text-zinc-300">Pick one action to generate your first version in under a minute.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">3-Step Wizard</p>
+            <p className="mt-2 text-sm text-zinc-300">Step {wizardStep} of 3. Pick style, let AI generate, then publish.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void runAiCopilot(helperPrompt)}
-            disabled={aiLoading}
-            className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {aiLoading ? "AI Building..." : "AI Build My First Draft"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3].map((step) => (
+              <button
+                key={step}
+                type="button"
+                onClick={() => setWizardStep(step as 1 | 2 | 3)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${wizardStep === step ? "bg-cyan-400 text-slate-950" : "border border-zinc-700 text-zinc-300"}`}
+              >
+                Step {step}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {STARTER_LAYOUTS.map((layout) => (
-            <button
-              key={layout.id}
-              type="button"
-              onClick={() => applyStarterLayout(layout.id)}
-              className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition hover:border-zinc-600"
-            >
-              <p className="text-sm font-semibold text-white">Start {layout.title}</p>
-              <p className="mt-1 text-xs text-zinc-500">{layout.blocks.join(" • ")}</p>
-            </button>
-          ))}
-        </div>
+        {wizardStep === 1 ? (
+          <>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {STARTER_LAYOUTS.map((layout) => (
+                <button
+                  key={layout.id}
+                  type="button"
+                  onClick={() => applyStarterLayout(layout.id)}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition hover:border-zinc-600"
+                >
+                  <p className="text-sm font-semibold text-white">Start {layout.title}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{layout.blocks.join(" • ")}</p>
+                </button>
+              ))}
+            </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {THEME_PRESETS.map((preset) => (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {THEME_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyThemePreset(preset.id)}
+                  className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setWizardStep(2)}
+                className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+              >
+                Continue to AI
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {wizardStep === 2 ? (
+          <>
+            <div className="mt-4 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+              {aiMessages.map((entry, index) => (
+                <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
+                  <span className={`inline-block max-w-[90%] rounded-2xl px-3 py-2 text-xs ${entry.role === "user" ? "bg-cyan-500 text-slate-950" : "bg-zinc-800 text-zinc-200"}`}>
+                    {entry.content}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void runAiCopilot(aiPrompt || helperPrompt);
+                  }
+                }}
+                placeholder="Describe your ideal site. Example: social homepage with strong creator branding"
+                className="min-w-0 flex-1 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-sm text-white outline-none focus:border-zinc-600"
+              />
+              <button
+                type="button"
+                onClick={() => void runAiCopilot(aiPrompt || helperPrompt)}
+                disabled={aiLoading}
+                className="rounded-2xl bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiLoading ? "Generating..." : "Generate"}
+              </button>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => setWizardStep(3)}
+                className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950"
+              >
+                Continue to Publish
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {wizardStep === 3 ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+            <span>Review preview, save draft, then publish when ready.</span>
             <button
-              key={preset.id}
               type="button"
-              onClick={() => applyThemePreset(preset.id)}
-              className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+              onClick={() => void persistDocument(false)}
+              disabled={persisting !== null}
+              className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200"
             >
-              {preset.label}
+              Save Draft
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              onClick={() => void persistDocument(true)}
+              disabled={persisting !== null}
+              className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950"
+            >
+              Publish Live
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
-        <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
+      <div className={`grid gap-6 ${isGuidedMode && wizardStep < 3 ? "xl:grid-cols-[minmax(0,1fr)]" : "xl:grid-cols-[320px_minmax(0,1fr)_340px]"}`}>
+        {!isGuidedMode || wizardStep >= 3 ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Block Library</h2>
@@ -814,7 +915,7 @@ export default function BuilderStudio({
               )}
             </div> : <p className="text-sm text-zinc-500">Hidden to keep the workspace focused. Use Show to manage snapshots.</p>}
           </section>
-        </aside>
+        </aside> : null}
 
         <section className="space-y-4">
           <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 px-5 py-4">
@@ -837,7 +938,7 @@ export default function BuilderStudio({
           </div>
         </section>
 
-        <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
+        {!isGuidedMode || wizardStep >= 3 ? <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
           <section>
             <h2 className="text-sm font-semibold text-white">AI Copilot</h2>
             <p className="mt-2 text-xs text-zinc-500">Describe what you want and AI will apply safe block and style edits.</p>
@@ -997,7 +1098,7 @@ export default function BuilderStudio({
               </div>
             )}
           </section>
-        </aside>
+        </aside> : null}
       </div>
     </div>
   );

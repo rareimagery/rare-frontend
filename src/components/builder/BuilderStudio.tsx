@@ -346,19 +346,30 @@ export default function BuilderStudio({
     }
   }
 
+  async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = 20000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      const data = await response.json().catch(() => null);
+      return { response, data };
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   async function loadBuilds() {
     setBuildsLoading(true);
     try {
-      const response = await fetch("/api/builds", { cache: "no-store" });
+      const { response, data } = await fetchJsonWithTimeout("/api/builds", { cache: "no-store" }, 15000);
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         const message = typeof data?.error === "string" ? data.error : "Could not load saved builds.";
         setPersistMessage(message);
         setBuilds([]);
         return;
       }
 
-      const data = await response.json();
       const nextBuilds = Array.isArray(data.builds) ? data.builds : [];
       setBuilds(nextBuilds);
 
@@ -383,6 +394,12 @@ export default function BuilderStudio({
           }
         }
       }
+    } catch (error) {
+      const message = error instanceof Error && error.name === "AbortError"
+        ? "Loading builds timed out. Please try again."
+        : "Could not load saved builds.";
+      setPersistMessage(message);
+      setBuilds([]);
     } finally {
       setBuildsLoading(false);
     }
@@ -463,7 +480,7 @@ export default function BuilderStudio({
     const previouslyPublished = builds.find((build) => build.published);
 
     try {
-      const response = await fetch("/api/builds", {
+      const { response, data } = await fetchJsonWithTimeout("/api/builds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -474,23 +491,15 @@ export default function BuilderStudio({
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         throw new Error(typeof data.error === "string" ? data.error : "Build persistence failed.");
       }
 
-      const payload = await response.json().catch(() => null) as { build?: { id?: string } } | null;
+      const payload = (data ?? null) as { build?: { id?: string } } | null;
 
-      if (published && payload?.build?.id) {
-        const publishRes = await fetch("/api/builds", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: payload.build.id, published: true }),
-        });
-        if (!publishRes.ok) {
-          const data = await publishRes.json().catch(() => ({}));
-          throw new Error(typeof data.error === "string" ? data.error : "Publish confirmation failed.");
+      if (published) {
+        if (!payload?.build?.id) {
+          throw new Error("Publish failed: server did not return a live build id.");
         }
-
         setPublishInfo({
           currentPublishedId: payload.build.id,
           previousPublishedId: previouslyPublished?.id || null,
@@ -504,7 +513,11 @@ export default function BuilderStudio({
       }
       await loadBuilds();
     } catch (error) {
-      setPersistMessage(error instanceof Error ? error.message : "Build persistence failed.");
+      if (error instanceof Error && error.name === "AbortError") {
+        setPersistMessage("Publish timed out. No changes were confirmed.");
+      } else {
+        setPersistMessage(error instanceof Error ? error.message : "Build persistence failed.");
+      }
     } finally {
       setPersisting(null);
     }
@@ -529,14 +542,13 @@ export default function BuilderStudio({
     const previouslyPublished = builds.find((build) => build.published);
 
     try {
-      const response = await fetch("/api/builds", {
+      const { response, data } = await fetchJsonWithTimeout("/api/builds", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: buildId, published: true }),
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         throw new Error(typeof data.error === "string" ? data.error : "Could not publish build.");
       }
 
@@ -548,7 +560,11 @@ export default function BuilderStudio({
       });
       await loadBuilds();
     } catch (error) {
-      setPersistMessage(error instanceof Error ? error.message : "Could not publish build.");
+      if (error instanceof Error && error.name === "AbortError") {
+        setPersistMessage("Publishing timed out. Please retry.");
+      } else {
+        setPersistMessage(error instanceof Error ? error.message : "Could not publish build.");
+      }
     } finally {
       setPersisting(null);
     }
@@ -562,27 +578,25 @@ export default function BuilderStudio({
 
     try {
       if (publishInfo.previousPublishedId) {
-        const restoreRes = await fetch("/api/builds", {
+        const { response: restoreRes, data } = await fetchJsonWithTimeout("/api/builds", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: publishInfo.previousPublishedId, published: true }),
         });
 
         if (!restoreRes.ok) {
-          const data = await restoreRes.json().catch(() => ({}));
           throw new Error(typeof data.error === "string" ? data.error : "Could not restore previous live build.");
         }
 
         setPersistMessage("Undo complete. Previous live build restored.");
       } else {
-        const unpublishRes = await fetch("/api/builds", {
+        const { response: unpublishRes, data } = await fetchJsonWithTimeout("/api/builds", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: publishInfo.currentPublishedId, published: false }),
         });
 
         if (!unpublishRes.ok) {
-          const data = await unpublishRes.json().catch(() => ({}));
           throw new Error(typeof data.error === "string" ? data.error : "Could not clear live build.");
         }
 
@@ -593,7 +607,11 @@ export default function BuilderStudio({
       setPublishInfo(null);
       await loadBuilds();
     } catch (error) {
-      setPersistMessage(error instanceof Error ? error.message : "Undo publish failed.");
+      if (error instanceof Error && error.name === "AbortError") {
+        setPersistMessage("Undo timed out. Please retry.");
+      } else {
+        setPersistMessage(error instanceof Error ? error.message : "Undo publish failed.");
+      }
     } finally {
       setPersisting(null);
     }
@@ -603,21 +621,24 @@ export default function BuilderStudio({
     setPersistMessage("Deleting build...");
 
     try {
-      const response = await fetch("/api/builds", {
+      const { response, data } = await fetchJsonWithTimeout("/api/builds", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: buildId }),
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         throw new Error(typeof data.error === "string" ? data.error : "Could not delete build.");
       }
 
       setPersistMessage("Build deleted.");
       await loadBuilds();
     } catch (error) {
-      setPersistMessage(error instanceof Error ? error.message : "Could not delete build.");
+      if (error instanceof Error && error.name === "AbortError") {
+        setPersistMessage("Delete timed out. Please retry.");
+      } else {
+        setPersistMessage(error instanceof Error ? error.message : "Could not delete build.");
+      }
     }
   }
 

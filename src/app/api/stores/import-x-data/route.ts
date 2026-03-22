@@ -115,11 +115,26 @@ export async function POST(req: NextRequest) {
     field_metrics: metricsJson,
   };
 
+  let profilePatchWarning: string | null = null;
+
   // 6. PATCH the Drupal node (text fields)
   try {
     await patchProfile(profile.uuid, attributes);
   } catch (err: any) {
     console.error("Drupal PATCH failed:", err);
+    const message = typeof err?.message === "string" ? err.message : String(err);
+    const isWorkingCopyLock =
+      /working copy/i.test(message) ||
+      /2795279/.test(message) ||
+      /not yet supported/i.test(message);
+
+    if (isWorkingCopyLock) {
+      // Drupal JSON:API cannot patch moderated entities with working copies.
+      // Continue to media upload so avatar/banner sync still succeeds.
+      profilePatchWarning =
+        "Profile text fields were skipped due to a Drupal working-copy lock; media upload continued.";
+      console.warn(`[import-x-data] ${profilePatchWarning}`);
+    } else {
     if (snapshotUuid) {
       await updateImportSnapshot(snapshotUuid, {
         status: "failed",
@@ -130,6 +145,7 @@ export async function POST(req: NextRequest) {
       { error: `Failed to save to Drupal: ${err.message}` },
       { status: 500 }
     );
+    }
   }
 
   // 7. Upload profile picture and banner to Drupal
@@ -191,6 +207,7 @@ export async function POST(req: NextRequest) {
             backgroundBanner: backgroundBannerUrl,
           },
         },
+        warning: profilePatchWarning,
       },
     });
   }
@@ -230,6 +247,7 @@ export async function POST(req: NextRequest) {
           backgroundBanner: backgroundBannerUrl,
         },
       },
+      warning: profilePatchWarning,
       verified: xData.verified,
     },
   });

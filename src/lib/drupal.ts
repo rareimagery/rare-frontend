@@ -459,9 +459,9 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
   const profilePicUrl =
     resolveImageFromRelationship(rels?.field_profile_picture?.data, included) ||
     firstNonEmptyString(
-      attrs?.field_x_avatar_url,
       attrs?.field_profile_picture_url,
-      attrs?.field_profile_image_url
+      attrs?.field_profile_image_url,
+      attrs?.field_x_avatar_url
     );
 
   const bannerUrl =

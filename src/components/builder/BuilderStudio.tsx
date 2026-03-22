@@ -249,6 +249,11 @@ export default function BuilderStudio({
         "I am your builder copilot. Ask for a layout and I can add sections, rename your store page, and tune colors.",
     },
   ]);
+  const [publishInfo, setPublishInfo] = useState<{
+    currentPublishedId: string;
+    previousPublishedId: string | null;
+    publishedAtIso: string;
+  } | null>(null);
   const hydratedFromBuild = useRef(false);
 
   const activeHandle = useMemo(() => normalizeHandle(searchParams.get("handle") || document.meta.handle || defaultHandle || defaultStoreSlug), [searchParams, document.meta.handle, defaultHandle, defaultStoreSlug]);
@@ -354,6 +359,15 @@ export default function BuilderStudio({
       const nextBuilds = Array.isArray(data.builds) ? data.builds : [];
       setBuilds(nextBuilds);
 
+      const live = [...nextBuilds].reverse().find((build) => build?.published === true);
+      if (live?.id) {
+        setPublishInfo((current) => ({
+          currentPublishedId: live.id,
+          previousPublishedId: current?.previousPublishedId || null,
+          publishedAtIso: current && current.currentPublishedId === live.id ? current.publishedAtIso : new Date().toISOString(),
+        }));
+      }
+
       if (!hydratedFromBuild.current) {
         const firstLoadable = [...nextBuilds].reverse().find((build) => parseStoredBuilderDocument(build.code));
         if (firstLoadable) {
@@ -443,6 +457,7 @@ export default function BuilderStudio({
 
     const nextDocument = touchDocument(document);
     setDocument(nextDocument);
+    const previouslyPublished = builds.find((build) => build.published);
 
     try {
       const response = await fetch("/api/builds", {
@@ -472,6 +487,12 @@ export default function BuilderStudio({
           const data = await publishRes.json().catch(() => ({}));
           throw new Error(typeof data.error === "string" ? data.error : "Publish confirmation failed.");
         }
+
+        setPublishInfo({
+          currentPublishedId: payload.build.id,
+          previousPublishedId: previouslyPublished?.id || null,
+          publishedAtIso: new Date().toISOString(),
+        });
       }
 
       setPersistMessage(published ? "Published to your live store." : "Draft saved successfully.");
@@ -502,6 +523,7 @@ export default function BuilderStudio({
   async function publishExistingBuild(buildId: string) {
     setPersisting("publish");
     setPersistMessage("Publishing selected build...");
+    const previouslyPublished = builds.find((build) => build.published);
 
     try {
       const response = await fetch("/api/builds", {
@@ -516,9 +538,59 @@ export default function BuilderStudio({
       }
 
       setPersistMessage("Selected build is now live.");
+      setPublishInfo({
+        currentPublishedId: buildId,
+        previousPublishedId: previouslyPublished?.id === buildId ? null : previouslyPublished?.id || null,
+        publishedAtIso: new Date().toISOString(),
+      });
       await loadBuilds();
     } catch (error) {
       setPersistMessage(error instanceof Error ? error.message : "Could not publish build.");
+    } finally {
+      setPersisting(null);
+    }
+  }
+
+  async function undoPublish() {
+    if (!publishInfo) return;
+
+    setPersisting("publish");
+    setPersistMessage("Reverting publish...");
+
+    try {
+      if (publishInfo.previousPublishedId) {
+        const restoreRes = await fetch("/api/builds", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: publishInfo.previousPublishedId, published: true }),
+        });
+
+        if (!restoreRes.ok) {
+          const data = await restoreRes.json().catch(() => ({}));
+          throw new Error(typeof data.error === "string" ? data.error : "Could not restore previous live build.");
+        }
+
+        setPersistMessage("Undo complete. Previous live build restored.");
+      } else {
+        const unpublishRes = await fetch("/api/builds", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: publishInfo.currentPublishedId, published: false }),
+        });
+
+        if (!unpublishRes.ok) {
+          const data = await unpublishRes.json().catch(() => ({}));
+          throw new Error(typeof data.error === "string" ? data.error : "Could not clear live build.");
+        }
+
+        setPersistMessage("Undo complete. No build is currently live.");
+      }
+
+      setWizardProgress((current) => ({ ...current, published: false }));
+      setPublishInfo(null);
+      await loadBuilds();
+    } catch (error) {
+      setPersistMessage(error instanceof Error ? error.message : "Undo publish failed.");
     } finally {
       setPersisting(null);
     }
@@ -877,24 +949,51 @@ export default function BuilderStudio({
         ) : null}
 
         {wizardStep === 3 ? (
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-300">
-            <span>Review preview, save draft, then publish when ready.</span>
-            <button
-              type="button"
-              onClick={() => void persistDocument(false)}
-              disabled={persisting !== null}
-              className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200"
-            >
-              Save Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => void persistDocument(true)}
-              disabled={persisting !== null}
-              className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950"
-            >
-              Publish Live
-            </button>
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+              <span>Review preview, save draft, then publish when ready.</span>
+              <button
+                type="button"
+                onClick={() => void persistDocument(false)}
+                disabled={persisting !== null}
+                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => void persistDocument(true)}
+                disabled={persisting !== null}
+                className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950"
+              >
+                Publish Live
+              </button>
+            </div>
+
+            {publishInfo ? (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                <p className="font-semibold text-emerald-200">Published live</p>
+                <p className="mt-1 text-xs text-emerald-200/80">{new Date(publishInfo.publishedAtIso).toLocaleString()}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a
+                    href={`/stores/${previewData.handle || document.meta.handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-emerald-300/50 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:border-emerald-200"
+                  >
+                    Open Live Store
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void undoPublish()}
+                    disabled={persisting !== null}
+                    className="rounded-full border border-amber-300/50 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Undo Publish
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -346,6 +346,7 @@ export default function BuilderStudio({
   const [selectedThemePreset, setSelectedThemePreset] = useState<ThemePresetId | null>(null);
   const [gridDragOverIndex, setGridDragOverIndex] = useState<number | null>(null);
   const [gridDragOverCell, setGridDragOverCell] = useState<string | null>(null);
+  const [resizeDrag, setResizeDrag] = useState<{ blockId: string; startX: number; startSpan: number } | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -394,18 +395,51 @@ export default function BuilderStudio({
     }));
   }
 
-  function updateSelectedBlockGrid(partial: Partial<Pick<BuilderBlock, "gridColumn" | "gridSpan" | "gridRow">>) {
-    if (!selectedBlock) return;
+  function updateBlockGrid(
+    blockId: string,
+    partial: Partial<Pick<BuilderBlock, "gridColumn" | "gridSpan" | "gridRow">>,
+    options?: { announce?: boolean }
+  ) {
+    const announce = options?.announce ?? true;
 
-    updateSelectedBlock((block) => ({
-      ...block,
-      gridSpan: Math.max(1, Math.min(12, partial.gridSpan ?? block.gridSpan)),
-      gridColumn: Math.max(1, Math.min(13 - Math.max(1, Math.min(12, partial.gridSpan ?? block.gridSpan)), partial.gridColumn ?? block.gridColumn)),
-      gridRow: Math.max(1, partial.gridRow ?? block.gridRow),
-    }));
+    updateDocument((current) => {
+      const blocks = current.blocks.map((block) => {
+        if (block.id !== blockId) return block;
+
+        const nextSpan = Math.max(1, Math.min(12, partial.gridSpan ?? block.gridSpan));
+        const nextColumn = Math.max(1, Math.min(13 - nextSpan, partial.gridColumn ?? block.gridColumn));
+        const nextRow = Math.max(1, partial.gridRow ?? block.gridRow);
+
+        return {
+          ...block,
+          gridSpan: nextSpan,
+          gridColumn: nextColumn,
+          gridRow: nextRow,
+        };
+      });
+
+      return {
+        ...current,
+        blocks: normalizeBuilderBlocks(blocks),
+      };
+    });
 
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
-    setPersistMessage("Grid placement updated.");
+    if (announce) {
+      setPersistMessage("Grid placement updated.");
+    }
+  }
+
+  function updateSelectedBlockGrid(partial: Partial<Pick<BuilderBlock, "gridColumn" | "gridSpan" | "gridRow">>) {
+    if (!selectedBlock) return;
+    updateBlockGrid(selectedBlock.id, partial, { announce: true });
+  }
+
+  function beginSpanResize(event: React.MouseEvent<HTMLButtonElement>, block: BuilderBlock) {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedBlockId(block.id);
+    setResizeDrag({ blockId: block.id, startX: event.clientX, startSpan: block.gridSpan });
   }
 
   async function loadPreviewData(): Promise<BuilderPreviewData | null> {
@@ -633,6 +667,31 @@ export default function BuilderStudio({
       setSelectedBlockId(document.blocks[0].id);
     }
   }, [document.blocks, selectedBlockId]);
+
+  useEffect(() => {
+    if (!resizeDrag) return;
+    const drag = resizeDrag;
+
+    function handleMouseMove(event: MouseEvent) {
+      const delta = event.clientX - drag.startX;
+      const spanDelta = Math.round(delta / 80);
+      const nextSpan = Math.max(1, Math.min(12, drag.startSpan + spanDelta));
+      updateBlockGrid(drag.blockId, { gridSpan: nextSpan }, { announce: false });
+    }
+
+    function handleMouseUp() {
+      setResizeDrag(null);
+      setPersistMessage("Block width updated.");
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [resizeDrag]);
 
   function insertBlock(type: BuilderBlockType, index = document.blocks.length) {
     const nextBlock = createBlock(type);
@@ -1388,6 +1447,40 @@ export default function BuilderStudio({
                       >
                         <p className="text-xs font-semibold text-white">{label}</p>
                         <p className="mt-1 text-[11px] text-zinc-500">Drag to move • row {block.gridRow} • col {block.gridColumn} • span {block.gridSpan}</p>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                updateBlockGrid(block.id, { gridSpan: Math.max(1, block.gridSpan - 1) });
+                              }}
+                              className="rounded border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-400"
+                              title="Narrower"
+                            >
+                              -
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                updateBlockGrid(block.id, { gridSpan: Math.min(12, block.gridSpan + 1) });
+                              }}
+                              className="rounded border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:border-zinc-400"
+                              title="Wider"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onMouseDown={(event) => beginSpanResize(event, block)}
+                            className={`cursor-ew-resize rounded border px-2 py-0.5 text-[10px] ${resizeDrag?.blockId === block.id ? "border-cyan-400 text-cyan-200" : "border-zinc-600 text-zinc-400 hover:border-zinc-400"}`}
+                            title="Drag left or right to resize span"
+                          >
+                            resize
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

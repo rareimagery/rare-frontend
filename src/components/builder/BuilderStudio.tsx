@@ -24,6 +24,72 @@ type SavedBuild = {
   published?: boolean;
 };
 
+type AiMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+type AiAction =
+  | { type: "add_block"; blockType: BuilderBlockType }
+  | { type: "remove_block"; blockType: BuilderBlockType }
+  | { type: "set_theme"; field: keyof BuilderTheme; value: string }
+  | { type: "set_name"; name: string }
+  | { type: "set_block_prop"; blockType: BuilderBlockType; key: string; value: string | number | boolean };
+
+const STARTER_LAYOUTS: Array<{ id: "minimal" | "social" | "shop"; title: string; blocks: BuilderBlockType[] }> = [
+  { id: "minimal", title: "Minimal", blocks: ["top-menu", "profile-header", "product-grid"] },
+  { id: "social", title: "Social", blocks: ["top-menu", "profile-header", "post-feed", "friends-list"] },
+  { id: "shop", title: "Shop", blocks: ["top-menu", "profile-header", "sidebar", "product-grid", "media-widget"] },
+];
+
+const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop"; label: string; theme: BuilderTheme }> = [
+  {
+    id: "night",
+    label: "Night Studio",
+    theme: {
+      pageBg: "#090f1d",
+      menuBg: "#0f172a",
+      sidebarBg: "#101827",
+      surface: "#131c2e",
+      surfaceMuted: "#1c2740",
+      accent: "#60a5fa",
+      textPrimary: "#f8fafc",
+      textSecondary: "#94a3b8",
+      border: "#334155",
+    },
+  },
+  {
+    id: "cream",
+    label: "Cream Editorial",
+    theme: {
+      pageBg: "#f6f0e6",
+      menuBg: "#fffaf0",
+      sidebarBg: "#efe4d0",
+      surface: "#fffdf8",
+      surfaceMuted: "#f3e7d4",
+      accent: "#b45309",
+      textPrimary: "#1f2937",
+      textSecondary: "#6b7280",
+      border: "#d6c6ab",
+    },
+  },
+  {
+    id: "pop",
+    label: "Pop Energy",
+    theme: {
+      pageBg: "#06141f",
+      menuBg: "#0a2438",
+      sidebarBg: "#10334b",
+      surface: "#0f2a3f",
+      surfaceMuted: "#153952",
+      accent: "#22d3ee",
+      textPrimary: "#ecfeff",
+      textSecondary: "#a5f3fc",
+      border: "#1e566f",
+    },
+  },
+];
+
 const BLOCK_LIBRARY: Array<{ type: BuilderBlockType; label: string; description: string }> = [
   { type: "top-menu", label: "Top menu", description: "Navigation pills across the top of the page." },
   { type: "profile-header", label: "Profile header", description: "Banner, avatar, intro, and CTA." },
@@ -54,6 +120,21 @@ function normalizeHandle(value: string | null | undefined): string {
 function fallbackBuildLabel(document: BuilderDocument, published: boolean): string {
   const timestamp = new Date().toLocaleString();
   return `${document.meta.name} ${published ? "Publish" : "Draft"} ${timestamp}`;
+}
+
+function extractJsonObject(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) {
+    return JSON.parse(trimmed);
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+  }
+
+  throw new Error("No JSON object found in AI response.");
 }
 
 function mapFriends(value: unknown): BuilderPreviewData["friends"] {
@@ -105,10 +186,23 @@ export default function BuilderStudio({
   const [buildsLoading, setBuildsLoading] = useState(true);
   const [persisting, setPersisting] = useState<"draft" | "publish" | null>(null);
   const [persistMessage, setPersistMessage] = useState("Drafts are private until you publish.");
+  const [isGuidedMode, setIsGuidedMode] = useState(true);
+  const [showBuildHistory, setShowBuildHistory] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "I am your builder copilot. Ask for a layout and I can add sections, rename your store page, and tune colors.",
+    },
+  ]);
   const hydratedFromBuild = useRef(false);
 
   const activeHandle = useMemo(() => normalizeHandle(searchParams.get("handle") || document.meta.handle || defaultHandle || defaultStoreSlug), [searchParams, document.meta.handle, defaultHandle, defaultStoreSlug]);
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
+
+  const helperPrompt = `Handle @${previewData.handle || document.meta.handle}. Build a starter that includes top menu, profile header, post feed, and product grid with readable text contrast.`;
 
   function updateDocument(mutator: (current: BuilderDocument) => BuilderDocument) {
     setDocument((current) => touchDocument(mutator(current)));
@@ -354,15 +448,169 @@ export default function BuilderStudio({
     }
   }
 
+  function applyStarterLayout(layoutId: "minimal" | "social" | "shop") {
+    const selected = STARTER_LAYOUTS.find((layout) => layout.id === layoutId) || STARTER_LAYOUTS[0];
+    const blocks = selected.blocks.map((type) => createBlock(type));
+
+    updateDocument((current) => ({
+      ...current,
+      meta: {
+        ...current.meta,
+        name: `@${previewData.handle || current.meta.handle} ${selected.title} site`,
+      },
+      blocks,
+    }));
+
+    setSelectedBlockId(blocks[0]?.id ?? null);
+    setPersistMessage(`Started from ${selected.title} layout.`);
+  }
+
+  function applyThemePreset(presetId: "night" | "cream" | "pop") {
+    const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
+    updateDocument((current) => ({ ...current, theme: selected.theme }));
+    setPersistMessage(`Applied ${selected.label} theme.`);
+  }
+
+  function applyAiActions(actions: AiAction[]) {
+    let changed = 0;
+
+    updateDocument((current) => {
+      let next = { ...current, blocks: [...current.blocks], theme: { ...current.theme } };
+
+      for (const action of actions) {
+        if (action.type === "add_block") {
+          if (!BLOCK_LIBRARY.some((item) => item.type === action.blockType)) continue;
+          next.blocks.push(createBlock(action.blockType));
+          changed += 1;
+          continue;
+        }
+
+        if (action.type === "remove_block") {
+          const index = next.blocks.findIndex((block) => block.type === action.blockType);
+          if (index >= 0) {
+            next.blocks.splice(index, 1);
+            changed += 1;
+          }
+          continue;
+        }
+
+        if (action.type === "set_name") {
+          next.meta = { ...next.meta, name: action.name.trim() || next.meta.name };
+          changed += 1;
+          continue;
+        }
+
+        if (action.type === "set_theme") {
+          if (!THEME_FIELDS.some((field) => field.key === action.field)) continue;
+          next.theme[action.field] = action.value;
+          changed += 1;
+          continue;
+        }
+
+        if (action.type === "set_block_prop") {
+          const index = next.blocks.findIndex((block) => block.type === action.blockType);
+          if (index < 0) continue;
+
+          const target = next.blocks[index] as unknown as Record<string, unknown>;
+          if (!(action.key in target)) continue;
+          target[action.key] = action.value;
+          next.blocks[index] = target as unknown as BuilderBlock;
+          changed += 1;
+        }
+      }
+
+      return next;
+    });
+
+    setPersistMessage(changed > 0 ? `AI copilot applied ${changed} change${changed === 1 ? "" : "s"}.` : "AI did not find safe changes to apply.");
+  }
+
+  async function runAiCopilot(prompt: string) {
+    const trimmed = prompt.trim();
+    if (!trimmed || aiLoading) return;
+
+    setAiLoading(true);
+    setAiPrompt("");
+    setAiMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+
+    const summary = {
+      handle: previewData.handle || document.meta.handle,
+      blockTypes: document.blocks.map((block) => block.type),
+      hasProducts: previewData.products.length > 0,
+      hasPosts: previewData.posts.length > 0,
+      theme: document.theme,
+    };
+
+    const message = [
+      "You are a website builder copilot.",
+      "Return strict JSON only.",
+      "Schema: { summary: string, actions: AiAction[] }.",
+      "AiAction types:",
+      "1) { type: 'add_block', blockType: 'top-menu'|'profile-header'|'sidebar'|'friends-list'|'post-feed'|'product-grid'|'media-widget'|'custom-embed' }",
+      "2) { type: 'remove_block', blockType: ... }",
+      "3) { type: 'set_name', name: string }",
+      "4) { type: 'set_theme', field: 'pageBg'|'menuBg'|'sidebarBg'|'surface'|'surfaceMuted'|'accent'|'textPrimary'|'textSecondary'|'border', value: string }",
+      "5) { type: 'set_block_prop', blockType: ..., key: string, value: string|number|boolean }",
+      "Keep actions safe and minimal.",
+      `Current builder state: ${JSON.stringify(summary)}`,
+      `User request: ${trimmed}`,
+    ].join("\n");
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, theme: "template-builder" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("AI copilot request failed.");
+      }
+
+      const raw = await response.text();
+      const parsed = extractJsonObject(raw) as { summary?: string; actions?: AiAction[] };
+      const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+
+      if (actions.length > 0) {
+        applyAiActions(actions);
+      }
+
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: parsed.summary || (actions.length > 0 ? `Applied ${actions.length} AI actions.` : "I reviewed your request but did not apply changes."),
+        },
+      ]);
+    } catch (error) {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: error instanceof Error ? error.message : "AI copilot failed. Please try again.",
+        },
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-zinc-800 bg-zinc-900/55 px-5 py-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Builder Rebuild</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Custom Drag-and-Drop Builder</h1>
-          <p className="mt-2 text-sm text-zinc-400">Block-first page composer with real sidebar, menu, friends list, color controls, and explicit draft/publish actions.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Guided Builder</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white">Build Your Storefront</h1>
+          <p className="mt-2 text-sm text-zinc-400">Start with AI or a starter layout, then tweak blocks only when you need to.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsGuidedMode((current) => !current)}
+            className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+          >
+            {isGuidedMode ? "Show Advanced" : "Guided View"}
+          </button>
           <button
             type="button"
             onClick={() => void loadPreviewData()}
@@ -386,6 +634,50 @@ export default function BuilderStudio({
           >
             {persisting === "publish" ? "Publishing..." : "Publish"}
           </button>
+        </div>
+      </div>
+
+      <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Start Here</p>
+            <p className="mt-2 text-sm text-zinc-300">Pick one action to generate your first version in under a minute.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void runAiCopilot(helperPrompt)}
+            disabled={aiLoading}
+            className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {aiLoading ? "AI Building..." : "AI Build My First Draft"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {STARTER_LAYOUTS.map((layout) => (
+            <button
+              key={layout.id}
+              type="button"
+              onClick={() => applyStarterLayout(layout.id)}
+              className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition hover:border-zinc-600"
+            >
+              <p className="text-sm font-semibold text-white">Start {layout.title}</p>
+              <p className="mt-1 text-xs text-zinc-500">{layout.blocks.join(" • ")}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {THEME_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => applyThemePreset(preset.id)}
+              className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -458,9 +750,18 @@ export default function BuilderStudio({
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Build History</h2>
-              <span className="text-xs text-zinc-500">{buildsLoading ? "Loading..." : builds.length}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500">{buildsLoading ? "Loading..." : builds.length}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowBuildHistory((current) => !current)}
+                  className="rounded-full border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300"
+                >
+                  {showBuildHistory ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
+            {showBuildHistory ? <div className="space-y-2">
               {buildsLoading ? (
                 <p className="text-sm text-zinc-500">Loading saved builds...</p>
               ) : builds.length === 0 ? (
@@ -511,7 +812,7 @@ export default function BuilderStudio({
                     );
                   })
               )}
-            </div>
+            </div> : <p className="text-sm text-zinc-500">Hidden to keep the workspace focused. Use Show to manage snapshots.</p>}
           </section>
         </aside>
 
@@ -538,6 +839,43 @@ export default function BuilderStudio({
 
         <aside className="space-y-5 rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4">
           <section>
+            <h2 className="text-sm font-semibold text-white">AI Copilot</h2>
+            <p className="mt-2 text-xs text-zinc-500">Describe what you want and AI will apply safe block and style edits.</p>
+
+            <div className="mt-3 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+              {aiMessages.map((entry, index) => (
+                <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
+                  <span className={`inline-block max-w-[90%] rounded-2xl px-3 py-2 text-xs ${entry.role === "user" ? "bg-cyan-500 text-slate-950" : "bg-zinc-800 text-zinc-200"}`}>
+                    {entry.content}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void runAiCopilot(aiPrompt);
+                  }
+                }}
+                placeholder="Example: make this look premium and add a friends block"
+                className="min-w-0 flex-1 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-sm text-white outline-none focus:border-zinc-600"
+              />
+              <button
+                type="button"
+                onClick={() => void runAiCopilot(aiPrompt)}
+                disabled={aiLoading || !aiPrompt.trim()}
+                className="rounded-2xl border border-cyan-500/60 px-3 py-2 text-sm text-cyan-300 transition hover:border-cyan-400 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiLoading ? "Thinking..." : "Run"}
+              </button>
+            </div>
+          </section>
+
+          <section>
             <h2 className="text-sm font-semibold text-white">Page Settings</h2>
             <div className="mt-3 space-y-3">
               <label className="block text-xs text-zinc-500">
@@ -551,7 +889,7 @@ export default function BuilderStudio({
             </div>
           </section>
 
-          <section>
+          {!isGuidedMode ? <section>
             <h2 className="text-sm font-semibold text-white">Color Controls</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               {THEME_FIELDS.map((field) => (
@@ -572,7 +910,7 @@ export default function BuilderStudio({
                 </label>
               ))}
             </div>
-          </section>
+          </section> : null}
 
           <section>
             <div className="flex items-center justify-between gap-3">

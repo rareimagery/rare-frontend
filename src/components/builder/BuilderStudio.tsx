@@ -496,10 +496,13 @@ export default function BuilderStudio({
       }
       await loadBuilds();
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : "Build persistence failed.";
       if (error instanceof Error && error.name === "AbortError") {
         setPersistMessage("Publish timed out. No changes were confirmed.");
+      } else if (errorText.includes("permission is required") || errorText.includes("PATCH failed (403)")) {
+        setPersistMessage("Save is blocked by Drupal permissions. Please ask ops to grant API write access for creator profile/store content.");
       } else {
-        setPersistMessage(error instanceof Error ? error.message : "Build persistence failed.");
+        setPersistMessage(errorText);
       }
     } finally {
       setPersisting(null);
@@ -709,6 +712,29 @@ export default function BuilderStudio({
   async function runAiCopilot(prompt: string) {
     const trimmed = prompt.trim();
     if (!trimmed || aiLoading) return;
+
+    const lower = trimmed.toLowerCase();
+    const asksForAvatarSync =
+      lower.includes("pfp") ||
+      lower.includes("avatar") ||
+      lower.includes("profile pic") ||
+      lower.includes("profile picture") ||
+      (lower.includes("import") && lower.includes("photo"));
+
+    if (asksForAvatarSync) {
+      setAiMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+      await loadPreviewData();
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Pulled latest X profile data into preview (avatar/banner/bio).",
+        },
+      ]);
+      setWizardProgress((current) => ({ ...current, aiGenerated: true }));
+      advanceWizard(3);
+      return;
+    }
 
     setAiLoading(true);
     setAiPrompt("");

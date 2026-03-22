@@ -103,6 +103,15 @@ export async function GET(
     const topPosts = (profile?.top_posts || []).slice(0, 6).map((post) => ({
       id: post.id,
       text: post.text,
+      image: post.image_url,
+    }));
+
+    const friends = (profile?.top_followers || []).slice(0, 8).map((friend, index) => ({
+      id: `${friend.username || "friend"}-${index}`,
+      username: friend.username,
+      displayName: friend.display_name,
+      avatar: friend.profile_image_url,
+      followerCount: friend.follower_count,
     }));
 
     return NextResponse.json(
@@ -111,6 +120,8 @@ export async function GET(
         avatar: profile?.profile_picture_url || fallbackAvatar(normalizedHandle),
         banner: profile?.banner_url || fallbackBanner(normalizedHandle),
         bio: stripHtml(profile?.bio),
+        followerCount: profile?.follower_count || 0,
+        friends,
         products: previewProducts,
         posts: topPosts,
       },
@@ -127,6 +138,8 @@ export async function GET(
         avatar: fallbackAvatar(normalizedHandle),
         banner: fallbackBanner(normalizedHandle),
         bio: "",
+        followerCount: 0,
+        friends: [],
         products: [],
         posts: [],
       },

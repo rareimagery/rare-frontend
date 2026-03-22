@@ -20,6 +20,7 @@ import StoreBuildRenderer from "@/components/builder/StoreBuildRenderer";
 import StoreRareProjectConversations from "@/components/StoreRareProjectConversations";
 import { getTemplateDefinition } from "@/templates/registry";
 import type { TemplatePreviewProps } from "@/templates/types";
+import { parseStoredBuilderDocument, type BuilderPreviewData } from "@/lib/builderDocument";
 
 export async function generateStaticParams() {
   try {
@@ -143,6 +144,48 @@ export default async function CreatorStorePage({
         thumbnail: post.image_url,
       })),
   };
+
+  const builderPreviewData: BuilderPreviewData = {
+    handle: profile.x_username,
+    bio: profile.bio ?? "",
+    avatar: profile.profile_picture_url ?? null,
+    banner: profile.banner_url ?? null,
+    followerCount: profile.follower_count ?? 0,
+    friends: (profile.top_followers || []).map((friend, index) => ({
+      id: `${friend.username || "friend"}-${index}`,
+      username: friend.username,
+      displayName: friend.display_name,
+      avatar: friend.profile_image_url ?? undefined,
+      followerCount: friend.follower_count,
+    })),
+    posts: (profile.top_posts || []).map((post) => ({
+      id: post.id,
+      text: post.text,
+      image: post.image_url ?? undefined,
+    })),
+    products: products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      price: Number.parseFloat(product.price || "0") || 0,
+      image: product.image_url ?? undefined,
+      description: product.description ?? undefined,
+    })),
+  };
+
+  const publishedBuilderBuilds = publishedBuilds.filter((build) => parseStoredBuilderDocument(build.code));
+
+  if (publishedBuilderBuilds.length > 0) {
+    return (
+      <>
+        <StoreNav creator={creator} />
+        <div className="pt-12">
+          <StoreBuildRenderer builds={publishedBuilderBuilds} previewData={builderPreviewData} />
+          <StoreRareProjectConversations creator={creator} />
+        </div>
+        <BuilderGate storeSlug={creator} theme={profile.store_theme} />
+      </>
+    );
+  }
 
   const templateDefinition = getTemplateDefinition(templateId);
 

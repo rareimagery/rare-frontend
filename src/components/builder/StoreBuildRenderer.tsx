@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import BuilderDocumentRenderer from "@/components/builder/BuilderDocumentRenderer";
+import { parseStoredBuilderDocument, type BuilderPreviewData } from "@/lib/builderDocument";
 
 interface Build {
   id: string;
@@ -10,6 +12,7 @@ interface Build {
 
 interface StoreBuildRendererProps {
   builds: Build[];
+  previewData?: BuilderPreviewData;
 }
 
 function buildIframeHtml(code: string): string {
@@ -111,16 +114,19 @@ function BuildIframe({ build }: { build: Build }) {
   );
 }
 
-export default function StoreBuildRenderer({ builds }: StoreBuildRendererProps) {
+export default function StoreBuildRenderer({ builds, previewData }: StoreBuildRendererProps) {
   if (!builds || builds.length === 0) return null;
 
   return (
     <div className="w-full">
-      {builds.map((build) => (
-        <div key={build.id} className="w-full">
-          <BuildIframe build={build} />
-        </div>
-      ))}
+      {builds.map((build) => {
+        const document = parseStoredBuilderDocument(build.code);
+        return (
+          <div key={build.id} className="w-full">
+            {document ? <BuilderDocumentRenderer document={document} data={previewData} /> : <BuildIframe build={build} />}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No store found" }, { status: 404 });
   }
 
-  const { label, code } = await req.json();
+  const { label, code, published } = await req.json();
   if (!label || !code) {
     return NextResponse.json(
       { error: "label and code required" },
@@ -72,11 +72,12 @@ export async function POST(req: NextRequest) {
     label,
     code,
     createdAt: new Date().toISOString(),
-    published: true,
+    published: published === true,
   };
 
-  // Auto-publish model: latest save becomes the only live build.
-  const updated = [...(builds as StoredBuild[]).map((b) => ({ ...b, published: false })), newBuild];
+  const updated = published === true
+    ? [...(builds as StoredBuild[]).map((b) => ({ ...b, published: false })), newBuild]
+    : [...(builds as StoredBuild[]), newBuild];
   const ok = await saveBuilds(slug, updated);
   if (!ok) {
     return NextResponse.json({ error: "Failed to persist build" }, { status: 500 });
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   revalidatePath(`/stores/${slug}`);
 
-  return NextResponse.json({ build: newBuild });
+  return NextResponse.json({ build: newBuild, builds: updated });
 }
 
 // PATCH — toggle published state for a build

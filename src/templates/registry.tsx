@@ -1,5 +1,4 @@
 import type { ComponentType } from "react";
-import type { Data } from "@measured/puck";
 import { BlankTemplate } from "@/templates/Blank";
 import { ModernCartTemplate } from "@/templates/ModernCart";
 import { PostsFeedTemplate } from "@/templates/PostsFeed";
@@ -7,6 +6,16 @@ import { RetroTemplate } from "@/templates/Retro";
 import { VideoStoreTemplate } from "@/templates/VideoStore";
 import { DEFAULT_TEMPLATE_ID, type TemplateId } from "@/templates/catalog";
 import type { PreviewPost, PreviewProduct, TemplatePreviewProps } from "@/templates/types";
+
+export type TemplateData = {
+  content: Array<{
+    type: string;
+    props?: Record<string, unknown>;
+  }>;
+  root: {
+    props: Record<string, unknown>;
+  };
+};
 
 export type BuilderStarterInput = {
   handle: string;
@@ -28,12 +37,12 @@ export type TemplateDefinition = {
   id: TemplateId;
   name: string;
   description: string;
-  createData: (input: BuilderStarterInput) => Data;
+  createData: (input: BuilderStarterInput) => TemplateData;
   StorefrontComponent: ComponentType<TemplatePreviewProps>;
   launchCards: TemplateLaunchCard[];
 };
 
-export const EMPTY_CANVAS: Data = {
+export const EMPTY_CANVAS: TemplateData = {
   content: [],
   root: { props: {} },
 };

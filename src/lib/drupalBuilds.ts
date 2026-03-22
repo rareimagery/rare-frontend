@@ -2,6 +2,57 @@ import { drupalAuthHeaders, drupalWriteHeaders, DRUPAL_API_URL } from "./drupal"
 
 const PROFILE_BUILDS_KEY = "builderBuildsV2";
 
+function getBasicAuthHeader(): Record<string, string> | null {
+  const user = process.env.DRUPAL_API_USER;
+  const pass = process.env.DRUPAL_API_PASS;
+  if (!user || !pass) return null;
+  return {
+    Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`,
+  };
+}
+
+function getBearerAuthHeader(): Record<string, string> | null {
+  const token = process.env.DRUPAL_API_TOKEN;
+  if (!token) return null;
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+async function getWriteAuthCandidates(): Promise<Array<Record<string, string>>> {
+  const candidates: Array<Record<string, string>> = [];
+  const seen = new Set<string>();
+
+  function pushHeaders(headers: Record<string, string> | null) {
+    if (!headers || Object.keys(headers).length === 0) return;
+    const key = Object.entries(headers)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}:${v}`)
+      .join("|");
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(headers);
+  }
+
+  // 1) Session cookie + CSRF
+  try {
+    pushHeaders(await drupalWriteHeaders());
+  } catch {
+    // ignore and continue with explicit auth headers below
+  }
+
+  // 2) Basic auth
+  pushHeaders(getBasicAuthHeader());
+
+  // 3) Bearer token
+  pushHeaders(getBearerAuthHeader());
+
+  // Final fallback to legacy helper output (if distinct)
+  pushHeaders(drupalAuthHeaders());
+
+  return candidates;
+}
+
 export interface Build {
   id: string;
   label: string;
@@ -326,14 +377,30 @@ async function saveBuildsToProfileConfig(storeSlug: string, builds: Build[]): Pr
   }
 
   try {
-    const writeHeaders = await drupalWriteHeaders();
-    let res = await patchWithHeaders(writeHeaders);
+    const authCandidates = await getWriteAuthCandidates();
+    if (authCandidates.length === 0) {
+      return {
+        ok: false,
+        error: "No Drupal write auth credentials available.",
+      };
+    }
 
-    if (res.status === 403) {
-      const fallbackHeaders = drupalAuthHeaders();
-      if (Object.keys(fallbackHeaders).length > 0) {
-        res = await patchWithHeaders(fallbackHeaders);
+    let res: Response | null = null;
+    for (const headers of authCandidates) {
+      res = await patchWithHeaders(headers);
+      if (res.ok) {
+        return { ok: true, status: res.status };
       }
+      if (res.status !== 403) {
+        break;
+      }
+    }
+
+    if (!res) {
+      return {
+        ok: false,
+        error: "No Drupal write auth candidates could be attempted.",
+      };
     }
 
     if (!res.ok) {
@@ -346,6 +413,7 @@ async function saveBuildsToProfileConfig(storeSlug: string, builds: Build[]): Pr
     }
 
     return { ok: true, status: res.status };
+
   } catch (error) {
     return {
       ok: false,
@@ -481,16 +549,30 @@ export async function saveBuildsDetailed(
   }
 
   try {
-    const writeHeaders = await drupalWriteHeaders();
-    let res = await patchWithHeaders(writeHeaders);
+    const authCandidates = await getWriteAuthCandidates();
+    if (authCandidates.length === 0) {
+      return {
+        ok: false,
+        error: "No Drupal write auth credentials available.",
+      };
+    }
 
-    // Some environments return a session cookie for a low-privilege user.
-    // Retry once with Basic/Bearer auth headers if the initial write is forbidden.
-    if (res.status === 403) {
-      const fallbackHeaders = drupalAuthHeaders();
-      if (Object.keys(fallbackHeaders).length > 0) {
-        res = await patchWithHeaders(fallbackHeaders);
+    let res: Response | null = null;
+    for (const headers of authCandidates) {
+      res = await patchWithHeaders(headers);
+      if (res.ok) {
+        return { ok: true, status: res.status };
       }
+      if (res.status !== 403) {
+        break;
+      }
+    }
+
+    if (!res) {
+      return {
+        ok: false,
+        error: "No Drupal write auth candidates could be attempted.",
+      };
     }
 
     if (!res.ok) {

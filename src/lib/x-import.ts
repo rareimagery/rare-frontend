@@ -2,7 +2,7 @@
 // X (Twitter) API v2 Data Import — raw fetch per x-api-integration.md
 // ---------------------------------------------------------------------------
 
-import { drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
+import { drupalAbsoluteUrl, drupalAuthHeaders, drupalWriteHeaders } from "@/lib/drupal";
 import { xApiHeaders, xUserHeaders, X_API_BASE } from "@/lib/x-api/client";
 import { fetchWithRetry } from "@/lib/x-api/fetch-with-retry";
 import { XApiError } from "@/lib/x-api/errors";
@@ -576,6 +576,32 @@ export async function getProfileMediaFieldState(
       profilePictureFileId: relationships?.field_profile_picture?.data?.id ?? null,
       backgroundBannerFileId: relationships?.field_background_banner?.data?.id ?? null,
     };
+  } catch {
+    return null;
+  }
+}
+
+export async function getDrupalFileAssetUrl(fileUuid: string): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      "fields[file--file]": "uri,changed,drupal_internal__fid",
+    });
+    const res = await fetch(
+      `${DRUPAL_API}/jsonapi/file/file/${fileUuid}?${params.toString()}`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const attrs = json?.data?.attributes;
+    const raw = drupalAbsoluteUrl(attrs?.uri?.url);
+    if (!raw) return null;
+
+    const version = attrs?.changed ?? attrs?.drupal_internal__fid ?? null;
+    if (!version) return raw;
+    const separator = raw.includes("?") ? "&" : "?";
+    return `${raw}${separator}v=${encodeURIComponent(String(version))}`;
   } catch {
     return null;
   }

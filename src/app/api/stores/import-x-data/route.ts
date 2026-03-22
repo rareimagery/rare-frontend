@@ -7,6 +7,7 @@ import {
   patchProfile,
   uploadImageToDrupal,
   getProfileMediaFieldState,
+  getDrupalFileAssetUrl,
   createImportSnapshot,
   updateImportSnapshot,
   findLatestSnapshot,
@@ -158,6 +159,12 @@ export async function POST(req: NextRequest) {
   }
 
   const fieldState = await getProfileMediaFieldState(profile.uuid);
+  const profilePictureFileUuid = fieldState?.profilePictureFileId ?? pfpUploadId;
+  const backgroundBannerFileUuid = fieldState?.backgroundBannerFileId ?? bannerUploadId;
+  const [profilePictureUrl, backgroundBannerUrl] = await Promise.all([
+    profilePictureFileUuid ? getDrupalFileAssetUrl(profilePictureFileUuid) : Promise.resolve(null),
+    backgroundBannerFileUuid ? getDrupalFileAssetUrl(backgroundBannerFileUuid) : Promise.resolve(null),
+  ]);
 
   if (snapshotUuid) {
     await updateImportSnapshot(snapshotUuid, {
@@ -203,6 +210,10 @@ export async function POST(req: NextRequest) {
         profileFieldIds: {
           profilePicture: fieldState?.profilePictureFileId ?? null,
           backgroundBanner: fieldState?.backgroundBannerFileId ?? null,
+        },
+        mediaUrls: {
+          profilePicture: profilePictureUrl,
+          backgroundBanner: backgroundBannerUrl,
         },
       },
       verified: xData.verified,

@@ -466,6 +466,8 @@ export default function BuilderStudio({
     let importNotice = "";
     let diagnosticsNotice = "";
     let importSucceeded = false;
+    let importedAvatarUrl: string | null = null;
+    let importedBannerUrl: string | null = null;
     try {
       const { response, data } = await fetchJsonWithTimeout("/api/stores/import-x-data", { method: "POST" }, 25000);
       if (response.ok) {
@@ -484,6 +486,13 @@ export default function BuilderStudio({
           ? data.summary.diagnostics.profileFieldIds.backgroundBanner
           : "none";
 
+        importedAvatarUrl = typeof data?.summary?.diagnostics?.mediaUrls?.profilePicture === "string"
+          ? data.summary.diagnostics.mediaUrls.profilePicture
+          : null;
+        importedBannerUrl = typeof data?.summary?.diagnostics?.mediaUrls?.backgroundBanner === "string"
+          ? data.summary.diagnostics.mediaUrls.backgroundBanner
+          : null;
+
         diagnosticsNotice = ` Sync diagnostics: upload(profile=${uploadPfp}, banner=${uploadBanner}); fields(profile=${fieldPfp}, banner=${fieldBanner}).`;
         importSucceeded = true;
       } else {
@@ -501,6 +510,14 @@ export default function BuilderStudio({
     const productCount = synced?.products.length ?? previewData.products.length;
     const successSuffix = options.includeProducts ? ` Products ready: ${productCount}.` : "";
     const finalMessage = `${importNotice}${successSuffix}${diagnosticsNotice}`.trim();
+
+    if (importedAvatarUrl || importedBannerUrl) {
+      setPreviewData((current) => ({
+        ...current,
+        avatar: importedAvatarUrl || current.avatar,
+        banner: importedBannerUrl || current.banner,
+      }));
+    }
 
     setSyncMessage(finalMessage || "Import complete.");
     setPersistMessage(finalMessage || "Import complete.");

@@ -1,5 +1,7 @@
 import { drupalAuthHeaders, drupalWriteHeaders, DRUPAL_API_URL } from "./drupal";
 
+const PROFILE_BUILDS_KEY = "builderBuildsV2";
+
 export interface Build {
   id: string;
   label: string;
@@ -226,6 +228,132 @@ async function fetchRawBuildFieldByUuid(uuid: string): Promise<string | null> {
   return json.data?.attributes?.field_page_builds ?? null;
 }
 
+async function resolveProfileUuidBySlug(slug: string): Promise<string | null> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?filter[field_x_username]=${encodeURIComponent(slug)}&fields[node--creator_x_profile]=field_store_theme_config`,
+    {
+      headers: {
+        ...drupalAuthHeaders(),
+        Accept: "application/vnd.api+json",
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.[0]?.id ?? null;
+}
+
+async function fetchProfileThemeConfigRawByUuid(uuid: string): Promise<unknown> {
+  const res = await fetch(
+    `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile/${uuid}?fields[node--creator_x_profile]=field_store_theme_config,field_x_username`,
+    {
+      headers: {
+        ...drupalAuthHeaders(),
+        Accept: "application/vnd.api+json",
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.attributes?.field_store_theme_config ?? null;
+}
+
+function parseProfileConfigObject(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function readBuildsFromProfileConfig(raw: unknown): Build[] {
+  const config = parseProfileConfigObject(raw);
+  const encoded = config[PROFILE_BUILDS_KEY];
+  if (typeof encoded !== "string") return [];
+  return parseBuildDocument(encoded).builds;
+}
+
+async function saveBuildsToProfileConfig(storeSlug: string, builds: Build[]): Promise<SaveBuildsResult> {
+  const profileUuid = await resolveProfileUuidBySlug(storeSlug);
+  if (!profileUuid) {
+    return {
+      ok: false,
+      error: `Creator profile not found for slug: ${storeSlug}`,
+    };
+  }
+
+  const existingRaw = await fetchProfileThemeConfigRawByUuid(profileUuid);
+  const config = parseProfileConfigObject(existingRaw);
+  config[PROFILE_BUILDS_KEY] = serializeBuildDocument(builds);
+
+  const endpoint = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile/${profileUuid}`;
+  const payload = JSON.stringify({
+    data: {
+      type: "node--creator_x_profile",
+      id: profileUuid,
+      attributes: {
+        field_store_theme_config: JSON.stringify(config),
+      },
+    },
+  });
+
+  async function patchWithHeaders(headers: Record<string, string>) {
+    return fetch(endpoint, {
+      method: "PATCH",
+      headers: {
+        ...headers,
+        "Content-Type": "application/vnd.api+json",
+        Accept: "application/vnd.api+json",
+      },
+      body: payload,
+      cache: "no-store",
+    });
+  }
+
+  try {
+    const writeHeaders = await drupalWriteHeaders();
+    let res = await patchWithHeaders(writeHeaders);
+
+    if (res.status === 403) {
+      const fallbackHeaders = drupalAuthHeaders();
+      if (Object.keys(fallbackHeaders).length > 0) {
+        res = await patchWithHeaders(fallbackHeaders);
+      }
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        ok: false,
+        status: res.status,
+        error: `Profile PATCH failed (${res.status}). Payload bytes=${payload.length}. ${body.slice(0, 400)}`,
+      };
+    }
+
+    return { ok: true, status: res.status };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown profile save error",
+    };
+  }
+}
+
 export async function listBuildStoreSlugs(limit = 250): Promise<string[]> {
   const params = new URLSearchParams({
     "fields[commerce_store--online]": "field_store_slug",
@@ -294,10 +422,16 @@ export async function migrateBuildStorage(storeSlug: string): Promise<BuildStora
 
 export async function getBuilds(storeSlug: string): Promise<Build[]> {
   const uuid = await resolveStoreUuid(storeSlug);
-  if (!uuid) return [];
+  if (uuid) {
+    const raw = await fetchRawBuildFieldByUuid(uuid);
+    const storeBuilds = parseBuildDocument(raw).builds;
+    if (storeBuilds.length > 0) return storeBuilds;
+  }
 
-  const raw = await fetchRawBuildFieldByUuid(uuid);
-  return parseBuildDocument(raw).builds;
+  const profileUuid = await resolveProfileUuidBySlug(storeSlug);
+  if (!profileUuid) return [];
+  const profileRaw = await fetchProfileThemeConfigRawByUuid(profileUuid);
+  return readBuildsFromProfileConfig(profileRaw);
 }
 
 export async function saveBuilds(
@@ -361,11 +495,29 @@ export async function saveBuildsDetailed(
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      return {
+      const storeError = {
         ok: false,
         status: res.status,
         error: `Drupal PATCH failed (${res.status}). Payload bytes=${serialized.length}. ${body.slice(0, 400)}`,
-      };
+      } as SaveBuildsResult;
+
+      if (res.status === 403) {
+        const profileResult = await saveBuildsToProfileConfig(storeSlug, builds);
+        if (profileResult.ok) {
+          return {
+            ok: true,
+            status: profileResult.status,
+          };
+        }
+
+        return {
+          ok: false,
+          status: profileResult.status || storeError.status,
+          error: `${storeError.error} | Fallback failed: ${profileResult.error || "unknown profile write error"}`,
+        };
+      }
+
+      return storeError;
     }
 
     return { ok: true, status: res.status };

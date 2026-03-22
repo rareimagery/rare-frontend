@@ -581,8 +581,6 @@ export async function syncXDataToDrupal(
       field_top_posts: enhanced.topPosts.map((p) => JSON.stringify(p)),
       field_top_followers: enhanced.topFollowers.map((f) => JSON.stringify(f)),
       field_metrics: JSON.stringify(enhanced.metrics),
-      field_x_avatar_url: enhanced.profileImageUrl,
-      field_x_banner_url: enhanced.bannerUrl,
     };
 
     await patchProfile(profile.uuid, attributes);

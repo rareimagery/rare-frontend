@@ -464,11 +464,13 @@ export default function BuilderStudio({
     setSyncMessage(options.includeProducts ? "Importing profile + product context from X..." : "Importing latest profile media from X...");
 
     let importNotice = "";
+    let importSucceeded = false;
     try {
       const { response, data } = await fetchJsonWithTimeout("/api/stores/import-x-data", { method: "POST" }, 25000);
       if (response.ok) {
         const postsImported = typeof data?.summary?.postsImported === "number" ? data.summary.postsImported : 0;
         importNotice = `Imported X profile data (${postsImported} posts analyzed).`;
+        importSucceeded = true;
       } else {
         if (response.status === 401) {
           importNotice = "X authorization expired. Reconnect X from your account session, then retry import.";
@@ -491,8 +493,12 @@ export default function BuilderStudio({
       {
         role: "assistant",
         content: options.includeProducts
-          ? `${importNotice} Product catalog is ready in preview.`
-          : `${importNotice} Avatar and banner are refreshed in preview.`,
+          ? importSucceeded
+            ? `${importNotice} Product catalog is ready in preview.`
+            : `${importNotice} Product sync was not applied.`
+          : importSucceeded
+            ? `${importNotice} Avatar and banner are refreshed in preview.`
+            : `${importNotice} Avatar/banner sync was not applied.`,
       },
     ]);
     // Keep the user in their current step so sync actions do not skip AI editing.

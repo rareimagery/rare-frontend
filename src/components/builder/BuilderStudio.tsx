@@ -470,7 +470,11 @@ export default function BuilderStudio({
         const postsImported = typeof data?.summary?.postsImported === "number" ? data.summary.postsImported : 0;
         importNotice = `Imported X profile data (${postsImported} posts analyzed).`;
       } else {
-        importNotice = typeof data?.error === "string" ? data.error : "X import endpoint unavailable.";
+        if (response.status === 401) {
+          importNotice = "X authorization expired. Reconnect X from your account session, then retry import.";
+        } else {
+          importNotice = typeof data?.error === "string" ? data.error : "X import endpoint unavailable.";
+        }
       }
     } catch {
       importNotice = "X import request timed out; using latest available preview data.";

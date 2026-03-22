@@ -78,15 +78,21 @@ export async function POST(req: NextRequest) {
     xData = await fetchXData(xAccessToken, xId);
   } catch (err: any) {
     console.error("X data import failed:", err);
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    const isAuthFailure = /\b401\b/.test(rawMessage) || err?.status === 401;
     if (snapshotUuid) {
       await updateImportSnapshot(snapshotUuid, {
         status: "failed",
-        errorMessage: err.message,
+        errorMessage: rawMessage,
       });
     }
     return NextResponse.json(
-      { error: `Failed to fetch X data: ${err.message}` },
-      { status: 502 }
+      {
+        error: isAuthFailure
+          ? "X authorization expired. Please reconnect your X account (log out/in with X) and try sync again."
+          : `Failed to fetch X data: ${rawMessage}`,
+      },
+      { status: isAuthFailure ? 401 : 502 }
     );
   }
 

@@ -247,7 +247,7 @@ export async function fetchXData(
       const tb = b.date ? Date.parse(b.date) : 0;
       return tb - ta;
     })
-    .slice(0, 10);
+    .slice(0, 8);
 
   // 3. Fetch top followers (get 20, sort by follower_count, take top 8)
   let rawFollowers: XUser[] = [];

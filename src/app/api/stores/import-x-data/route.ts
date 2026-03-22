@@ -97,8 +97,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Build Drupal PATCH payload
-  const topPostsJson = xData.topPosts.map((p) => JSON.stringify(p));
-  const topFollowersJson = xData.topFollowers.map((f) => JSON.stringify(f));
+  const topPostsJson = xData.topPosts.slice(0, 8).map((p) => JSON.stringify(p));
+  const topFollowersJson = xData.topFollowers.slice(0, 8).map((f) => JSON.stringify(f));
   const metricsJson = JSON.stringify(xData.metrics);
 
   const attributes: Record<string, any> = {
@@ -160,8 +160,8 @@ export async function POST(req: NextRequest) {
       payload: {
         username: xData.username,
         followerCount: xData.followerCount,
-        postsImported: xData.topPosts.length,
-        topFollowersImported: xData.topFollowers.length,
+        postsImported: topPostsJson.length,
+        topFollowersImported: topFollowersJson.length,
         engagementScore: xData.metrics.engagement_score,
         verified: xData.verified,
       },
@@ -176,8 +176,8 @@ export async function POST(req: NextRequest) {
       username: xData.username,
       displayName: xData.displayName,
       followerCount: xData.followerCount,
-      postsImported: xData.topPosts.length,
-      topFollowersImported: xData.topFollowers.length,
+      postsImported: topPostsJson.length,
+      topFollowersImported: topFollowersJson.length,
       engagementScore: xData.metrics.engagement_score,
       postingFrequency: xData.metrics.posting_frequency,
       topThemes: xData.metrics.top_themes,

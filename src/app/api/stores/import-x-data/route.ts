@@ -111,6 +111,10 @@ export async function POST(req: NextRequest) {
     field_top_posts: topPostsJson,
     field_top_followers: topFollowersJson,
     field_metrics: metricsJson,
+    // Keep direct URL fields in sync so storefront can render profile media
+    // even when Drupal media relationship upload is unavailable.
+    field_x_avatar_url: xData.profileImageUrl,
+    field_x_banner_url: xData.bannerUrl,
   };
 
   // 6. PATCH the Drupal node (text fields)

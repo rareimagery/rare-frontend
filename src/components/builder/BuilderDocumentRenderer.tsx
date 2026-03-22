@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import {
   createEmptyPreviewData,
   type BuilderBlock,
@@ -44,7 +45,12 @@ function formatCount(value: number): string {
   return String(value);
 }
 
-function renderBlock(block: BuilderBlock, data: BuilderPreviewData, theme: BuilderDocument["theme"]) {
+function renderBlock(
+  block: BuilderBlock,
+  data: BuilderPreviewData,
+  theme: BuilderDocument["theme"],
+  showMediaDebug: boolean
+) {
   switch (block.type) {
     case "profile-header":
       return (
@@ -111,6 +117,17 @@ function renderBlock(block: BuilderBlock, data: BuilderPreviewData, theme: Build
                   <strong style={{ color: theme.textPrimary }}>{formatCount(data.friends.length)}</strong> Friends
                 </span>
               </div>
+
+              {showMediaDebug && (data.avatar || data.banner) ? (
+                <div
+                  className="mt-3 space-y-1 rounded-xl border px-3 py-2 text-xs"
+                  style={{ borderColor: theme.border, backgroundColor: theme.surfaceMuted, color: theme.textSecondary }}
+                >
+                  <p className="font-semibold" style={{ color: theme.textPrimary }}>Rendered media URLs</p>
+                  <p className="truncate" title={data.avatar || "none"}>avatar: {data.avatar || "none"}</p>
+                  <p className="truncate" title={data.banner || "none"}>banner: {data.banner || "none"}</p>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -257,7 +274,10 @@ export default function BuilderDocumentRenderer({
   document: BuilderDocument;
   data?: BuilderPreviewData;
 }) {
+  const pathname = usePathname();
   const resolvedData = data || createEmptyPreviewData(document.meta.handle || "creator");
+  const showMediaDebug =
+    typeof pathname === "string" && (pathname.startsWith("/console/builder") || pathname.startsWith("/builder"));
   const menuBlocks = document.blocks.filter((block) => block.type === "top-menu");
   const sidebarBlocks = document.blocks.filter((block) => isSidebarBlock(block));
   const mainBlocks = document.blocks.filter((block) => block.type !== "top-menu" && !isSidebarBlock(block));
@@ -266,18 +286,18 @@ export default function BuilderDocumentRenderer({
     <div className="rounded-[32px] border p-4 sm:p-5" style={{ backgroundColor: document.theme.pageBg, borderColor: document.theme.border }}>
       <div className="space-y-4">
         {menuBlocks.map((block) => (
-          <div key={block.id}>{renderBlock(block, resolvedData, document.theme)}</div>
+          <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
         ))}
 
         <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
           <div className="space-y-4">
             {sidebarBlocks.map((block) => (
-              <div key={block.id}>{renderBlock(block, resolvedData, document.theme)}</div>
+              <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
             ))}
           </div>
           <div className="space-y-4">
             {mainBlocks.map((block) => (
-              <div key={block.id}>{renderBlock(block, resolvedData, document.theme)}</div>
+              <div key={block.id}>{renderBlock(block, resolvedData, document.theme, showMediaDebug)}</div>
             ))}
           </div>
         </div>

@@ -180,6 +180,37 @@ const TEMPLATE_SLOTS: Array<{
   { id: "col-3", label: "Column 3", gridColumn: 9, gridSpan: 4, gridRow: 3 },
 ];
 
+const SLOT_GUIDANCE: Record<
+  TemplateSlotId,
+  { iconLabel: string; hint: string; recommended: BuilderBlockType[] }
+> = {
+  menu: {
+    iconLabel: "NAV",
+    hint: "Best for navigation at the top.",
+    recommended: ["top-menu"],
+  },
+  header: {
+    iconLabel: "HERO",
+    hint: "Best for profile intro and banner.",
+    recommended: ["profile-header"],
+  },
+  "col-1": {
+    iconLabel: "COL",
+    hint: "Great for posts or products.",
+    recommended: ["post-feed", "product-grid"],
+  },
+  "col-2": {
+    iconLabel: "COL",
+    hint: "Great for community or posts.",
+    recommended: ["friends-list", "post-feed", "sidebar"],
+  },
+  "col-3": {
+    iconLabel: "COL",
+    hint: "Great for media or sidebar info.",
+    recommended: ["media-widget", "sidebar", "custom-embed"],
+  },
+};
+
 const TEMPLATE_PRESETS: Array<{
   id: "social" | "shop" | "community";
   label: string;
@@ -764,6 +795,16 @@ export default function BuilderStudio({
     );
   }
 
+  function isRecommendedForSlot(slotId: TemplateSlotId, type: BuilderBlockType): boolean {
+    return SLOT_GUIDANCE[slotId].recommended.includes(type);
+  }
+
+  function recommendedSlotsForType(type: BuilderBlockType): TemplateSlotId[] {
+    return (Object.keys(SLOT_GUIDANCE) as TemplateSlotId[]).filter((slotId) =>
+      SLOT_GUIDANCE[slotId].recommended.includes(type)
+    );
+  }
+
   function placeBlockInTemplateSlot(blockId: string, slotId: TemplateSlotId) {
     const placement = getSlotPlacement(slotId);
 
@@ -827,7 +868,11 @@ export default function BuilderStudio({
 
     setSelectedBlockId(nextBlock.id);
     setWizardProgress((current) => ({ ...current, layoutArranged: true }));
-    setPersistMessage(`Added ${type} to ${placement.label}.`);
+    setPersistMessage(
+      isRecommendedForSlot(slotId, type)
+        ? `Added ${type} to ${placement.label}.`
+        : `Added ${type} to ${placement.label}. Tip: ${SLOT_GUIDANCE[slotId].hint}`
+    );
   }
 
   function handleTemplateSlotDrop(event: React.DragEvent<HTMLDivElement>, slotId: TemplateSlotId) {
@@ -838,7 +883,11 @@ export default function BuilderStudio({
     if (newType) {
       addBlockToTemplateSlot(newType as BuilderBlockType, slotId);
     } else if (existingId) {
+      const movedType = document.blocks.find((block) => block.id === existingId)?.type;
       placeBlockInTemplateSlot(existingId, slotId);
+      if (movedType && !isRecommendedForSlot(slotId, movedType)) {
+        setPersistMessage(`Placed ${movedType} in ${getSlotPlacement(slotId).label}. Tip: ${SLOT_GUIDANCE[slotId].hint}`);
+      }
     }
 
     setGridDragOverCell(null);
@@ -1452,6 +1501,15 @@ export default function BuilderStudio({
                       onDragStart={(event) => event.dataTransfer.setData("application/x-builder-new", item.type)}
                       className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2"
                     >
+                      {(() => {
+                        const slots = recommendedSlotsForType(item.type);
+                        const slotNames = slots.map((slotId) => getSlotPlacement(slotId).label).join(", ");
+                        return (
+                          <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                            Best in: {slotNames || "Any slot"}
+                          </p>
+                        );
+                      })()}
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-white">{item.label}</p>
@@ -1488,9 +1546,11 @@ export default function BuilderStudio({
                   {TEMPLATE_SLOTS.filter((slot) => slot.id === "menu" || slot.id === "header").map((slot) => {
                     const block = findBlockInSlot(slot.id);
                     const isOver = gridDragOverCell === slot.id;
+                    const slotGuide = SLOT_GUIDANCE[slot.id];
                     const blockLabel = block
                       ? BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type
                       : null;
+                    const showMismatch = !!block && !isRecommendedForSlot(slot.id, block.type);
 
                     return (
                       <div
@@ -1502,7 +1562,11 @@ export default function BuilderStudio({
                         onDrop={(event) => handleTemplateSlotDrop(event, slot.id)}
                         className={`rounded-xl border px-4 py-4 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
                       >
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                          <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">{slotGuide.iconLabel}</span>
+                        </div>
+                        <p className="mb-2 text-[11px] text-zinc-500">{slotGuide.hint}</p>
                         {block ? (
                           <div
                             draggable
@@ -1512,6 +1576,9 @@ export default function BuilderStudio({
                           >
                             <p className="text-sm font-medium text-white">{blockLabel}</p>
                             <p className="text-xs text-zinc-500">Drag to another slot to move</p>
+                            {showMismatch ? (
+                              <p className="mt-1 text-[11px] text-amber-300">Not a typical fit for this slot.</p>
+                            ) : null}
                           </div>
                         ) : (
                           <p className="text-xs text-zinc-500">Drop a component here</p>
@@ -1524,9 +1591,11 @@ export default function BuilderStudio({
                     {TEMPLATE_SLOTS.filter((slot) => slot.id.startsWith("col-")).map((slot) => {
                       const block = findBlockInSlot(slot.id);
                       const isOver = gridDragOverCell === slot.id;
+                      const slotGuide = SLOT_GUIDANCE[slot.id];
                       const blockLabel = block
                         ? BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type
                         : null;
+                      const showMismatch = !!block && !isRecommendedForSlot(slot.id, block.type);
 
                       return (
                         <div
@@ -1538,7 +1607,11 @@ export default function BuilderStudio({
                           onDrop={(event) => handleTemplateSlotDrop(event, slot.id)}
                           className={`min-h-[140px] rounded-xl border px-3 py-3 transition ${isOver ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-900/70"}`}
                         >
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">{slot.label}</p>
+                            <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">{slotGuide.iconLabel}</span>
+                          </div>
+                          <p className="mb-2 text-[11px] text-zinc-500">{slotGuide.hint}</p>
                           {block ? (
                             <div
                               draggable
@@ -1548,6 +1621,9 @@ export default function BuilderStudio({
                             >
                               <p className="text-sm font-medium text-white">{blockLabel}</p>
                               <p className="text-xs text-zinc-500">Drag to another slot to move</p>
+                              {showMismatch ? (
+                                <p className="mt-1 text-[11px] text-amber-300">Not a typical fit for this slot.</p>
+                              ) : null}
                             </div>
                           ) : (
                             <p className="text-xs text-zinc-500">Drop a component here</p>

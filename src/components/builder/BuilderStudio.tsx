@@ -429,6 +429,7 @@ export default function BuilderStudio({
   });
   const [selectedStarterLayout, setSelectedStarterLayout] = useState<StarterLayoutId | null>(null);
   const [selectedThemePreset, setSelectedThemePreset] = useState<ThemePresetId | null>(null);
+  const [step2Mode, setStep2Mode] = useState<"basic" | "advanced">("basic");
   const [gridDragOverCell, setGridDragOverCell] = useState<string | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -888,6 +889,44 @@ export default function BuilderStudio({
       if (movedType && !isRecommendedForSlot(slotId, movedType)) {
         setPersistMessage(`Placed ${movedType} in ${getSlotPlacement(slotId).label}. Tip: ${SLOT_GUIDANCE[slotId].hint}`);
       }
+    }
+
+    setGridDragOverCell(null);
+  }
+
+  function addBlockToAdvancedGrid(type: BuilderBlockType, gridRow: number, gridColumn: number) {
+    const nextBlock = createBlock(type);
+    updateDocument((current) => {
+      const blocks = [
+        ...current.blocks,
+        {
+          ...nextBlock,
+          gridRow: Math.max(1, gridRow),
+          gridColumn: Math.max(1, Math.min(12, gridColumn)),
+        },
+      ];
+      return {
+        ...current,
+        blocks: normalizeBuilderBlocks(blocks),
+      };
+    });
+
+    setSelectedBlockId(nextBlock.id);
+    setWizardProgress((current) => ({ ...current, layoutArranged: true }));
+    setPersistMessage(`Added ${type} to advanced grid.`);
+  }
+
+  function handleAdvancedGridCellDrop(event: React.DragEvent<HTMLDivElement>, gridRow: number, gridColumn: number) {
+    event.preventDefault();
+    const newType = event.dataTransfer.getData("application/x-builder-new");
+    const existingId = event.dataTransfer.getData("application/x-builder-existing");
+
+    if (newType) {
+      addBlockToAdvancedGrid(newType as BuilderBlockType, gridRow, gridColumn);
+    } else if (existingId) {
+      updateBlockGrid(existingId, { gridRow, gridColumn }, { announce: false });
+      setSelectedBlockId(existingId);
+      setPersistMessage(`Moved block to row ${gridRow}, column ${gridColumn}.`);
     }
 
     setGridDragOverCell(null);
@@ -1489,7 +1528,43 @@ export default function BuilderStudio({
 
         {wizardStep === 2 ? (
           <>
-            <p className="mt-4 text-xs text-zinc-500">Drag components from the left into the center template. Keep it simple: menu, header, then three columns.</p>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-zinc-500">Choose Basic for guided slots or Advanced for free placement.</p>
+              <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-950/60 p-1">
+                <button
+                  type="button"
+                  onClick={() => setStep2Mode("basic")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${step2Mode === "basic" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
+                >
+                  Basic
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep2Mode("advanced")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${step2Mode === "advanced" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
+                >
+                  Advanced
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-xs text-zinc-400">
+              {step2Mode === "basic" ? (
+                <ul className="space-y-1">
+                  <li>- Start with a preset, then swap only the blocks you need.</li>
+                  <li>- Keep Menu and Header in place for a familiar structure.</li>
+                  <li>- Use columns for story: products, social proof, media.</li>
+                </ul>
+              ) : (
+                <ul className="space-y-1">
+                  <li>- Drop blocks into any grid cell for full control.</li>
+                  <li>- Set row/column/span on the selected block panel.</li>
+                  <li>- Keep key content above the fold: header + one strong column.</li>
+                </ul>
+              )}
+            </div>
+
+            {step2Mode === "basic" ? (
             <div className="mt-4 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Components</p>
@@ -1635,6 +1710,114 @@ export default function BuilderStudio({
                 </div>
               </div>
             </div>
+            ) : (
+            <div className="mt-4 grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Components</p>
+                <div className="space-y-2">
+                  {BLOCK_LIBRARY.map((item) => (
+                    <div
+                      key={`wizard-advanced-${item.type}`}
+                      draggable
+                      onDragStart={(event) => event.dataTransfer.setData("application/x-builder-new", item.type)}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2"
+                    >
+                      <p className="text-xs font-semibold text-white">{item.label}</p>
+                      <p className="text-[11px] text-zinc-500">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Advanced Grid</p>
+                <div className="grid min-h-[300px] grid-cols-1 gap-2 rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/60 p-2 lg:grid-cols-12 lg:auto-rows-min">
+                  {document.blocks.map((block) => {
+                    const label = BLOCK_LIBRARY.find((item) => item.type === block.type)?.label || block.type;
+                    return (
+                      <div
+                        key={`advanced-block-${block.id}`}
+                        draggable
+                        onDragStart={(event) => event.dataTransfer.setData("application/x-builder-existing", block.id)}
+                        onClick={() => setSelectedBlockId(block.id)}
+                        style={{ gridColumn: `${block.gridColumn} / span ${block.gridSpan}`, gridRow: block.gridRow }}
+                        className={`rounded-xl border px-3 py-3 text-left transition ${selectedBlockId === block.id ? "border-cyan-400 bg-cyan-500/10" : "border-zinc-700 bg-zinc-950/80 hover:border-zinc-500"}`}
+                      >
+                        <p className="text-xs font-semibold text-white">{label}</p>
+                        <p className="mt-1 text-[11px] text-zinc-500">row {block.gridRow} col {block.gridColumn} span {block.gridSpan}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 grid grid-cols-6 gap-1 lg:grid-cols-12">
+                  {Array.from({ length: 72 }).map((_, index) => {
+                    const row = Math.floor(index / 12) + 1;
+                    const col = (index % 12) + 1;
+                    const cellId = `adv-${row}-${col}`;
+                    const isOver = gridDragOverCell === cellId;
+                    return (
+                      <div
+                        key={cellId}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setGridDragOverCell(cellId);
+                        }}
+                        onDrop={(event) => handleAdvancedGridCellDrop(event, row, col)}
+                        className={`h-6 rounded border text-center text-[10px] leading-6 ${isOver ? "border-cyan-400 bg-cyan-500/20 text-cyan-200" : "border-zinc-700 bg-zinc-900 text-zinc-500"}`}
+                      >
+                        {row}:{col}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Selected Block</p>
+                {selectedBlock ? (
+                  <div className="space-y-3 text-xs text-zinc-400">
+                    <p className="text-sm font-semibold text-white">{BLOCK_LIBRARY.find((item) => item.type === selectedBlock.type)?.label || selectedBlock.type}</p>
+                    <label className="block">
+                      <span className="mb-1 block">Row</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={6}
+                        value={selectedBlock.gridRow}
+                        onChange={(event) => updateBlockGrid(selectedBlock.id, { gridRow: Number(event.target.value) || 1 })}
+                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block">Column</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={selectedBlock.gridColumn}
+                        onChange={(event) => updateBlockGrid(selectedBlock.id, { gridColumn: Number(event.target.value) || 1 })}
+                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block">Span</span>
+                      <select
+                        value={selectedBlock.gridSpan}
+                        onChange={(event) => updateBlockGrid(selectedBlock.id, { gridSpan: Number(event.target.value) || 4 })}
+                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-white"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 8, 12].map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500">Select a block on the grid to edit placement.</p>
+                )}
+              </div>
+            </div>
+            )}
 
             <div className="mt-4 flex gap-2">
               <button

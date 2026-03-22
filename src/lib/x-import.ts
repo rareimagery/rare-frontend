@@ -508,36 +508,43 @@ export async function findLatestSnapshotMediaUrls(
   xUsername: string
 ): Promise<{ profilePicture: string | null; backgroundBanner: string | null } | null> {
   try {
-    const params = new URLSearchParams({
-      "filter[field_x_import_username]": xUsername,
-      "filter[field_x_import_status]": "success",
-      sort: "-changed",
-      "page[limit]": "1",
-      "fields[node--x_import_profile_snapshot]": "field_x_import_payload",
-    });
+    const cleaned = xUsername.trim().replace(/^@+/, "");
+    const candidates = Array.from(new Set([cleaned, cleaned.toLowerCase()].filter(Boolean)));
 
-    const res = await fetch(
-      `${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot?${params.toString()}`,
-      { headers: { ...drupalAuthHeaders() } }
-    );
-    if (!res.ok) return null;
+    for (const candidate of candidates) {
+      const params = new URLSearchParams({
+        "filter[field_x_import_username]": candidate,
+        "filter[field_x_import_status]": "success",
+        sort: "-changed",
+        "page[limit]": "1",
+        "fields[node--x_import_profile_snapshot]": "field_x_import_payload",
+      });
 
-    const json = await res.json();
-    const node = json?.data?.[0];
-    const rawPayload = node?.attributes?.field_x_import_payload;
-    if (typeof rawPayload !== "string" || rawPayload.trim().length === 0) return null;
+      const res = await fetch(
+        `${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot?${params.toString()}`,
+        { headers: { ...drupalAuthHeaders() } }
+      );
+      if (!res.ok) continue;
 
-    const payload = JSON.parse(rawPayload);
-    const profilePicture =
-      typeof payload?.diagnostics?.mediaUrls?.profilePicture === "string"
-        ? payload.diagnostics.mediaUrls.profilePicture
-        : null;
-    const backgroundBanner =
-      typeof payload?.diagnostics?.mediaUrls?.backgroundBanner === "string"
-        ? payload.diagnostics.mediaUrls.backgroundBanner
-        : null;
+      const json = await res.json();
+      const node = json?.data?.[0];
+      const rawPayload = node?.attributes?.field_x_import_payload;
+      if (typeof rawPayload !== "string" || rawPayload.trim().length === 0) continue;
 
-    return { profilePicture, backgroundBanner };
+      const payload = JSON.parse(rawPayload);
+      const profilePicture =
+        typeof payload?.diagnostics?.mediaUrls?.profilePicture === "string"
+          ? payload.diagnostics.mediaUrls.profilePicture
+          : null;
+      const backgroundBanner =
+        typeof payload?.diagnostics?.mediaUrls?.backgroundBanner === "string"
+          ? payload.diagnostics.mediaUrls.backgroundBanner
+          : null;
+
+      return { profilePicture, backgroundBanner };
+    }
+
+    return null;
   } catch {
     return null;
   }

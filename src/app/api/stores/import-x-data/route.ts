@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   fetchXData,
@@ -167,6 +168,10 @@ export async function POST(req: NextRequest) {
       },
     });
   }
+
+  // Ensure published storefront reflects new profile media/posts immediately.
+  revalidatePath(`/stores/${xUsername}`);
+  revalidatePath(`/console/builder`);
 
   // 8. Return summary
   return NextResponse.json({

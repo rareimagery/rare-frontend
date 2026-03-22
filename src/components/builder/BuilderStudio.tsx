@@ -495,8 +495,7 @@ export default function BuilderStudio({
           : `${importNotice} Avatar and banner are refreshed in preview.`,
       },
     ]);
-    setWizardProgress((current) => ({ ...current, aiGenerated: true }));
-    advanceWizard(3);
+    // Keep the user in their current step so sync actions do not skip AI editing.
   }
 
   async function loadBuilds() {

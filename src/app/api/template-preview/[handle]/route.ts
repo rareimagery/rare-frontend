@@ -119,9 +119,9 @@ export async function GET(
       if (!stillNeedsAvatar && !stillNeedsBanner) {
         // Snapshot payload already had authoritative URLs.
       } else {
-      const profileRef = await findProfileByUsername(normalizedHandle);
-      if (profileRef) {
-        const fieldState = await getProfileMediaFieldState(profileRef.uuid);
+      const profileUuid = profile?.id || (await findProfileByUsername(normalizedHandle))?.uuid || null;
+      if (profileUuid) {
+        const fieldState = await getProfileMediaFieldState(profileUuid);
         const [fallbackAvatar, fallbackBanner] = await Promise.all([
           stillNeedsAvatar && fieldState?.profilePictureFileId
             ? getDrupalFileAssetUrl(fieldState.profilePictureFileId)

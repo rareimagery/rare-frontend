@@ -36,13 +36,15 @@ type AiAction =
   | { type: "set_name"; name: string }
   | { type: "set_block_prop"; blockType: BuilderBlockType; key: string; value: string | number | boolean };
 
-const STARTER_LAYOUTS: Array<{ id: "minimal" | "social" | "shop"; title: string; blocks: BuilderBlockType[] }> = [
+const STARTER_LAYOUTS: Array<{ id: "minimal" | "social" | "shop" | "story" | "members"; title: string; blocks: BuilderBlockType[] }> = [
   { id: "minimal", title: "Minimal", blocks: ["top-menu", "profile-header", "product-grid"] },
   { id: "social", title: "Social", blocks: ["top-menu", "profile-header", "post-feed", "friends-list"] },
   { id: "shop", title: "Shop", blocks: ["top-menu", "profile-header", "sidebar", "product-grid", "media-widget"] },
+  { id: "story", title: "Story", blocks: ["profile-header", "post-feed", "media-widget", "custom-embed", "product-grid"] },
+  { id: "members", title: "Members", blocks: ["top-menu", "profile-header", "sidebar", "friends-list", "post-feed"] },
 ];
 
-const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop"; label: string; theme: BuilderTheme }> = [
+const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop" | "sunset" | "forest" | "mono"; label: string; theme: BuilderTheme }> = [
   {
     id: "night",
     label: "Night Studio",
@@ -86,6 +88,51 @@ const THEME_PRESETS: Array<{ id: "night" | "cream" | "pop"; label: string; theme
       textPrimary: "#ecfeff",
       textSecondary: "#a5f3fc",
       border: "#1e566f",
+    },
+  },
+  {
+    id: "sunset",
+    label: "Sunset Stage",
+    theme: {
+      pageBg: "#221217",
+      menuBg: "#341b22",
+      sidebarBg: "#4a2630",
+      surface: "#5a2f3a",
+      surfaceMuted: "#7a3b47",
+      accent: "#ffb454",
+      textPrimary: "#fff4e6",
+      textSecondary: "#ffd7a3",
+      border: "#a85d41",
+    },
+  },
+  {
+    id: "forest",
+    label: "Forest Signal",
+    theme: {
+      pageBg: "#08110d",
+      menuBg: "#0d1d16",
+      sidebarBg: "#133026",
+      surface: "#1a3d31",
+      surfaceMuted: "#245443",
+      accent: "#86efac",
+      textPrimary: "#ecfdf3",
+      textSecondary: "#bbf7d0",
+      border: "#2f6c57",
+    },
+  },
+  {
+    id: "mono",
+    label: "Mono Wireframe",
+    theme: {
+      pageBg: "#101010",
+      menuBg: "#161616",
+      sidebarBg: "#1c1c1c",
+      surface: "#232323",
+      surfaceMuted: "#2d2d2d",
+      accent: "#f5f5f5",
+      textPrimary: "#fafafa",
+      textSecondary: "#b5b5b5",
+      border: "#3a3a3a",
     },
   },
 ];
@@ -213,6 +260,52 @@ function mapFriends(value: unknown): BuilderPreviewData["friends"] {
   return mapped.filter((entry): entry is BuilderPreviewData["friends"][number] => entry !== null);
 }
 
+function seedProductsFromPosts(data: BuilderPreviewData): BuilderPreviewData["products"] {
+  if (data.products.length > 0) return data.products;
+
+  const fromPosts = data.posts
+    .filter((post) => typeof post?.text === "string" && post.text.trim().length > 0)
+    .slice(0, 6)
+    .map((post, index) => {
+      const clean = post.text.replace(/https?:\/\/\S+/g, "").replace(/[#@][\w_]+/g, "").trim();
+      const words = clean.split(/\s+/).filter(Boolean);
+      const title = words.slice(0, 5).join(" ") || `Creator Drop ${index + 1}`;
+      const inferredPrice = Math.max(9, Math.min(79, 14 + words.length * 2 + index * 3));
+
+      return {
+        id: `seed-${index + 1}`,
+        title,
+        price: inferredPrice,
+        image: post.image,
+        description: clean.slice(0, 180) || "Limited creator release inspired by recent content.",
+      };
+    });
+
+  if (fromPosts.length > 0) return fromPosts;
+
+  const fallbackPrefix = data.handle ? `@${data.handle}` : "Creator";
+  return [
+    {
+      id: "seed-fallback-1",
+      title: `${fallbackPrefix} Signature Pack`,
+      price: 24,
+      description: "Starter bundle generated from your profile style.",
+    },
+    {
+      id: "seed-fallback-2",
+      title: `${fallbackPrefix} Members Drop`,
+      price: 39,
+      description: "Exclusive tier for supporters and subscribers.",
+    },
+    {
+      id: "seed-fallback-3",
+      title: `${fallbackPrefix} Collector Edition`,
+      price: 59,
+      description: "Premium offer highlighted in your storefront hero.",
+    },
+  ];
+}
+
 export default function BuilderStudio({
   defaultHandle,
   defaultStoreSlug,
@@ -286,7 +379,7 @@ export default function BuilderStudio({
     }));
   }
 
-  async function loadPreviewData() {
+  async function loadPreviewData(): Promise<BuilderPreviewData | null> {
     setSyncState("loading");
     setSyncMessage("Refreshing X data...");
 
@@ -327,7 +420,12 @@ export default function BuilderStudio({
         }
       }
 
-      setPreviewData(merged);
+      const finalized = {
+        ...merged,
+        products: seedProductsFromPosts(merged),
+      };
+
+      setPreviewData(finalized);
       setSyncState("ready");
       setSyncMessage(handle ? `Synced X data for @${handle}.` : "Loaded builder context.");
       setDocument((current) => touchDocument({
@@ -340,9 +438,11 @@ export default function BuilderStudio({
             : current.meta.name,
         },
       }));
+      return finalized;
     } catch {
       setSyncState("error");
       setSyncMessage("Could not refresh X data. The builder is using fallback preview content.");
+      return null;
     }
   }
 
@@ -357,6 +457,42 @@ export default function BuilderStudio({
     } finally {
       window.clearTimeout(timer);
     }
+  }
+
+  async function importFromX(options: { includeProducts: boolean }) {
+    setSyncState("loading");
+    setSyncMessage(options.includeProducts ? "Importing profile + product context from X..." : "Importing latest profile media from X...");
+
+    let importNotice = "";
+    try {
+      const { response, data } = await fetchJsonWithTimeout("/api/stores/import-x-data", { method: "POST" }, 25000);
+      if (response.ok) {
+        const postsImported = typeof data?.summary?.postsImported === "number" ? data.summary.postsImported : 0;
+        importNotice = `Imported X profile data (${postsImported} posts analyzed).`;
+      } else {
+        importNotice = typeof data?.error === "string" ? data.error : "X import endpoint unavailable.";
+      }
+    } catch {
+      importNotice = "X import request timed out; using latest available preview data.";
+    }
+
+    const synced = await loadPreviewData();
+    const productCount = synced?.products.length ?? previewData.products.length;
+    const successSuffix = options.includeProducts ? ` Products ready: ${productCount}.` : "";
+    const finalMessage = `${importNotice}${successSuffix}`.trim();
+
+    setPersistMessage(finalMessage || "Import complete.");
+    setAiMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: options.includeProducts
+          ? `${importNotice} Product catalog is ready in preview.`
+          : `${importNotice} Avatar and banner are refreshed in preview.`,
+      },
+    ]);
+    setWizardProgress((current) => ({ ...current, aiGenerated: true }));
+    advanceWizard(3);
   }
 
   async function loadBuilds() {
@@ -628,7 +764,7 @@ export default function BuilderStudio({
     }
   }
 
-  function applyStarterLayout(layoutId: "minimal" | "social" | "shop") {
+  function applyStarterLayout(layoutId: "minimal" | "social" | "shop" | "story" | "members") {
     const selected = STARTER_LAYOUTS.find((layout) => layout.id === layoutId) || STARTER_LAYOUTS[0];
     const blocks = selected.blocks.map((type) => createBlock(type));
 
@@ -647,7 +783,7 @@ export default function BuilderStudio({
     advanceWizard(2);
   }
 
-  function applyThemePreset(presetId: "night" | "cream" | "pop") {
+  function applyThemePreset(presetId: "night" | "cream" | "pop" | "sunset" | "forest" | "mono") {
     const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
     updateDocument((current) => ({ ...current, theme: selected.theme }));
     setPersistMessage(`Applied ${selected.label} theme.`);
@@ -714,6 +850,8 @@ export default function BuilderStudio({
     if (!trimmed || aiLoading) return;
 
     const lower = trimmed.toLowerCase();
+    const asksForProductImport =
+      lower.includes("import") && (lower.includes("product") || lower.includes("shop") || lower.includes("catalog"));
     const asksForAvatarSync =
       lower.includes("pfp") ||
       lower.includes("avatar") ||
@@ -721,18 +859,9 @@ export default function BuilderStudio({
       lower.includes("profile picture") ||
       (lower.includes("import") && lower.includes("photo"));
 
-    if (asksForAvatarSync) {
+    if (asksForAvatarSync || asksForProductImport) {
       setAiMessages((prev) => [...prev, { role: "user", content: trimmed }]);
-      await loadPreviewData();
-      setAiMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Pulled latest X profile data into preview (avatar/banner/bio).",
-        },
-      ]);
-      setWizardProgress((current) => ({ ...current, aiGenerated: true }));
-      advanceWizard(3);
+      await importFromX({ includeProducts: asksForProductImport });
       return;
     }
 
@@ -837,6 +966,20 @@ export default function BuilderStudio({
           >
             Refresh X Data
           </button>
+          <button
+            type="button"
+            onClick={() => void importFromX({ includeProducts: false })}
+            className="rounded-full border border-sky-500/50 px-4 py-2 text-sm text-sky-200 transition hover:border-sky-400 hover:text-sky-100"
+          >
+            Import PFP
+          </button>
+          <button
+            type="button"
+            onClick={() => void importFromX({ includeProducts: true })}
+            className="rounded-full border border-emerald-500/50 px-4 py-2 text-sm text-emerald-200 transition hover:border-emerald-400 hover:text-emerald-100"
+          >
+            Import Products
+          </button>
           {builderMode === "pro" ? (
             <>
               <button
@@ -934,6 +1077,22 @@ export default function BuilderStudio({
         {wizardStep === 2 ? (
           <>
             <p className="mt-4 text-xs text-zinc-500">Next action: run AI once to generate your first draft.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void importFromX({ includeProducts: false })}
+                className="rounded-full border border-sky-500/50 px-3 py-1 text-xs font-semibold text-sky-200 transition hover:border-sky-400 hover:text-sky-100"
+              >
+                Sync avatar/banner
+              </button>
+              <button
+                type="button"
+                onClick={() => void importFromX({ includeProducts: true })}
+                className="rounded-full border border-emerald-500/50 px-3 py-1 text-xs font-semibold text-emerald-200 transition hover:border-emerald-400 hover:text-emerald-100"
+              >
+                Seed products from X data
+              </button>
+            </div>
             <div className="mt-4 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3">
               {aiMessages.map((entry, index) => (
                 <div key={`${entry.role}-${index}`} className={entry.role === "user" ? "text-right" : "text-left"}>
@@ -1248,6 +1407,18 @@ export default function BuilderStudio({
 
           {!isGuidedMode ? <section>
             <h2 className="text-sm font-semibold text-white">Color Controls</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {THEME_PRESETS.map((preset) => (
+                <button
+                  key={`pro-${preset.id}`}
+                  type="button"
+                  onClick={() => applyThemePreset(preset.id)}
+                  className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               {THEME_FIELDS.map((field) => (
                 <label key={field.key} className="block text-xs text-zinc-500">

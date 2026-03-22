@@ -85,6 +85,18 @@ const THEME_PROMPTS: Record<string, string> = {
 - Each content item must be { "type": "<allowed>", "props": { ... } }
 - Keep copy concise and conversion-focused for creator storefronts
 - If user asks for changes, return a full updated JSON payload for the canvas`,
+
+  "builder-copilot": `You are operating in RareImagery Builder Copilot mode.
+- Return ONLY valid JSON.
+- JSON format must be: { "summary": string, "actions": AiAction[] }
+- AiAction types:
+  1) { "type": "add_block", "blockType": "top-menu"|"profile-header"|"sidebar"|"friends-list"|"post-feed"|"product-grid"|"media-widget"|"custom-embed" }
+  2) { "type": "remove_block", "blockType": <same as above> }
+  3) { "type": "set_name", "name": string }
+  4) { "type": "set_theme", "field": "pageBg"|"menuBg"|"sidebarBg"|"surface"|"surfaceMuted"|"accent"|"textPrimary"|"textSecondary"|"border", "value": string }
+  5) { "type": "set_block_prop", "blockType": <same as above>, "key": string, "value": string|number|boolean }
+- Keep actions safe and minimal; prefer at most 6 actions.
+- Never output prose outside JSON.`,
 };
 
 interface CreatorContext {
@@ -97,8 +109,11 @@ interface CreatorContext {
 }
 
 function getSystemPrompt(theme: string, ctx?: CreatorContext): string {
-  if (theme === "template-builder") {
+  if (theme === "template-builder" || theme === "builder-copilot") {
     const lines: string[] = [THEME_PROMPTS["template-builder"]];
+    if (theme === "builder-copilot") {
+      lines[0] = THEME_PROMPTS["builder-copilot"];
+    }
     if (ctx?.username) {
       lines.push(`Creator handle: @${ctx.username}`);
     }

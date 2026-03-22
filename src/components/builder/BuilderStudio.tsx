@@ -662,7 +662,7 @@ export default function BuilderStudio({
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, theme: "template-builder" }),
+        body: JSON.stringify({ message, theme: "builder-copilot" }),
       });
 
       if (!response.ok) {

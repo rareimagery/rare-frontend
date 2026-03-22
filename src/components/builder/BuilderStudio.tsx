@@ -351,6 +351,9 @@ export default function BuilderStudio({
     try {
       const response = await fetch("/api/builds", { cache: "no-store" });
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const message = typeof data?.error === "string" ? data.error : "Could not load saved builds.";
+        setPersistMessage(message);
         setBuilds([]);
         return;
       }

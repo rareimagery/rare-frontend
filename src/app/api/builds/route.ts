@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 type StoreJWT = JWT & {
   storeSlug?: string | null;
   xUsername?: string | null;
+  handle?: string | null;
 };
 
 type StoredBuild = {
@@ -18,8 +19,19 @@ type StoredBuild = {
   published?: boolean;
 };
 
+function normalizeStoreSlug(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/^@+/, "").toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
 function getStoreSlug(token: StoreJWT): string | null {
-  return token.storeSlug || token.xUsername || null;
+  return (
+    normalizeStoreSlug(token.storeSlug) ||
+    normalizeStoreSlug(token.xUsername) ||
+    normalizeStoreSlug(token.handle) ||
+    null
+  );
 }
 
 // GET — fetch all saved builds for the authenticated user's store

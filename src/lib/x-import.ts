@@ -504,6 +504,45 @@ export async function findLatestSnapshot(
   }
 }
 
+export async function findLatestSnapshotMediaUrls(
+  xUsername: string
+): Promise<{ profilePicture: string | null; backgroundBanner: string | null } | null> {
+  try {
+    const params = new URLSearchParams({
+      "filter[field_x_import_username]": xUsername,
+      "filter[field_x_import_status]": "success",
+      sort: "-changed",
+      "page[limit]": "1",
+      "fields[node--x_import_profile_snapshot]": "field_x_import_payload",
+    });
+
+    const res = await fetch(
+      `${DRUPAL_API}/jsonapi/node/x_import_profile_snapshot?${params.toString()}`,
+      { headers: { ...drupalAuthHeaders() } }
+    );
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const node = json?.data?.[0];
+    const rawPayload = node?.attributes?.field_x_import_payload;
+    if (typeof rawPayload !== "string" || rawPayload.trim().length === 0) return null;
+
+    const payload = JSON.parse(rawPayload);
+    const profilePicture =
+      typeof payload?.diagnostics?.mediaUrls?.profilePicture === "string"
+        ? payload.diagnostics.mediaUrls.profilePicture
+        : null;
+    const backgroundBanner =
+      typeof payload?.diagnostics?.mediaUrls?.backgroundBanner === "string"
+        ? payload.diagnostics.mediaUrls.backgroundBanner
+        : null;
+
+    return { profilePicture, backgroundBanner };
+  } catch {
+    return null;
+  }
+}
+
 export async function uploadImageToDrupal(
   imageUrl: string,
   nodeUuid: string,

@@ -4,6 +4,7 @@ import {
   findProfileByUsername,
   getDrupalFileAssetUrl,
   getProfileMediaFieldState,
+  findLatestSnapshotMediaUrls,
 } from "@/lib/x-import";
 
 export const dynamic = "force-dynamic";
@@ -104,20 +105,35 @@ export async function GET(
     const bannerNeedsFallback = !resolvedBanner;
 
     if (avatarNeedsFallback || bannerNeedsFallback) {
+      const snapshotMedia = await findLatestSnapshotMediaUrls(normalizedHandle);
+      if (avatarNeedsFallback && snapshotMedia?.profilePicture) {
+        resolvedAvatar = snapshotMedia.profilePicture;
+      }
+      if (bannerNeedsFallback && snapshotMedia?.backgroundBanner) {
+        resolvedBanner = snapshotMedia.backgroundBanner;
+      }
+
+      const stillNeedsAvatar = !resolvedAvatar || /pbs\.twimg\.com/i.test(resolvedAvatar);
+      const stillNeedsBanner = !resolvedBanner;
+
+      if (!stillNeedsAvatar && !stillNeedsBanner) {
+        // Snapshot payload already had authoritative URLs.
+      } else {
       const profileRef = await findProfileByUsername(normalizedHandle);
       if (profileRef) {
         const fieldState = await getProfileMediaFieldState(profileRef.uuid);
         const [fallbackAvatar, fallbackBanner] = await Promise.all([
-          avatarNeedsFallback && fieldState?.profilePictureFileId
+          stillNeedsAvatar && fieldState?.profilePictureFileId
             ? getDrupalFileAssetUrl(fieldState.profilePictureFileId)
             : Promise.resolve(null),
-          bannerNeedsFallback && fieldState?.backgroundBannerFileId
+          stillNeedsBanner && fieldState?.backgroundBannerFileId
             ? getDrupalFileAssetUrl(fieldState.backgroundBannerFileId)
             : Promise.resolve(null),
         ]);
 
         if (fallbackAvatar) resolvedAvatar = fallbackAvatar;
         if (fallbackBanner) resolvedBanner = fallbackBanner;
+      }
       }
     }
 

@@ -177,6 +177,20 @@ export async function POST(req: NextRequest) {
         topFollowersImported: topFollowersJson.length,
         engagementScore: xData.metrics.engagement_score,
         verified: xData.verified,
+        diagnostics: {
+          uploadIds: {
+            profilePicture: pfpUploadId,
+            backgroundBanner: bannerUploadId,
+          },
+          profileFieldIds: {
+            profilePicture: fieldState?.profilePictureFileId ?? null,
+            backgroundBanner: fieldState?.backgroundBannerFileId ?? null,
+          },
+          mediaUrls: {
+            profilePicture: profilePictureUrl,
+            backgroundBanner: backgroundBannerUrl,
+          },
+        },
       },
     });
   }

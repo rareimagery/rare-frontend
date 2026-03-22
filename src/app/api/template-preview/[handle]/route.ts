@@ -85,7 +85,7 @@ export async function GET(
 
   try {
     const [profile, products] = await Promise.all([
-      getCreatorProfile(normalizedHandle),
+      getCreatorProfile(normalizedHandle, { noStore: true }),
       getProductsByStoreSlug(normalizedHandle),
     ]);
 

@@ -502,7 +502,8 @@ function mapCreatorProfile(node: any, included: any[] = []): CreatorProfile {
 // ---------------------------------------------------------------------------
 
 export async function getCreatorProfile(
-  username: string
+  username: string,
+  options?: { noStore?: boolean }
 ): Promise<CreatorProfile | null> {
   const includeCandidates = [
     "field_linked_store,field_profile_picture,field_profile_picture.field_media_image,field_background_banner,field_background_banner.field_media_image",
@@ -516,7 +517,10 @@ export async function getCreatorProfile(
     });
 
     const url = `${DRUPAL_API_URL}/jsonapi/node/creator_x_profile?${params.toString()}`;
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(
+      url,
+      options?.noStore ? { cache: "no-store" } : { next: { revalidate: 60 } }
+    );
 
     if (!res.ok) {
       if (res.status === 400) {

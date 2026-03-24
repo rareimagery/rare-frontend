@@ -352,7 +352,7 @@ export function normalizeBuilderBlocks(blocks: BuilderBlock[]): BuilderBlock[] {
 
 export function createDefaultBuilderDocument(handle = "creator"): BuilderDocument {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     meta: {
       name: `@${handle} storefront`,
       handle,
@@ -464,7 +464,7 @@ function parseLegacyPuckBuild(parsed: unknown): BuilderDocument | null {
   }
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     meta: {
       name: `@${handle} imported builder`,
       handle,
@@ -482,13 +482,21 @@ export function parseBuilderDocument(raw: string | null | undefined): BuilderDoc
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return null;
 
-    const candidate = parsed as Partial<BuilderDocument> & { blocks?: unknown };
-    if (candidate.schemaVersion !== 4 || !Array.isArray(candidate.blocks) || !candidate.meta || !candidate.theme) {
+    const candidate = parsed as {
+      schemaVersion?: number;
+      blocks?: unknown;
+      meta?: BuilderDocument["meta"];
+      theme?: BuilderTheme;
+    };
+    const version = candidate.schemaVersion;
+    if ((version !== 3 && version !== 4) || !Array.isArray(candidate.blocks) || !candidate.meta || !candidate.theme) {
       return null;
     }
 
     return {
-      ...(candidate as BuilderDocument),
+      schemaVersion: 4,
+      meta: candidate.meta,
+      theme: candidate.theme,
       blocks: normalizeBuilderBlocks(candidate.blocks as BuilderBlock[]),
     };
   } catch {
@@ -502,6 +510,10 @@ export function parseStoredBuilderDocument(raw: string | null | undefined): Buil
   const current = parseBuilderDocument(raw);
   if (current) return current;
 
-  // Legacy Puck support removed per builder redesign plan
-  return parseBuilderDocument(raw);
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parseLegacyPuckBuild(parsed);
+  } catch {
+    return null;
+  }
 }

@@ -131,7 +131,7 @@ export type BuilderBlock =
   | CustomEmbedBlock;
 
 export interface BuilderDocument {
-  schemaVersion: 3;
+  schemaVersion: 4;
   meta: {
     name: string;
     handle: string;
@@ -483,7 +483,7 @@ export function parseBuilderDocument(raw: string | null | undefined): BuilderDoc
     if (!parsed || typeof parsed !== "object") return null;
 
     const candidate = parsed as Partial<BuilderDocument> & { blocks?: unknown };
-    if (candidate.schemaVersion !== 3 || !Array.isArray(candidate.blocks) || !candidate.meta || !candidate.theme) {
+    if (candidate.schemaVersion !== 4 || !Array.isArray(candidate.blocks) || !candidate.meta || !candidate.theme) {
       return null;
     }
 
@@ -502,10 +502,6 @@ export function parseStoredBuilderDocument(raw: string | null | undefined): Buil
   const current = parseBuilderDocument(raw);
   if (current) return current;
 
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return parseLegacyPuckBuild(parsed);
-  } catch {
-    return null;
-  }
+  // Legacy Puck support removed per builder redesign plan
+  return parseBuilderDocument(raw);
 }

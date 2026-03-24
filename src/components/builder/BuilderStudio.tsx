@@ -436,7 +436,6 @@ export default function BuilderStudio({
   const [buildsLoading, setBuildsLoading] = useState(true);
   const [persisting, setPersisting] = useState<"draft" | "publish" | null>(null);
   const [persistMessage, setPersistMessage] = useState("Drafts are private until you publish.");
-  const [builderMode, setBuilderMode] = useState<"beginner" | "pro">("beginner");
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [wizardProgress, setWizardProgress] = useState({
     stylePicked: false,
@@ -466,7 +465,7 @@ export default function BuilderStudio({
 
   const activeHandle = useMemo(() => normalizeHandle(searchParams.get("handle") || document.meta.handle || defaultHandle || defaultStoreSlug), [searchParams, document.meta.handle, defaultHandle, defaultStoreSlug]);
   const selectedBlock = document.blocks.find((block) => block.id === selectedBlockId) || null;
-  const isGuidedMode = builderMode === "beginner";
+  const isGuidedMode = true;
   const styleReady = !!selectedStarterLayout && !!selectedThemePreset;
   const slotBlocks = useMemo(() => {
     const isColumnSlot = (slotId: TemplateSlotId) => slotId === "left" || slotId === "center" || slotId === "right";
@@ -496,13 +495,6 @@ export default function BuilderStudio({
 
   function advanceWizard(step: 1 | 2 | 3) {
     setWizardStep((current) => (step > current ? step : current));
-  }
-
-  function selectBuilderMode(mode: "beginner" | "pro") {
-    setBuilderMode(mode);
-    if (mode === "pro") {
-      setWizardStep(3);
-    }
   }
 
   function updateDocument(mutator: (current: BuilderDocument) => BuilderDocument) {
@@ -1317,11 +1309,16 @@ export default function BuilderStudio({
 
     setSelectedBlockId(blocks[0]?.id ?? null);
     setSelectedStarterLayout(selected.id);
+    setSelectedThemePreset(null);
     setPersistMessage(`Started from ${selected.title} layout.`);
     setWizardProgress((current) => ({ ...current, stylePicked: !!selectedThemePreset }));
   }
 
   function applyThemePreset(presetId: Exclude<ThemePresetId, "custom">) {
+    if (!selectedStarterLayout) {
+      setPersistMessage("Pick a starter base first, then choose a color scheme.");
+      return;
+    }
     const selected = THEME_PRESETS.find((preset) => preset.id === presetId) || THEME_PRESETS[0];
     updateDocument((current) => ({ ...current, theme: selected.theme }));
     setSelectedThemePreset(selected.id);
@@ -1512,71 +1509,10 @@ export default function BuilderStudio({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-zinc-800 bg-zinc-900/55 px-5 py-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Guided Builder</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Build Your Storefront</h1>
-          <p className="mt-2 text-sm text-zinc-400">Start with AI or a starter layout, then tweak blocks only when you need to.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-950/60 p-1">
-            <button
-              type="button"
-              onClick={() => selectBuilderMode("beginner")}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${builderMode === "beginner" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
-            >
-              Beginner
-            </button>
-            <button
-              type="button"
-              onClick={() => selectBuilderMode("pro")}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${builderMode === "pro" ? "bg-cyan-400 text-slate-950" : "text-zinc-300 hover:text-white"}`}
-            >
-              Pro
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadPreviewData()}
-            className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white"
-          >
-            Refresh X Data
-          </button>
-          <button
-            type="button"
-            onClick={() => void importFromX({ includeProducts: false })}
-            className="rounded-full border border-sky-500/50 px-4 py-2 text-sm text-sky-200 transition hover:border-sky-400 hover:text-sky-100"
-          >
-            Import PFP
-          </button>
-          <button
-            type="button"
-            onClick={() => void importFromX({ includeProducts: true })}
-            className="rounded-full border border-emerald-500/50 px-4 py-2 text-sm text-emerald-200 transition hover:border-emerald-400 hover:text-emerald-100"
-          >
-            Import Products
-          </button>
-          {builderMode === "pro" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => void persistDocument(false)}
-                disabled={persisting !== null}
-                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {persisting === "draft" ? "Saving..." : "Save Draft"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void persistDocument(true)}
-                disabled={persisting !== null}
-                className="rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {persisting === "publish" ? "Publishing..." : "Publish"}
-              </button>
-            </>
-          ) : null}
-        </div>
+      <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Guided Builder</p>
+        <h1 className="mt-1 text-2xl font-semibold text-white">Build Your Storefront</h1>
+        <p className="mt-2 text-sm text-zinc-400">Pick a starter layout, then a color preset, then arrange your grid in the steps below.</p>
       </div>
 
       <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-5">
@@ -1633,32 +1569,22 @@ export default function BuilderStudio({
             </div>
 
             <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">2) Pick a color scheme</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {THEME_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => applyThemePreset(preset.id)}
-                  className={`rounded-full border px-3 py-1 text-xs transition ${selectedThemePreset === preset.id ? "border-cyan-400 bg-cyan-500/10 text-cyan-200" : "border-zinc-700 text-zinc-200 hover:border-zinc-500 hover:text-white"}`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {THEME_FIELDS.map((field) => (
-                <label key={field.key} className="rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
-                  <span className="block pb-2">{field.label}</span>
-                  <input
-                    type="color"
-                    value={document.theme[field.key]}
-                    onChange={(event) => updateThemeField(field.key, event.target.value)}
-                    className="h-9 w-full cursor-pointer rounded border border-zinc-700 bg-zinc-900"
-                  />
-                </label>
-              ))}
-            </div>
+            {!selectedStarterLayout ? (
+              <p className="mt-2 text-sm text-zinc-500">Choose a starter base in step 1 first, then select a preset here.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {THEME_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyThemePreset(preset.id)}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${selectedThemePreset === preset.id ? "border-cyan-400 bg-cyan-500/10 text-cyan-200" : "border-zinc-700 text-zinc-200 hover:border-zinc-500 hover:text-white"}`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4">
               <p className="mb-2 text-xs text-zinc-500">Next action: choose both a starter and a color scheme.</p>
@@ -2381,18 +2307,6 @@ export default function BuilderStudio({
         </aside> : null}
       </div>
 
-      {isGuidedMode && wizardStep >= 3 ? (
-        <div className="rounded-[28px] border border-zinc-800 bg-zinc-900/55 p-4 text-sm text-zinc-300">
-          <p>Need more control? Switch to <span className="font-semibold text-white">Pro</span> mode to unlock full block library and inspector.</p>
-          <button
-            type="button"
-            onClick={() => selectBuilderMode("pro")}
-            className="mt-3 rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-100 transition hover:border-zinc-500"
-          >
-            Open Pro Editor
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
